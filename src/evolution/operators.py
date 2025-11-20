@@ -1,0 +1,300 @@
+"""
+Evolutionary Operators for ToM-NAS
+Mutation and crossover for neural architectures
+"""
+import torch
+import torch.nn as nn
+import copy
+import random
+import numpy as np
+from typing import Dict, List, Tuple, Optional
+
+
+class ArchitectureGene:
+    """Represents genetic encoding of architecture"""
+
+    def __init__(self):
+        self.gene_dict = {
+            # Architecture type
+            'arch_type': 'TRN',  # TRN, RSAN, Transformer, or Hybrid
+
+            # Layer configuration
+            'num_layers': 2,
+            'hidden_dim': 128,
+            'num_heads': 4,  # For attention-based models
+            'max_recursion': 5,  # For RSAN
+
+            # Component toggles
+            'use_layer_norm': True,
+            'use_dropout': True,
+            'dropout_rate': 0.1,
+
+            # Gating mechanisms (for TRN)
+            'use_update_gate': True,
+            'use_reset_gate': True,
+
+            # Output configuration
+            'belief_head_layers': 1,
+            'action_head_layers': 1,
+
+            # Training parameters
+            'learning_rate': 0.001,
+            'weight_decay': 0.0001,
+        }
+
+    def mutate(self, mutation_rate: float = 0.1) -> 'ArchitectureGene':
+        """Create mutated copy of gene"""
+        new_gene = copy.deepcopy(self)
+
+        for key, value in new_gene.gene_dict.items():
+            if random.random() < mutation_rate:
+                new_gene.gene_dict[key] = self._mutate_gene(key, value)
+
+        return new_gene
+
+    def _mutate_gene(self, key: str, value):
+        """Mutate individual gene"""
+        if key == 'arch_type':
+            return random.choice(['TRN', 'RSAN', 'Transformer', 'Hybrid'])
+
+        elif key in ['num_layers', 'belief_head_layers', 'action_head_layers']:
+            delta = random.choice([-1, 0, 1])
+            return max(1, min(5, value + delta))
+
+        elif key == 'hidden_dim':
+            multiplier = random.choice([0.5, 1.0, 1.5, 2.0])
+            return int(max(64, min(512, value * multiplier)))
+
+        elif key == 'num_heads':
+            return random.choice([2, 4, 8, 16])
+
+        elif key == 'max_recursion':
+            return random.randint(3, 7)
+
+        elif key in ['use_layer_norm', 'use_dropout', 'use_update_gate', 'use_reset_gate']:
+            return random.choice([True, False])
+
+        elif key == 'dropout_rate':
+            return random.uniform(0.0, 0.5)
+
+        elif key == 'learning_rate':
+            return random.uniform(0.0001, 0.01)
+
+        elif key == 'weight_decay':
+            return random.uniform(0.0, 0.001)
+
+        return value
+
+    def crossover(self, other: 'ArchitectureGene') -> Tuple['ArchitectureGene', 'ArchitectureGene']:
+        """Crossover with another gene"""
+        child1 = ArchitectureGene()
+        child2 = ArchitectureGene()
+
+        for key in self.gene_dict.keys():
+            if random.random() < 0.5:
+                child1.gene_dict[key] = self.gene_dict[key]
+                child2.gene_dict[key] = other.gene_dict[key]
+            else:
+                child1.gene_dict[key] = other.gene_dict[key]
+                child2.gene_dict[key] = self.gene_dict[key]
+
+        return child1, child2
+
+
+class WeightMutation:
+    """Mutate network weights directly"""
+
+    @staticmethod
+    def gaussian_noise(model: nn.Module, noise_std: float = 0.01) -> nn.Module:
+        """Add gaussian noise to weights"""
+        mutated = copy.deepcopy(model)
+        with torch.no_grad():
+            for param in mutated.parameters():
+                noise = torch.randn_like(param) * noise_std
+                param.add_(noise)
+        return mutated
+
+    @staticmethod
+    def random_reset(model: nn.Module, reset_prob: float = 0.1) -> nn.Module:
+        """Randomly reset some weights"""
+        mutated = copy.deepcopy(model)
+        with torch.no_grad():
+            for param in mutated.parameters():
+                mask = torch.rand_like(param) < reset_prob
+                if mask.any():
+                    param[mask] = torch.randn_like(param[mask]) * 0.02
+        return mutated
+
+    @staticmethod
+    def layer_shuffle(model: nn.Module) -> nn.Module:
+        """Shuffle some layers (experimental)"""
+        mutated = copy.deepcopy(model)
+        # This is a placeholder - full implementation would identify
+        # and shuffle compatible layers
+        return mutated
+
+
+class ArchitectureCrossover:
+    """Crossover operations for network architectures"""
+
+    @staticmethod
+    def weight_averaging(parent1: nn.Module, parent2: nn.Module,
+                        alpha: float = 0.5) -> nn.Module:
+        """Average weights of two networks"""
+        child = copy.deepcopy(parent1)
+        with torch.no_grad():
+            for p1, p2, pc in zip(parent1.parameters(),
+                                 parent2.parameters(),
+                                 child.parameters()):
+                if p1.shape == p2.shape:
+                    pc.data = alpha * p1.data + (1 - alpha) * p2.data
+        return child
+
+    @staticmethod
+    def layer_swap(parent1: nn.Module, parent2: nn.Module) -> nn.Module:
+        """Swap random layers between parents"""
+        # Placeholder for layer swapping
+        # Full implementation would identify compatible layers
+        # and swap them between networks
+        child = copy.deepcopy(parent1)
+        return child
+
+
+class PopulationOperators:
+    """High-level operators for managing populations"""
+
+    @staticmethod
+    def tournament_selection(population: List[Tuple[nn.Module, float]],
+                           tournament_size: int = 3) -> nn.Module:
+        """Select individual via tournament selection"""
+        tournament = random.sample(population, min(tournament_size, len(population)))
+        winner = max(tournament, key=lambda x: x[1])  # x[1] is fitness
+        return copy.deepcopy(winner[0])
+
+    @staticmethod
+    def elitism_selection(population: List[Tuple[nn.Module, float]],
+                         elite_size: int = 2) -> List[nn.Module]:
+        """Select top performers"""
+        sorted_pop = sorted(population, key=lambda x: x[1], reverse=True)
+        return [copy.deepcopy(ind[0]) for ind in sorted_pop[:elite_size]]
+
+    @staticmethod
+    def fitness_proportional_selection(population: List[Tuple[nn.Module, float]]) -> nn.Module:
+        """Roulette wheel selection based on fitness"""
+        fitnesses = [ind[1] for ind in population]
+        total_fitness = sum(max(0, f) for f in fitnesses)
+
+        if total_fitness == 0:
+            return copy.deepcopy(random.choice(population)[0])
+
+        # Normalize to probabilities
+        probabilities = [max(0, f) / total_fitness for f in fitnesses]
+
+        selected_idx = np.random.choice(len(population), p=probabilities)
+        return copy.deepcopy(population[selected_idx][0])
+
+
+class AdaptiveMutation:
+    """Adaptive mutation rates based on population diversity"""
+
+    def __init__(self, initial_rate: float = 0.1):
+        self.base_rate = initial_rate
+        self.current_rate = initial_rate
+        self.diversity_history = []
+
+    def update_rate(self, population_diversity: float):
+        """Adjust mutation rate based on diversity"""
+        self.diversity_history.append(population_diversity)
+
+        # Increase mutation if diversity is low
+        if population_diversity < 0.3:
+            self.current_rate = min(0.5, self.base_rate * 1.5)
+        elif population_diversity > 0.7:
+            self.current_rate = max(0.01, self.base_rate * 0.5)
+        else:
+            self.current_rate = self.base_rate
+
+    def get_rate(self) -> float:
+        return self.current_rate
+
+
+class SpeciesManager:
+    """Manage species/niches for diversity preservation"""
+
+    def __init__(self, compatibility_threshold: float = 0.3):
+        self.compatibility_threshold = compatibility_threshold
+        self.species = []
+
+    def speciate(self, population: List[Tuple[nn.Module, ArchitectureGene, float]]):
+        """Divide population into species"""
+        self.species = []
+
+        for individual, gene, fitness in population:
+            placed = False
+
+            for species in self.species:
+                # Check compatibility with species representative
+                rep_gene = species[0][1]
+                if self._genes_compatible(gene, rep_gene):
+                    species.append((individual, gene, fitness))
+                    placed = True
+                    break
+
+            if not placed:
+                # Create new species
+                self.species.append([(individual, gene, fitness)])
+
+    def _genes_compatible(self, gene1: ArchitectureGene,
+                         gene2: ArchitectureGene) -> bool:
+        """Check if two genes are compatible (similar)"""
+        differences = 0
+        total_genes = len(gene1.gene_dict)
+
+        for key in gene1.gene_dict.keys():
+            val1 = gene1.gene_dict[key]
+            val2 = gene2.gene_dict[key]
+
+            if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
+                if abs(val1 - val2) > 0.3 * max(abs(val1), abs(val2), 1.0):
+                    differences += 1
+            elif val1 != val2:
+                differences += 1
+
+        compatibility = 1.0 - (differences / total_genes)
+        return compatibility >= self.compatibility_threshold
+
+    def get_species_count(self) -> int:
+        return len(self.species)
+
+    def get_species_sizes(self) -> List[int]:
+        return [len(s) for s in self.species]
+
+
+class CoevolutionOperator:
+    """Manages coevolution between architectures, tasks, and evaluation"""
+
+    def __init__(self):
+        self.task_difficulty = 1.0
+        self.evaluation_strictness = 1.0
+
+    def adapt_tasks(self, population_performance: List[float]):
+        """Make tasks harder if population is doing well"""
+        avg_performance = np.mean(population_performance)
+
+        if avg_performance > 0.8:
+            self.task_difficulty = min(2.0, self.task_difficulty * 1.1)
+        elif avg_performance < 0.4:
+            self.task_difficulty = max(0.5, self.task_difficulty * 0.9)
+
+    def adapt_evaluation(self, population_variance: float):
+        """Adjust evaluation strictness based on population variance"""
+        if population_variance < 0.1:
+            # Population converging, be more strict
+            self.evaluation_strictness = min(2.0, self.evaluation_strictness * 1.1)
+        elif population_variance > 0.3:
+            # Population diverse, be more lenient
+            self.evaluation_strictness = max(0.5, self.evaluation_strictness * 0.9)
+
+    def get_adjusted_fitness(self, raw_fitness: float) -> float:
+        """Apply coevolutionary adjustments to fitness"""
+        return raw_fitness * self.evaluation_strictness / self.task_difficulty
