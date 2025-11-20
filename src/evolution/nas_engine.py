@@ -273,7 +273,7 @@ class NASEngine:
                 if ind.model is parent2_model:
                     parent2_gene = ind.gene
 
-            # If genes not found, create random gene
+            # Ensure we have valid genes (fallback to random gene)
             if parent1_gene is None:
                 parent1_gene = self._create_random_gene()
             if parent2_gene is None:
