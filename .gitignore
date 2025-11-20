@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.vscode/
+.idea/
+*.swp
+.DS_Store
+checkpoints/*.json
+*.log
+venv/
