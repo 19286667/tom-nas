@@ -8,3 +8,6 @@ __pycache__/
 checkpoints/*.json
 *.log
 venv/
+
+# Experiment outputs
+experiment_results/
