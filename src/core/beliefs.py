@@ -593,9 +593,22 @@ class RecursiveBeliefState(NestedBeliefStore):
                      confidence: float = 1.0, evidence: List = None,
                      source: str = "inference"):
         """Backward-compatible update method."""
-        # Build target chain for the order
-        target_chain = [target]  # Simplified - full chain would need more context
+        # Build target chain for the order (length must be order + 1)
+        # For backward compatibility, create chain with target repeated
+        target_chain = [target] * (order + 1)
         self.set_belief(order, target_chain, content, confidence, source, evidence)
+
+    def get_belief(self, order: int, target) -> Optional[BeliefNode]:
+        """
+        Backward-compatible get_belief that accepts int or list target.
+        """
+        # Handle both int (old API) and list (new API)
+        if isinstance(target, int):
+            # Create chain with correct length for order
+            target_chain = [target] * (order + 1)
+        else:
+            target_chain = list(target)
+        return super().get_belief(order, target_chain)
 
     def query_recursive_belief(self, belief_path: List[int]) -> Optional[BeliefNode]:
         """Query using belief path (list of agent IDs)."""

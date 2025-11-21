@@ -313,6 +313,7 @@ class SocialWorld4:
             })
 
         self.timestep += 1
+        results['timestep'] = self.timestep  # Update to reflect new timestep
         self.history.append(results)
         return results
 

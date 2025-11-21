@@ -67,7 +67,7 @@ class TestBeliefs(unittest.TestCase):
             belief = self.belief_state.get_belief(order, 1)
             if order <= 5:
                 self.assertIsNotNone(belief)
-                self.assertTrue(belief.confidence > 0)
+                self.assertTrue(belief.conf > 0)  # BeliefNode uses 'conf'
 
     def test_confidence_decay(self):
         """Test confidence decays with order"""
@@ -83,7 +83,9 @@ class TestBeliefs(unittest.TestCase):
         belief1 = self.belief_state.get_belief(1, 1)
         belief3 = self.belief_state.get_belief(3, 1)
 
-        self.assertGreater(belief1.confidence, belief3.confidence)
+        self.assertIsNotNone(belief1)
+        self.assertIsNotNone(belief3)
+        self.assertGreater(belief1.conf, belief3.conf)  # BeliefNode uses 'conf'
 
     def test_belief_network(self):
         """Test multi-agent belief network"""
