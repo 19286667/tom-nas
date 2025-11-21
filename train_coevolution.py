@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 """
-ToM-NAS Coevolutionary Training System - FIXED VERSION
+ToM-NAS Coevolutionary Training System - SCALED VERSION
 
-Key fixes from previous version:
-1. Fitness now ACTUALLY measures ToM test performance
-2. Species preservation prevents monoculture extinction
-3. Zombie detection actually tests detection ability
-4. Detailed fitness breakdown printed each generation
+Fixes:
+1. Final summary now shows actual metrics (not zeros)
+2. Scaled up: 24 agents, 50 generations, more rigorous evaluation
+3. Better tracking and visualization
+4. Species preservation with niche bonuses
 """
 import torch
 import torch.nn as nn
@@ -39,7 +39,7 @@ class AgentIndividual:
     generation: int = 0
     parent_ids: List[int] = field(default_factory=list)
 
-    # Detailed fitness components - THESE ARE THE ACTUAL SCORES
+    # Detailed fitness components
     sally_anne_score: float = 0.0
     higher_order_scores: Dict[int, float] = field(default_factory=dict)
     zombie_detection_score: float = 0.0
@@ -52,26 +52,30 @@ class AgentIndividual:
         if not self.higher_order_scores:
             self.higher_order_scores = {i: 0.0 for i in range(1, 6)}
 
+    def copy_scores_from(self, other: 'AgentIndividual'):
+        """Copy all score metrics from another agent"""
+        self.fitness = other.fitness
+        self.sally_anne_score = other.sally_anne_score
+        self.zombie_detection_score = other.zombie_detection_score
+        self.cooperation_score = other.cooperation_score
+        self.survival_score = other.survival_score
+        self.higher_order_scores = dict(other.higher_order_scores)
+
 
 class CoevolutionaryTrainer:
     """
-    FIXED Coevolutionary training system.
-
-    Key principles:
-    1. FITNESS = ACTUAL ToM TEST SCORES (not proxies)
-    2. Species preservation prevents extinction
-    3. Zombie detection actually tests if agent can identify zombies
+    Scaled coevolutionary training system for ToM-NAS.
     """
 
     def __init__(self, config: Dict):
         self.config = config
         self.device = config.get('device', 'cpu')
 
-        # Population settings
-        self.population_size = config.get('population_size', 12)
-        self.trn_count = config.get('trn_count', 4)
-        self.rsan_count = config.get('rsan_count', 4)
-        self.transformer_count = config.get('transformer_count', 4)
+        # Population settings - SCALED UP
+        self.population_size = config.get('population_size', 24)
+        self.trn_count = config.get('trn_count', 8)
+        self.rsan_count = config.get('rsan_count', 8)
+        self.transformer_count = config.get('transformer_count', 8)
 
         # Architecture settings
         self.input_dim = config.get('input_dim', 191)
@@ -81,14 +85,21 @@ class CoevolutionaryTrainer:
         # Evolution settings
         self.mutation_rate = config.get('mutation_rate', 0.15)
         self.crossover_rate = config.get('crossover_rate', 0.3)
-        self.elite_count = config.get('elite_count', 2)
+        self.elite_count = config.get('elite_count', 3)
 
-        # CRITICAL: Minimum species size to prevent extinction
-        self.min_species_size = config.get('min_species_size', 2)
+        # Species preservation - INCREASED
+        self.min_species_size = config.get('min_species_size', 3)
 
-        # Training settings
-        self.episodes_per_eval = config.get('episodes_per_eval', 3)
+        # Evaluation settings - MORE RIGOROUS
+        self.sally_anne_tests = config.get('sally_anne_tests', 20)
+        self.zombie_episodes = config.get('zombie_episodes', 10)
+        self.higher_order_tests = config.get('higher_order_tests', 10)
+        self.coop_episodes = config.get('coop_episodes', 5)
+        self.survival_episodes = config.get('survival_episodes', 5)
         self.sequence_length = config.get('sequence_length', 10)
+
+        # Checkpointing
+        self.checkpoint_interval = config.get('checkpoint_interval', 10)
 
         # Initialize components
         self.num_world_agents = config.get('num_world_agents', 6)
@@ -115,9 +126,15 @@ class CoevolutionaryTrainer:
         self.generation = 0
         self.next_id = self.population_size
 
-        # History tracking
+        # History tracking - ENHANCED
         self.best_fitness_history = []
         self.avg_fitness_history = []
+        self.sally_anne_history = []
+        self.zombie_history = []
+        self.species_history = {'TRN': [], 'RSAN': [], 'Transformer': [], 'Hybrid': []}
+
+        # Best agents per species
+        self.best_per_species = {}
 
     def _create_model(self, arch_type: str) -> nn.Module:
         """Create a model of specified architecture type"""
@@ -142,7 +159,7 @@ class CoevolutionaryTrainer:
             ).to(self.device)
 
     def _initialize_population(self) -> List[AgentIndividual]:
-        """Initialize diverse population with multiple architecture types"""
+        """Initialize diverse population"""
         population = []
         agent_id = 0
 
@@ -164,42 +181,50 @@ class CoevolutionaryTrainer:
 
     def evaluate_agent(self, agent: AgentIndividual, verbose: bool = False) -> float:
         """
-        FIXED: Fitness = ACTUAL ToM test scores
-
-        Components:
-        1. Sally-Anne (30%) - False belief understanding
-        2. Higher-Order ToM (25%) - Recursive belief depth
-        3. Zombie Detection (25%) - Genuine ToM validation
-        4. Cooperation (10%) - Agent's actual choices
-        5. Survival (10%) - Agent's resource accumulation
+        Comprehensive fitness evaluation with multiple tests per component.
         """
         agent.model.eval()
 
         with torch.no_grad():
-            # 1. SALLY-ANNE TEST (30%)
-            sally_score = self._test_sally_anne(agent)
+            # 1. SALLY-ANNE TEST (30%) - Multiple trials
+            sally_scores = []
+            for _ in range(self.sally_anne_tests):
+                sally_scores.append(self._test_sally_anne(agent))
+            sally_score = sum(sally_scores) / len(sally_scores)
             agent.sally_anne_score = sally_score
 
             # 2. HIGHER-ORDER ToM (25%)
             higher_order_total = 0.0
             for order in range(1, 6):
-                score = self._test_higher_order(agent, order)
-                agent.higher_order_scores[order] = score
-                higher_order_total += score * (order / 15.0)
+                order_scores = []
+                for _ in range(self.higher_order_tests):
+                    order_scores.append(self._test_higher_order(agent, order))
+                avg_order = sum(order_scores) / len(order_scores)
+                agent.higher_order_scores[order] = avg_order
+                higher_order_total += avg_order * (order / 15.0)
 
             # 3. ZOMBIE DETECTION (25%)
-            zombie_score = self._test_zombie_detection(agent)
+            zombie_scores = []
+            for _ in range(self.zombie_episodes):
+                zombie_scores.append(self._test_zombie_detection_single(agent))
+            zombie_score = sum(zombie_scores) / len(zombie_scores)
             agent.zombie_detection_score = zombie_score
 
-            # 4. COOPERATION (10%) - Agent's actual decisions
-            coop_score = self._test_cooperation(agent)
+            # 4. COOPERATION (10%)
+            coop_scores = []
+            for _ in range(self.coop_episodes):
+                coop_scores.append(self._test_cooperation_single(agent))
+            coop_score = sum(coop_scores) / len(coop_scores)
             agent.cooperation_score = coop_score
 
-            # 5. SURVIVAL (10%) - Agent's resource gain
-            survival_score = self._test_survival(agent)
+            # 5. SURVIVAL (10%)
+            survival_scores = []
+            for _ in range(self.survival_episodes):
+                survival_scores.append(self._test_survival_single(agent))
+            survival_score = sum(survival_scores) / len(survival_scores)
             agent.survival_score = survival_score
 
-        # COMPOSITE FITNESS - weighted sum of ACTUAL test scores
+        # COMPOSITE FITNESS
         fitness = (
             0.30 * sally_score +
             0.25 * higher_order_total +
@@ -213,7 +238,7 @@ class CoevolutionaryTrainer:
         if verbose:
             print(f"    Agent {agent.id} ({agent.architecture_type}):")
             print(f"      Sally-Anne: {sally_score:.3f}")
-            print(f"      Higher-Order: {higher_order_total:.3f} {dict(agent.higher_order_scores)}")
+            print(f"      Higher-Order: {higher_order_total:.3f}")
             print(f"      Zombie Det.: {zombie_score:.3f}")
             print(f"      Cooperation: {coop_score:.3f}")
             print(f"      Survival: {survival_score:.3f}")
@@ -222,262 +247,185 @@ class CoevolutionaryTrainer:
         return fitness
 
     def _test_sally_anne(self, agent: AgentIndividual) -> float:
-        """
-        Sally-Anne false belief test.
+        """Single Sally-Anne trial with slight variation"""
+        # Add small random variation to inputs for robustness testing
+        noise = torch.randn(1, 4, self.input_dim) * 0.05
 
-        Scenario: Sally puts marble in basket, leaves, Anne moves it to box.
-        Question: Where will Sally look?
-        Correct: Basket (Sally's false belief)
-        """
-        # Create scenario encoding
-        # [sally_here, anne_here, marble_basket, marble_box, sally_saw_move]
-
-        # Step 1: Sally puts marble in basket (both present)
         step1 = torch.zeros(1, 1, self.input_dim)
         step1[0, 0, 0] = 1.0  # Sally present
         step1[0, 0, 1] = 1.0  # Anne present
         step1[0, 0, 2] = 1.0  # Marble in basket
-        step1[0, 0, 3] = 0.0  # Marble not in box
 
-        # Step 2: Sally leaves
         step2 = torch.zeros(1, 1, self.input_dim)
         step2[0, 0, 0] = 0.0  # Sally gone
-        step2[0, 0, 1] = 1.0  # Anne present
-        step2[0, 0, 2] = 1.0  # Marble still in basket
+        step2[0, 0, 1] = 1.0
+        step2[0, 0, 2] = 1.0
 
-        # Step 3: Anne moves marble (Sally not watching)
         step3 = torch.zeros(1, 1, self.input_dim)
-        step3[0, 0, 0] = 0.0  # Sally gone
-        step3[0, 0, 1] = 1.0  # Anne present
-        step3[0, 0, 2] = 0.0  # Marble NOT in basket
-        step3[0, 0, 3] = 1.0  # Marble in box
+        step3[0, 0, 0] = 0.0
+        step3[0, 0, 1] = 1.0
+        step3[0, 0, 2] = 0.0  # Marble moved
+        step3[0, 0, 3] = 1.0  # To box
 
-        # Step 4: Sally returns - where does she believe marble is?
         step4 = torch.zeros(1, 1, self.input_dim)
         step4[0, 0, 0] = 1.0  # Sally back
-        step4[0, 0, 1] = 1.0  # Anne present
-        step4[0, 0, 2] = 0.0  # Marble actually NOT in basket
-        step4[0, 0, 3] = 1.0  # Marble actually in box
-        step4[0, 0, 4] = 0.0  # Sally did NOT see move
+        step4[0, 0, 1] = 1.0
+        step4[0, 0, 2] = 0.0
+        step4[0, 0, 3] = 1.0
+        step4[0, 0, 4] = 0.0  # Sally didn't see
 
         sequence = torch.cat([step1, step2, step3, step4], dim=1).to(self.device)
+        sequence = sequence + noise.to(self.device)
 
         output = agent.model(sequence)
         beliefs = output['beliefs']
 
-        # Check: Does agent predict Sally believes marble is in BASKET?
-        # beliefs[0] = basket belief, beliefs[1] = box belief
         basket_belief = beliefs[0, 0].item() if beliefs.shape[-1] > 0 else 0.5
         box_belief = beliefs[0, 1].item() if beliefs.shape[-1] > 1 else 0.5
 
-        # Score: How much more basket than box?
         if basket_belief > box_belief:
-            score = min(1.0, (basket_belief - box_belief) + 0.5)
+            return min(1.0, (basket_belief - box_belief) + 0.5)
         else:
-            score = max(0.0, 0.5 - (box_belief - basket_belief))
-
-        return score
+            return max(0.0, 0.5 - (box_belief - basket_belief))
 
     def _test_higher_order(self, agent: AgentIndividual, order: int) -> float:
-        """
-        Test nth-order Theory of Mind.
-
-        Order 1: A knows X
-        Order 2: A knows B knows X
-        Order 3: A knows B knows A knows X
-        etc.
-
-        Higher orders should show DECREASING confidence (more uncertainty)
-        """
-        # Create sequence encoding the belief depth
+        """Test nth-order ToM"""
         seq_len = order + 2
         sequence = torch.zeros(1, seq_len, self.input_dim).to(self.device)
 
-        # Encode belief chain markers
         for i in range(order):
-            sequence[0, i, 10 + i] = 1.0  # Mark each belief level
-            sequence[0, i, 50] = (order - i) / order  # Decreasing certainty signal
+            sequence[0, i, 10 + i] = 1.0
+            sequence[0, i, 50] = (order - i) / order
+
+        # Add noise for robustness
+        sequence = sequence + torch.randn_like(sequence) * 0.02
 
         output = agent.model(sequence)
         beliefs = output['beliefs']
 
-        # Expected: confidence should DECREASE with order
-        # Order 1: ~0.85, Order 2: ~0.7, Order 3: ~0.55, Order 4: ~0.4, Order 5: ~0.3
         expected_conf = max(0.25, 1.0 - (order - 1) * 0.15)
         actual_conf = beliefs.mean().item()
 
-        # Score based on how close to expected
         error = abs(actual_conf - expected_conf)
-        score = max(0.0, 1.0 - error * 2)
+        return max(0.0, 1.0 - error * 2)
 
-        return score
-
-    def _test_zombie_detection(self, agent: AgentIndividual) -> float:
-        """
-        FIXED: Actually test zombie detection ability.
-
-        Present agent with behavior sequences from zombies vs real agents.
-        Agent must correctly classify which is which.
-        """
+    def _test_zombie_detection_single(self, agent: AgentIndividual) -> float:
+        """Single zombie detection episode"""
+        self.world.reset()
         correct = 0
         total = 0
 
-        for episode in range(self.episodes_per_eval):
-            self.world.reset()
+        for suspect_id in range(self.world.num_agents):
+            is_zombie = self.world.agents[suspect_id].is_zombie
 
-            # Test each agent in the world
-            for suspect_id in range(self.world.num_agents):
-                is_zombie = self.world.agents[suspect_id].is_zombie
+            obs_sequence = torch.zeros(1, self.sequence_length, self.input_dim).to(self.device)
 
-                # Create observation of suspect's behavior
-                obs_sequence = torch.zeros(1, self.sequence_length, self.input_dim).to(self.device)
+            if is_zombie:
+                for t in range(self.sequence_length):
+                    obs_sequence[0, t, 0] = random.random()
+                    obs_sequence[0, t, 1] = random.random()
+                    obs_sequence[0, t, 5] = 0.0
+            else:
+                base_val = random.random()
+                for t in range(self.sequence_length):
+                    obs_sequence[0, t, 0] = base_val + random.gauss(0, 0.1)
+                    obs_sequence[0, t, 1] = base_val + random.gauss(0, 0.1)
+                    obs_sequence[0, t, 5] = 0.8
 
-                # Encode suspect's characteristics
-                suspect = self.world.agents[suspect_id]
+            output = agent.model(obs_sequence)
+            beliefs = output['beliefs']
 
-                # Zombies have specific behavioral signatures
-                if is_zombie:
-                    # Zombie signature: inconsistent, reactive, no belief modeling
-                    for t in range(self.sequence_length):
-                        obs_sequence[0, t, 0] = random.random()  # Erratic
-                        obs_sequence[0, t, 1] = random.random()  # Inconsistent
-                        obs_sequence[0, t, 5] = 0.0  # No belief signal
-                else:
-                    # Real agent: consistent, belief-driven
-                    base_val = random.random()
-                    for t in range(self.sequence_length):
-                        obs_sequence[0, t, 0] = base_val + random.gauss(0, 0.1)  # Consistent
-                        obs_sequence[0, t, 1] = base_val + random.gauss(0, 0.1)  # Coherent
-                        obs_sequence[0, t, 5] = 0.8  # Strong belief signal
+            prediction_real = beliefs[0, 5].item() if beliefs.shape[-1] > 5 else 0.5
+            predicted_zombie = prediction_real < 0.5
 
-                # Get agent's prediction
-                output = agent.model(obs_sequence)
-                beliefs = output['beliefs']
-
-                # Interpret: High belief[5] = real agent, Low = zombie
-                prediction_real = beliefs[0, 5].item() if beliefs.shape[-1] > 5 else 0.5
-                predicted_zombie = prediction_real < 0.5
-
-                if predicted_zombie == is_zombie:
-                    correct += 1
-                total += 1
+            if predicted_zombie == is_zombie:
+                correct += 1
+            total += 1
 
         return correct / max(total, 1)
 
-    def _test_cooperation(self, agent: AgentIndividual) -> float:
-        """
-        FIXED: Test agent's actual cooperation decisions.
-
-        Present repeated game scenarios, measure if agent:
-        - Cooperates with cooperators (TFT)
-        - Defects against defectors
-        - Shows strategic reciprocity
-        """
+    def _test_cooperation_single(self, agent: AgentIndividual) -> float:
+        """Single cooperation test episode"""
         good_decisions = 0
         total_decisions = 0
 
-        for episode in range(self.episodes_per_eval):
-            # Scenario 1: Partner cooperated last round - should cooperate
-            coop_history = torch.zeros(1, 5, self.input_dim).to(self.device)
-            coop_history[0, :, 80] = 1.0  # Game marker
-            coop_history[0, :, 81] = 0.9  # Partner cooperated
+        # Scenario 1: Partner cooperated
+        coop_history = torch.zeros(1, 5, self.input_dim).to(self.device)
+        coop_history[0, :, 80] = 1.0
+        coop_history[0, :, 81] = 0.9
+        output = agent.model(coop_history)
+        if output['actions'].mean().item() > 0.5:
+            good_decisions += 1
+        total_decisions += 1
 
-            output = agent.model(coop_history)
-            action = output['actions'].mean().item()
+        # Scenario 2: Partner defected
+        defect_history = torch.zeros(1, 5, self.input_dim).to(self.device)
+        defect_history[0, :, 80] = 1.0
+        defect_history[0, :, 81] = 0.1
+        output = agent.model(defect_history)
+        if output['actions'].mean().item() < 0.5:
+            good_decisions += 1
+        total_decisions += 1
 
-            # Good decision: cooperate back (action > 0.5)
-            if action > 0.5:
-                good_decisions += 1
-            total_decisions += 1
+        # Scenario 3: Mixed
+        mixed_history = torch.zeros(1, 5, self.input_dim).to(self.device)
+        mixed_history[0, :, 80] = 1.0
+        mixed_history[0, 0:2, 81] = 0.9
+        mixed_history[0, 2:5, 81] = 0.1
+        output = agent.model(mixed_history)
+        if output['actions'].mean().item() < 0.6:
+            good_decisions += 1
+        total_decisions += 1
 
-            # Scenario 2: Partner defected - should defect
-            defect_history = torch.zeros(1, 5, self.input_dim).to(self.device)
-            defect_history[0, :, 80] = 1.0  # Game marker
-            defect_history[0, :, 81] = 0.1  # Partner defected
+        return good_decisions / total_decisions
 
-            output = agent.model(defect_history)
-            action = output['actions'].mean().item()
+    def _test_survival_single(self, agent: AgentIndividual) -> float:
+        """Single survival test episode"""
+        self.world.reset()
+        initial_resources = 100.0
 
-            # Good decision: defect back (action < 0.5)
-            if action < 0.5:
-                good_decisions += 1
-            total_decisions += 1
+        for t in range(self.sequence_length):
+            obs = self.world.get_observation(0)
+            obs_tensor = torch.zeros(1, 1, self.input_dim).to(self.device)
+            obs_tensor[0, 0, 0] = obs['own_resources'] / 200.0
+            obs_tensor[0, 0, 1] = obs['own_energy'] / 100.0
 
-            # Scenario 3: Mixed history - should be cautious
-            mixed_history = torch.zeros(1, 5, self.input_dim).to(self.device)
-            mixed_history[0, :, 80] = 1.0
-            mixed_history[0, 0:2, 81] = 0.9  # Cooperated early
-            mixed_history[0, 2:5, 81] = 0.1  # Defected recently
+            output = agent.model(obs_tensor)
+            action_val = output['actions'].mean().item()
 
-            output = agent.model(mixed_history)
-            action = output['actions'].mean().item()
+            action_type = 'cooperate' if action_val > 0.5 else 'defect'
+            actions = [{'type': action_type}] + [{'type': 'cooperate'} for _ in range(self.world.num_agents - 1)]
+            self.world.step(actions, self.belief_network)
 
-            # Good decision: cautious/defensive (action < 0.6)
-            if action < 0.6:
-                good_decisions += 1
-            total_decisions += 1
-
-        return good_decisions / max(total_decisions, 1)
-
-    def _test_survival(self, agent: AgentIndividual) -> float:
-        """
-        FIXED: Measure agent's own resource accumulation.
-        """
-        total_gained = 0.0
-
-        for episode in range(self.episodes_per_eval):
-            self.world.reset()
-            initial_resources = 100.0
-
-            for t in range(self.sequence_length):
-                # Get agent's decision
-                obs = self.world.get_observation(0)
-                obs_tensor = torch.zeros(1, 1, self.input_dim).to(self.device)
-                obs_tensor[0, 0, 0] = obs['own_resources'] / 200.0
-                obs_tensor[0, 0, 1] = obs['own_energy'] / 100.0
-
-                output = agent.model(obs_tensor)
-                action_val = output['actions'].mean().item()
-
-                # Convert to action
-                if action_val > 0.6:
-                    action_type = 'cooperate'
-                elif action_val < 0.4:
-                    action_type = 'defect'
-                else:
-                    action_type = 'cooperate'  # Default
-
-                actions = [{'type': action_type}] + [{'type': 'cooperate'} for _ in range(self.world.num_agents - 1)]
-                self.world.step(actions, self.belief_network)
-
-            # Measure gain
-            final_resources = self.world.agents[0].resources
-            gain = (final_resources - initial_resources) / 100.0
-            total_gained += max(0, gain)
-
-        # Normalize
-        avg_gain = total_gained / self.episodes_per_eval
-        return min(1.0, avg_gain)
+        final_resources = self.world.agents[0].resources
+        gain = (final_resources - initial_resources) / 100.0
+        return min(1.0, max(0, gain))
 
     def select_parents(self) -> List[AgentIndividual]:
-        """
-        FIXED: Selection with species preservation.
-        Ensures minimum representation of each architecture type.
-        """
+        """Selection with species preservation and niche bonus"""
         parents = []
 
-        # 1. Elite preservation (best overall)
+        # Count species
+        species_counts = {}
+        for a in self.population:
+            species_counts[a.architecture_type] = species_counts.get(a.architecture_type, 0) + 1
+
+        # Apply niche bonus for rare species
+        for agent in self.population:
+            count = species_counts.get(agent.architecture_type, 1)
+            if count < 5:
+                agent.fitness *= 1.1  # 10% bonus for rare
+
+        # Elite preservation
         sorted_pop = sorted(self.population, key=lambda x: x.fitness, reverse=True)
         parents.extend(sorted_pop[:self.elite_count])
 
-        # 2. SPECIES PRESERVATION - ensure each type survives
+        # Species preservation
         for arch_type in ['TRN', 'RSAN', 'Transformer']:
             species_agents = [a for a in self.population if a.architecture_type == arch_type]
             in_parents = [p for p in parents if p.architecture_type == arch_type]
 
-            # Ensure minimum representation
             while len(in_parents) < self.min_species_size and species_agents:
-                # Add best from this species not already in parents
                 for agent in sorted(species_agents, key=lambda x: x.fitness, reverse=True):
                     if agent not in parents:
                         parents.append(agent)
@@ -486,7 +434,7 @@ class CoevolutionaryTrainer:
                 else:
                     break
 
-        # 3. Tournament selection for remaining slots
+        # Tournament selection
         while len(parents) < self.population_size // 2:
             tournament = random.sample(self.population, min(3, len(self.population)))
             winner = max(tournament, key=lambda x: x.fitness)
@@ -497,20 +445,16 @@ class CoevolutionaryTrainer:
 
     def crossover(self, parent1: AgentIndividual, parent2: AgentIndividual) -> AgentIndividual:
         """Create offspring through crossover"""
-        # Determine child architecture
         if parent1.architecture_type == parent2.architecture_type:
             child_type = parent1.architecture_type
         else:
-            # Different architectures - pick one or create hybrid
             if random.random() < 0.3:
                 child_type = 'Hybrid'
             else:
                 child_type = random.choice([parent1.architecture_type, parent2.architecture_type])
 
-        # Create new model
         child_model = self._create_model(child_type)
 
-        # Weight crossover
         p1_params = dict(parent1.model.named_parameters())
         p2_params = dict(parent2.model.named_parameters())
 
@@ -533,7 +477,7 @@ class CoevolutionaryTrainer:
         return child
 
     def mutate(self, agent: AgentIndividual) -> AgentIndividual:
-        """Apply mutation to agent's weights"""
+        """Apply mutation"""
         if random.random() > self.mutation_rate:
             return agent
 
@@ -544,8 +488,8 @@ class CoevolutionaryTrainer:
                     param.add_(noise)
         return agent
 
-    def evolve_generation(self):
-        """Evolve one generation with detailed output"""
+    def evolve_generation(self) -> Tuple[float, List[AgentIndividual]]:
+        """Evolve one generation, return best fitness AND evaluated population"""
         print(f"\n{'='*70}")
         print(f"GENERATION {self.generation}")
         print(f"{'='*70}")
@@ -562,6 +506,9 @@ class CoevolutionaryTrainer:
 
         for agent in self.population:
             self.evaluate_agent(agent, verbose=True)
+
+        # Store evaluated population BEFORE creating next generation
+        evaluated_population = [copy.deepcopy(a) for a in self.population]
 
         # Statistics
         fitnesses = [a.fitness for a in self.population]
@@ -582,8 +529,19 @@ class CoevolutionaryTrainer:
             agents = [a for a in self.population if a.architecture_type == arch_type]
             if agents:
                 avg_fit = sum(a.fitness for a in agents) / len(agents)
-                avg_sally = sum(a.sally_anne_score for a in agents) / len(agents)
-                print(f"  {arch_type:12s}: n={len(agents):2d}, fitness={avg_fit:.4f}, sally={avg_sally:.4f}")
+                best_agent = max(agents, key=lambda x: x.fitness)
+                self.best_per_species[arch_type] = best_agent
+                print(f"  {arch_type:12s}: n={len(agents):2d}, avg={avg_fit:.4f}, best={best_agent.fitness:.4f}")
+
+        # Track history
+        self.best_fitness_history.append(max(fitnesses))
+        self.avg_fitness_history.append(sum(fitnesses) / len(fitnesses))
+        self.sally_anne_history.append(sum(sally_scores) / len(sally_scores))
+        self.zombie_history.append(sum(zombie_scores) / len(zombie_scores))
+
+        for arch_type in ['TRN', 'RSAN', 'Transformer', 'Hybrid']:
+            agents = [a for a in self.population if a.architecture_type == arch_type]
+            self.species_history[arch_type].append(len(agents))
 
         # Select parents
         parents = self.select_parents()
@@ -591,24 +549,23 @@ class CoevolutionaryTrainer:
         # Create next generation
         new_population = []
 
-        # Keep elites
+        # Keep elites WITH their scores
         elites = sorted(self.population, key=lambda x: x.fitness, reverse=True)[:self.elite_count]
         for elite in elites:
             elite_copy = AgentIndividual(
                 id=elite.id,
                 architecture_type=elite.architecture_type,
                 model=copy.deepcopy(elite.model),
-                fitness=elite.fitness,
                 generation=elite.generation,
                 species_id=elite.species_id
             )
+            elite_copy.copy_scores_from(elite)  # FIXED: Copy all scores
             new_population.append(elite_copy)
 
-        # SPECIES PRESERVATION: Ensure each type has minimum representation
+        # Species preservation
         for arch_type in ['TRN', 'RSAN', 'Transformer']:
             current_count = len([a for a in new_population if a.architecture_type == arch_type])
             if current_count < self.min_species_size:
-                # Add fresh agents of this type
                 needed = self.min_species_size - current_count
                 for _ in range(needed):
                     new_agent = AgentIndividual(
@@ -644,40 +601,44 @@ class CoevolutionaryTrainer:
         self.population = new_population[:self.population_size]
         self.generation += 1
 
-        # Track history
-        self.best_fitness_history.append(max(fitnesses))
-        self.avg_fitness_history.append(sum(fitnesses) / len(fitnesses))
-
-        return max(fitnesses)
+        return max(fitnesses), evaluated_population
 
     def train(self, num_generations: int) -> Dict:
         """Run full coevolutionary training"""
         print("\n" + "=" * 80)
-        print("COEVOLUTIONARY TRAINING - ToM-NAS (FIXED)")
+        print("COEVOLUTIONARY TRAINING - ToM-NAS (SCALED)")
         print("=" * 80)
         print(f"Population: {self.population_size} agents")
         print(f"Architectures: TRN={self.trn_count}, RSAN={self.rsan_count}, Transformer={self.transformer_count}")
         print(f"Generations: {num_generations}")
-        print(f"Min species size: {self.min_species_size} (prevents extinction)")
+        print(f"Min species size: {self.min_species_size}")
+        print(f"Sally-Anne tests per agent: {self.sally_anne_tests}")
+        print(f"Zombie episodes per agent: {self.zombie_episodes}")
         print("=" * 80)
 
         best_overall = 0.0
         best_agent = None
+        last_evaluated_population = None
 
         for gen in range(num_generations):
-            best_gen = self.evolve_generation()
+            best_gen, evaluated_pop = self.evolve_generation()
+            last_evaluated_population = evaluated_pop  # Keep reference to evaluated agents
 
             if best_gen > best_overall:
                 best_overall = best_gen
-                best_agent = max(self.population, key=lambda x: x.fitness)
-                self._save_checkpoint(best_agent, gen)
+                best_agent = max(evaluated_pop, key=lambda x: x.fitness)
 
-        # Final evaluation
+            # Checkpoint
+            if (gen + 1) % self.checkpoint_interval == 0:
+                self._save_checkpoint(best_agent, gen)
+                self._save_history(gen)
+
+        # FINAL SUMMARY - Use last evaluated population (not new unevaluated one)
         print("\n" + "=" * 80)
         print("TRAINING COMPLETE")
         print("=" * 80)
 
-        final_ranking = sorted(self.population, key=lambda x: x.fitness, reverse=True)
+        final_ranking = sorted(last_evaluated_population, key=lambda x: x.fitness, reverse=True)
 
         print("\nFinal Top 5:")
         for i, agent in enumerate(final_ranking[:5]):
@@ -687,11 +648,19 @@ class CoevolutionaryTrainer:
             print(f"   Zombie Det: {agent.zombie_detection_score:.4f}")
             print(f"   Higher-Order: {agent.higher_order_scores}")
 
+        print("\nBest Per Species:")
+        for arch_type, agent in self.best_per_species.items():
+            print(f"  {arch_type}: fitness={agent.fitness:.4f}, sally={agent.sally_anne_score:.4f}")
+
         results = {
             'best_fitness': best_overall,
             'best_architecture': best_agent.architecture_type if best_agent else None,
             'generations': num_generations,
             'fitness_history': self.best_fitness_history,
+            'avg_fitness_history': self.avg_fitness_history,
+            'sally_anne_history': self.sally_anne_history,
+            'zombie_history': self.zombie_history,
+            'species_history': self.species_history,
             'final_population': [
                 {
                     'id': a.id,
@@ -708,10 +677,14 @@ class CoevolutionaryTrainer:
         with open(os.path.join(self.results_dir, 'results.json'), 'w') as f:
             json.dump(results, f, indent=2)
 
+        self._generate_summary_report(results)
+
         return results
 
     def _save_checkpoint(self, agent: AgentIndividual, generation: int):
         """Save checkpoint"""
+        if agent is None:
+            return
         path = os.path.join(self.results_dir, f'best_gen_{generation}.pt')
         torch.save({
             'model_state_dict': agent.model.state_dict(),
@@ -721,17 +694,63 @@ class CoevolutionaryTrainer:
             'zombie_detection': agent.zombie_detection_score,
             'higher_order': agent.higher_order_scores
         }, path)
+        print(f"  [Checkpoint saved: gen {generation}]")
+
+    def _save_history(self, generation: int):
+        """Save training history"""
+        history = {
+            'generation': generation,
+            'best_fitness': self.best_fitness_history,
+            'avg_fitness': self.avg_fitness_history,
+            'sally_anne': self.sally_anne_history,
+            'zombie': self.zombie_history,
+            'species': self.species_history
+        }
+        with open(os.path.join(self.results_dir, 'history.json'), 'w') as f:
+            json.dump(history, f, indent=2)
+
+    def _generate_summary_report(self, results: Dict):
+        """Generate text summary report"""
+        report = f"""
+ToM-NAS Training Summary
+========================
+
+Configuration:
+- Population: {self.population_size} agents
+- Generations: {results['generations']}
+- Architectures: TRN={self.trn_count}, RSAN={self.rsan_count}, Transformer={self.transformer_count}
+
+Results:
+- Best Fitness: {results['best_fitness']:.4f}
+- Best Architecture: {results['best_architecture']}
+
+Fitness Progression:
+- Gen 0: {self.best_fitness_history[0]:.4f}
+- Gen {len(self.best_fitness_history)-1}: {self.best_fitness_history[-1]:.4f}
+- Improvement: {(self.best_fitness_history[-1] - self.best_fitness_history[0]):.4f}
+
+Final Species Distribution:
+"""
+        for arch_type, counts in self.species_history.items():
+            if counts:
+                report += f"- {arch_type}: {counts[-1]} agents\n"
+
+        with open(os.path.join(self.results_dir, 'summary.txt'), 'w') as f:
+            f.write(report)
+        print(report)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='ToM-NAS Coevolutionary Training (FIXED)')
-    parser.add_argument('--population-size', type=int, default=12)
-    parser.add_argument('--trn-count', type=int, default=4)
-    parser.add_argument('--rsan-count', type=int, default=4)
-    parser.add_argument('--transformer-count', type=int, default=4)
+    parser = argparse.ArgumentParser(description='ToM-NAS Coevolutionary Training (SCALED)')
+    parser.add_argument('--population-size', type=int, default=24)
+    parser.add_argument('--trn-count', type=int, default=8)
+    parser.add_argument('--rsan-count', type=int, default=8)
+    parser.add_argument('--transformer-count', type=int, default=8)
     parser.add_argument('--generations', type=int, default=50)
-    parser.add_argument('--min-species-size', type=int, default=2,
-                       help='Minimum agents per architecture type (prevents extinction)')
+    parser.add_argument('--min-species-size', type=int, default=3)
+    parser.add_argument('--sally-anne-tests', type=int, default=20)
+    parser.add_argument('--zombie-episodes', type=int, default=10)
+    parser.add_argument('--checkpoint-interval', type=int, default=10)
     parser.add_argument('--device', type=str, default='cpu')
     parser.add_argument('--results-dir', type=str, default='coevolution_results')
     args = parser.parse_args()
@@ -742,6 +761,9 @@ def main():
         'rsan_count': args.rsan_count,
         'transformer_count': args.transformer_count,
         'min_species_size': args.min_species_size,
+        'sally_anne_tests': args.sally_anne_tests,
+        'zombie_episodes': args.zombie_episodes,
+        'checkpoint_interval': args.checkpoint_interval,
         'device': args.device,
         'results_dir': args.results_dir,
         'input_dim': 191,
@@ -749,7 +771,9 @@ def main():
         'ontology_dim': 181,
         'num_world_agents': 6,
         'num_zombies': 2,
-        'episodes_per_eval': 3,
+        'higher_order_tests': 10,
+        'coop_episodes': 5,
+        'survival_episodes': 5,
         'sequence_length': 10
     }
 
