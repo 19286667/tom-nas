@@ -1,0 +1,240 @@
+{
+  "timestamp": "2025-11-21T14:40:32.665072",
+  "baseline_results": {
+    "tom_order_0": {
+      "test_name": "Sally-Anne Order 0",
+      "random_mean": 0.5302615949478464,
+      "random_std": 0.23385975196802056,
+      "constant_mean": 0.4999999950000001,
+      "always_a_mean": 0.0,
+      "interpretation": "OK: Test appears to measure meaningful capability.",
+      "is_meaningful": true
+    },
+    "tom_order_1": {
+      "test_name": "Sally-Anne Order 1",
+      "random_mean": 0.545748909976496,
+      "random_std": 0.25372092728581713,
+      "constant_mean": 0.4999999950000001,
+      "always_a_mean": 0.9999999000000115,
+      "interpretation": "WARNING: Biased toward 'A' answer. Test may have exploitable structure.",
+      "is_meaningful": false
+    },
+    "tom_order_2": {
+      "test_name": "Sally-Anne Order 2",
+      "random_mean": 0.5313623023033142,
+      "random_std": 0.3219285059165468,
+      "constant_mean": 0.5,
+      "always_a_mean": 0.0,
+      "interpretation": "OK: Test appears to measure meaningful capability.",
+      "is_meaningful": true
+    },
+    "tom_order_3": {
+      "test_name": "Sally-Anne Order 3",
+      "random_mean": 0.5538308383226395,
+      "random_std": 0.24384887764872612,
+      "constant_mean": 0.3500000000000001,
+      "always_a_mean": 0.9299999833106993,
+      "interpretation": "WARNING: Biased toward 'A' answer. Test may have exploitable structure.",
+      "is_meaningful": false
+    },
+    "tom_order_4": {
+      "test_name": "Sally-Anne Order 4",
+      "random_mean": 0.364921925753355,
+      "random_std": 0.07725524404878209,
+      "constant_mean": 0.15000000000000002,
+      "always_a_mean": 0.3374999910593033,
+      "interpretation": "OK: Test appears to measure meaningful capability.",
+      "is_meaningful": true
+    },
+    "tom_order_5": {
+      "test_name": "Sally-Anne Order 5",
+      "random_mean": 0.43688354565699905,
+      "random_std": 0.0767134250398435,
+      "constant_mean": 0.55,
+      "always_a_mean": 0.3541666627551119,
+      "interpretation": "OK: Test appears to measure meaningful capability.",
+      "is_meaningful": true
+    },
+    "zombie_behavioral": {
+      "test_name": "Zombie Detection: behavioral",
+      "random_mean": 0.21461855785241574,
+      "random_std": 0.07647391683710435,
+      "constant_mean": 0.5,
+      "always_a_mean": 0.0,
+      "interpretation": "OK: Test appears meaningful.",
+      "is_meaningful": true
+    },
+    "zombie_belief": {
+      "test_name": "Zombie Detection: belief",
+      "random_mean": 0.5042871250308191,
+      "random_std": 0.215781386603981,
+      "constant_mean": 0.4999999950000001,
+      "always_a_mean": 0.0,
+      "interpretation": "OK: Test appears meaningful.",
+      "is_meaningful": true
+    },
+    "zombie_causal": {
+      "test_name": "Zombie Detection: causal",
+      "random_mean": 0.2932164077755693,
+      "random_std": 0.16107992144108838,
+      "constant_mean": 0.125,
+      "always_a_mean": 0.0,
+      "interpretation": "OK: Test appears meaningful.",
+      "is_meaningful": true
+    },
+    "zombie_metacognitive": {
+      "test_name": "Zombie Detection: metacognitive",
+      "random_mean": 0.5732,
+      "random_std": 0.2767774557293278,
+      "constant_mean": 0.0,
+      "always_a_mean": 0.0,
+      "interpretation": "OK: Test appears meaningful.",
+      "is_meaningful": true
+    },
+    "zombie_linguistic": {
+      "test_name": "Zombie Detection: linguistic",
+      "random_mean": 0.7042460457362862,
+      "random_std": 0.11644618003501021,
+      "constant_mean": 1.0,
+      "always_a_mean": 0.0,
+      "interpretation": "WARNING: Random scores 0.70. Test may be too easy.",
+      "is_meaningful": false
+    },
+    "zombie_emotional": {
+      "test_name": "Zombie Detection: emotional",
+      "random_mean": 0.41153698772192,
+      "random_std": 0.13345625851189136,
+      "constant_mean": 0.0,
+      "always_a_mean": 0.0,
+      "interpretation": "OK: Test appears meaningful.",
+      "is_meaningful": true
+    }
+  },
+  "order_analyses": {
+    "3": {
+      "order": 3,
+      "num_scenarios": 50,
+      "unique_scenarios": 1,
+      "answer_distribution": {
+        "{'sally_knows_anne_knows': 'uncertain'}": 1.0
+      },
+      "complexity_score": 0.01,
+      "potential_issues": [
+        "Low scenario diversity: only 1/50 unique",
+        "Skewed answer distribution: most common answer is 100.0%",
+        "Scoring function can be 'gamed' by outputting polarized beliefs"
+      ]
+    }
+  },
+  "hierarchy_validation": {
+    "independence_tests": [
+      {
+        "specialist_order": 0,
+        "scores": [
+          0.29221960228440264,
+          0.9992867805278278,
+          0.0010377824073657393,
+          0.0004829584097024053,
+          0.00027912109508179125,
+          0.2835867418306104
+        ]
+      },
+      {
+        "specialist_order": 1,
+        "scores": [
+          0.5694859409825118,
+          0.9975713062193078,
+          0.0010243200231343508,
+          0.0008972608018666505,
+          0.0004782879492267966,
+          0.28403143266332337
+        ]
+      },
+      {
+        "specialist_order": 2,
+        "scores": [
+          0.641348277953837,
+          0.4934204772795612,
+          0.000992928515188396,
+          0.8810348272323607,
+          0.32359734177589417,
+          0.24267517712044842
+        ]
+      },
+      {
+        "specialist_order": 3,
+        "scores": [
+          0.5215586939556093,
+          0.6414891406135532,
+          0.0008892805781215429,
+          0.8541470289230346,
+          0.3054361492395401,
+          0.2394353967664453
+        ]
+      },
+      {
+        "specialist_order": 4,
+        "scores": [
+          0.5400384086826198,
+          0.4378235762060243,
+          0.0014338645851239562,
+          0.8676611483097076,
+          0.32067903876304626,
+          0.24387827470782214
+        ]
+      },
+      {
+        "specialist_order": 5,
+        "scores": [
+          0.24132686184415544,
+          0.559414405090325,
+          0.0022985537070780993,
+          0.8983962059020996,
+          0.33284278213977814,
+          0.24411840066313745
+        ]
+      }
+    ],
+    "transfer_tests": {
+      "trained_orders": [
+        0,
+        1
+      ],
+      "scores_on_all": [
+        0.5844432652400812,
+        0.998328659548777,
+        0.0008618978899903595,
+        0.0008266040240414441,
+        0.00031793396919965744,
+        0.24212804501973248
+      ]
+    },
+    "hierarchy_valid": false,
+    "violations": [
+      "Order 1 specialist scores 1.00 on its order but only 0.57 on Order 0 - hierarchy may be inverted",
+      "Order 3 specialist scores 0.85 on its order but only 0.52 on Order 0 - hierarchy may be inverted"
+    ]
+  },
+  "metacognitive_analysis": {
+    "scoring_mechanism": {},
+    "edge_cases": [],
+    "potential_exploits": [],
+    "recommendations": [
+      "Consider adding more nuanced calibration tests (Brier score on predictions)",
+      "Test confidence vs actual accuracy, not just input characteristics",
+      "Add adversarial examples that should produce uncertainty"
+    ],
+    "random_baseline": {
+      "mean": 0.47950000000000004,
+      "std": 0.33868680222293873,
+      "max": 1.0,
+      "min": 0.0
+    }
+  },
+  "recommendations": [
+    "Review these tests (baseline issues): ['tom_order_1', 'tom_order_3', 'zombie_linguistic']",
+    "Order 3 test has issues: ['Low scenario diversity: only 1/50 unique', 'Skewed answer distribution: most common answer is 100.0%', \"Scoring function can be 'gamed' by outputting polarized beliefs\"]",
+    "ToM hierarchy appears violated - orders may not be truly hierarchical"
+  ],
+  "overall_validity": "INVALID"
+}
