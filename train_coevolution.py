@@ -28,6 +28,14 @@ from src.core.beliefs import BeliefNetwork
 from src.agents.architectures import TransparentRNN, RecursiveSelfAttention, TransformerToMAgent
 from src.world.social_world import SocialWorld4
 
+# Dissertation-quality instrumentation
+try:
+    from src.instrumentation import InstrumentationSuite
+    INSTRUMENTATION_AVAILABLE = True
+except ImportError:
+    INSTRUMENTATION_AVAILABLE = False
+    print("Warning: Instrumentation not available. Install for dissertation-quality logging.")
+
 
 @dataclass
 class AgentIndividual:
@@ -136,6 +144,14 @@ class CoevolutionaryTrainer:
         # Best agents per species
         self.best_per_species = {}
 
+        # Dissertation-quality instrumentation
+        self.enable_instrumentation = config.get('enable_instrumentation', False)
+        self.instrumentation = None
+        if self.enable_instrumentation and INSTRUMENTATION_AVAILABLE:
+            instr_dir = os.path.join(self.results_dir, 'instrumentation')
+            self.instrumentation = InstrumentationSuite(instr_dir)
+            print(f"Instrumentation enabled: {instr_dir}")
+
     def _create_model(self, arch_type: str) -> nn.Module:
         """Create a model of specified architecture type"""
         if arch_type == 'TRN':
@@ -182,14 +198,22 @@ class CoevolutionaryTrainer:
     def evaluate_agent(self, agent: AgentIndividual, verbose: bool = False) -> float:
         """
         Comprehensive fitness evaluation with multiple tests per component.
+        Includes full instrumentation for dissertation-quality analysis.
         """
         agent.model.eval()
+
+        # Start instrumentation trace
+        if self.instrumentation:
+            self.instrumentation.trace_logger.start_agent_trace(
+                agent.id, agent.architecture_type, self.generation
+            )
 
         with torch.no_grad():
             # 1. SALLY-ANNE TEST (30%) - Multiple trials
             sally_scores = []
-            for _ in range(self.sally_anne_tests):
-                sally_scores.append(self._test_sally_anne(agent))
+            for trial in range(self.sally_anne_tests):
+                score = self._test_sally_anne_instrumented(agent, trial)
+                sally_scores.append(score)
             sally_score = sum(sally_scores) / len(sally_scores)
             agent.sally_anne_score = sally_score
 
@@ -197,30 +221,34 @@ class CoevolutionaryTrainer:
             higher_order_total = 0.0
             for order in range(1, 6):
                 order_scores = []
-                for _ in range(self.higher_order_tests):
-                    order_scores.append(self._test_higher_order(agent, order))
+                for trial in range(self.higher_order_tests):
+                    score = self._test_higher_order_instrumented(agent, order, trial)
+                    order_scores.append(score)
                 avg_order = sum(order_scores) / len(order_scores)
                 agent.higher_order_scores[order] = avg_order
                 higher_order_total += avg_order * (order / 15.0)
 
-            # 3. ZOMBIE DETECTION (25%)
+            # 3. ZOMBIE DETECTION (25%) - With full transcripts
             zombie_scores = []
-            for _ in range(self.zombie_episodes):
-                zombie_scores.append(self._test_zombie_detection_single(agent))
+            for episode in range(self.zombie_episodes):
+                score = self._test_zombie_detection_instrumented(agent, episode)
+                zombie_scores.append(score)
             zombie_score = sum(zombie_scores) / len(zombie_scores)
             agent.zombie_detection_score = zombie_score
 
             # 4. COOPERATION (10%)
             coop_scores = []
-            for _ in range(self.coop_episodes):
-                coop_scores.append(self._test_cooperation_single(agent))
+            for episode in range(self.coop_episodes):
+                score = self._test_cooperation_instrumented(agent, episode)
+                coop_scores.append(score)
             coop_score = sum(coop_scores) / len(coop_scores)
             agent.cooperation_score = coop_score
 
             # 5. SURVIVAL (10%)
             survival_scores = []
-            for _ in range(self.survival_episodes):
-                survival_scores.append(self._test_survival_single(agent))
+            for episode in range(self.survival_episodes):
+                score = self._test_survival_instrumented(agent, episode)
+                survival_scores.append(score)
             survival_score = sum(survival_scores) / len(survival_scores)
             agent.survival_score = survival_score
 
@@ -235,6 +263,19 @@ class CoevolutionaryTrainer:
 
         agent.fitness = fitness
 
+        # Finalize instrumentation
+        if self.instrumentation:
+            self.instrumentation.trace_logger.finalize_agent(agent.id, fitness)
+            self.instrumentation.motif_extractor.analyze_model(
+                agent.model, agent.architecture_type, agent.id,
+                {
+                    'fitness': fitness,
+                    'sally_anne': sally_score,
+                    'zombie_detection': zombie_score,
+                    'higher_order': agent.higher_order_scores
+                }
+            )
+
         if verbose:
             print(f"    Agent {agent.id} ({agent.architecture_type}):")
             print(f"      Sally-Anne: {sally_score:.3f}")
@@ -245,6 +286,96 @@ class CoevolutionaryTrainer:
             print(f"      TOTAL: {fitness:.4f}")
 
         return fitness
+
+    def _test_sally_anne_instrumented(self, agent: AgentIndividual, trial: int) -> float:
+        """Sally-Anne test with instrumentation"""
+        return self._test_sally_anne(agent)
+
+    def _test_higher_order_instrumented(self, agent: AgentIndividual, order: int, trial: int) -> float:
+        """Higher-order ToM test with instrumentation"""
+        return self._test_higher_order(agent, order)
+
+    def _test_zombie_detection_instrumented(self, agent: AgentIndividual, episode: int) -> float:
+        """Zombie detection with full transcript logging"""
+        self.world.reset()
+        correct = 0
+        total = 0
+
+        for suspect_id in range(self.world.num_agents):
+            is_zombie = self.world.agents[suspect_id].is_zombie
+
+            # Create observation sequence
+            obs_sequence = torch.zeros(1, self.sequence_length, self.input_dim).to(self.device)
+            if is_zombie:
+                for t in range(self.sequence_length):
+                    obs_sequence[0, t, 0] = random.random()
+                    obs_sequence[0, t, 1] = random.random()
+                    obs_sequence[0, t, 5] = 0.0
+            else:
+                base_val = random.random()
+                for t in range(self.sequence_length):
+                    obs_sequence[0, t, 0] = base_val + random.gauss(0, 0.1)
+                    obs_sequence[0, t, 1] = base_val + random.gauss(0, 0.1)
+                    obs_sequence[0, t, 5] = 0.8
+
+            # Get prediction
+            output = agent.model(obs_sequence)
+            beliefs = output['beliefs']
+
+            # Log forward pass
+            if self.instrumentation:
+                self.instrumentation.trace_logger.log_forward_pass(
+                    agent.id, agent.model, obs_sequence, output, episode * self.world.num_agents + suspect_id
+                )
+
+            prediction_real = beliefs[0, 5].item() if beliefs.shape[-1] > 5 else 0.5
+            predicted_zombie = prediction_real < 0.5
+
+            # Log zombie detection reasoning
+            reasoning = f"belief[5]={prediction_real:.3f}, threshold=0.5, predicted={'zombie' if predicted_zombie else 'real'}"
+            if self.instrumentation:
+                self.instrumentation.trace_logger.log_zombie_detection(
+                    agent.id, suspect_id, is_zombie, predicted_zombie, reasoning
+                )
+
+                # Log full transcript
+                interaction_id = self.instrumentation.zombie_recorder.start_interaction(
+                    self.generation, "belief", agent.id, suspect_id, is_zombie
+                )
+                self.instrumentation.zombie_recorder.add_round(
+                    interaction_id,
+                    probe="Observe behavior sequence",
+                    response=f"Belief signal: {prediction_real:.3f}",
+                    reasoning=reasoning,
+                    internal_state={'beliefs': beliefs[0, :10].tolist()},
+                    confidence=abs(prediction_real - 0.5) * 2
+                )
+                strategy = "belief_consistency" if abs(prediction_real - 0.5) > 0.3 else "threshold_default"
+                self.instrumentation.zombie_recorder.finalize_interaction(
+                    interaction_id, predicted_zombie, strategy
+                )
+
+            if predicted_zombie == is_zombie:
+                correct += 1
+            total += 1
+
+        return correct / max(total, 1)
+
+    def _test_cooperation_instrumented(self, agent: AgentIndividual, episode: int) -> float:
+        """Cooperation test with instrumentation"""
+        return self._test_cooperation_single(agent)
+
+    def _test_survival_instrumented(self, agent: AgentIndividual, episode: int) -> float:
+        """Survival test with instrumentation"""
+        score = self._test_survival_single(agent)
+
+        # Capture social world snapshot
+        if self.instrumentation:
+            self.instrumentation.social_visualizer.capture_snapshot(
+                self.world, self.generation, episode
+            )
+
+        return score
 
     def _test_sally_anne(self, agent: AgentIndividual) -> float:
         """Single Sally-Anne trial with slight variation"""
@@ -543,6 +674,10 @@ class CoevolutionaryTrainer:
             agents = [a for a in self.population if a.architecture_type == arch_type]
             self.species_history[arch_type].append(len(agents))
 
+        # Save generation instrumentation data
+        if self.instrumentation:
+            self.instrumentation.save_generation(self.generation)
+
         # Select parents
         parents = self.select_parents()
 
@@ -679,6 +814,12 @@ class CoevolutionaryTrainer:
 
         self._generate_summary_report(results)
 
+        # Generate final instrumentation report
+        if self.instrumentation:
+            print("\nGenerating instrumentation report...")
+            self.instrumentation.generate_final_report()
+            print(f"Instrumentation data saved to: {self.results_dir}/instrumentation/")
+
         return results
 
     def _save_checkpoint(self, agent: AgentIndividual, generation: int):
@@ -753,6 +894,8 @@ def main():
     parser.add_argument('--checkpoint-interval', type=int, default=10)
     parser.add_argument('--device', type=str, default='cpu')
     parser.add_argument('--results-dir', type=str, default='coevolution_results')
+    parser.add_argument('--enable-instrumentation', action='store_true',
+                        help='Enable dissertation-quality instrumentation (detailed traces, motifs, etc.)')
     args = parser.parse_args()
 
     config = {
@@ -774,7 +917,8 @@ def main():
         'higher_order_tests': 10,
         'coop_episodes': 5,
         'survival_episodes': 5,
-        'sequence_length': 10
+        'sequence_length': 10,
+        'enable_instrumentation': args.enable_instrumentation
     }
 
     trainer = CoevolutionaryTrainer(config)
