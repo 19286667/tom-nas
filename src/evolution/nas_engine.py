@@ -273,11 +273,17 @@ class NASEngine:
                 if ind.model is parent2_model:
                     parent2_gene = ind.gene
 
+            # If genes not found, create random gene
+            if parent1_gene is None:
+                parent1_gene = self._create_random_gene()
+            if parent2_gene is None:
+                parent2_gene = self._create_random_gene()
+
             # Crossover genes
-            if random.random() < self.config.crossover_rate and parent1_gene and parent2_gene:
+            if random.random() < self.config.crossover_rate:
                 child_gene, _ = parent1_gene.crossover(parent2_gene)
             else:
-                child_gene = copy.deepcopy(parent1_gene if parent1_gene else parent2_gene)
+                child_gene = copy.deepcopy(parent1_gene)
 
             # Mutation
             if random.random() < mutation_rate:
