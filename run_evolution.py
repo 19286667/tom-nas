@@ -202,12 +202,12 @@ def run_evolution(num_generations: int = 10, population_size: int = 10,
         # Evolve one generation
         engine.evolve_generation()
 
-        # Get stats
-        fitnesses = [ind.fitness for ind in engine.population if ind.fitness is not None]
+        # Get stats from engine's history (recorded during evolve with valid fitness values)
+        # The engine records stats BEFORE population replacement, so these are accurate
         stats = {
-            'best_fitness': max(fitnesses) if fitnesses else 0,
-            'avg_fitness': np.mean(fitnesses) if fitnesses else 0,
-            'diversity': engine._calculate_diversity(),
+            'best_fitness': engine.history['best_fitness'][-1] if engine.history['best_fitness'] else 0,
+            'avg_fitness': engine.history['avg_fitness'][-1] if engine.history['avg_fitness'] else 0,
+            'diversity': engine.history['diversity'][-1] if engine.history['diversity'] else 0,
             'mutation_rate': engine.adaptive_mutation.get_rate(),
             'species_count': engine.species_manager.get_species_count() if engine.species_manager else 1
         }
