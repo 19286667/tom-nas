@@ -1,0 +1,81 @@
+{
+  "training_history": [
+    {
+      "epoch": 0,
+      "loss": 0.4901653200387955,
+      "accuracy": 0.0,
+      "belief_accuracy": 0.8254541330039501,
+      "action_accuracy": 0.36876108646392824,
+      "learning_rate": 0.001,
+      "timestamp": "2025-11-21T13:57:21.093908"
+    },
+    {
+      "epoch": 1,
+      "loss": 0.3500521183013916,
+      "accuracy": 0.0,
+      "belief_accuracy": 0.9576571235433221,
+      "action_accuracy": 0.3845815122127533,
+      "learning_rate": 0.001,
+      "timestamp": "2025-11-21T13:57:21.822022"
+    },
+    {
+      "epoch": 2,
+      "loss": 0.3164234012365341,
+      "accuracy": 0.0,
+      "belief_accuracy": 0.9913662058766931,
+      "action_accuracy": 0.384420782327652,
+      "learning_rate": 0.001,
+      "timestamp": "2025-11-21T13:57:22.549722"
+    },
+    {
+      "epoch": 3,
+      "loss": 0.31032384037971494,
+      "accuracy": 0.0,
+      "belief_accuracy": 0.9969613343477249,
+      "action_accuracy": 0.3854296445846558,
+      "learning_rate": 0.001,
+      "timestamp": "2025-11-21T13:57:23.300663"
+    },
+    {
+      "epoch": 4,
+      "loss": 0.30897133648395536,
+      "accuracy": 0.0,
+      "belief_accuracy": 0.9982248386368155,
+      "action_accuracy": 0.38560764789581303,
+      "learning_rate": 0.001,
+      "timestamp": "2025-11-21T13:57:24.057117"
+    }
+  ],
+  "evaluation_history": [
+    {
+      "benchmark_scores": {
+        "overall": 21.44359011934804
+      },
+      "tom_order_scores": {},
+      "cooperation_score": 0.0,
+      "zombie_detection_score": 0.0,
+      "overall_score": 21.44359011934804,
+      "timestamp": "2025-11-21T13:57:24.154308"
+    }
+  ],
+  "custom_metrics": {},
+  "summary": {
+    "training": {
+      "num_epochs": 5,
+      "final_loss": 0.30897133648395536,
+      "best_loss": 0.30897133648395536,
+      "avg_loss": 0.3551872032880783,
+      "final_accuracy": 0.0,
+      "best_accuracy": 0.0,
+      "avg_accuracy": 0.0,
+      "loss_improvement": 0.18119398355484012
+    },
+    "evaluation": {
+      "num_evaluations": 1,
+      "final_score": 21.44359011934804,
+      "best_score": 21.44359011934804,
+      "avg_score": 21.44359011934804,
+      "score_improvement": 0.0
+    }
+  }
+}
