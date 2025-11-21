@@ -555,6 +555,13 @@ Our AI must pass this test at multiple levels of complexity."""),
                 self.history['tom'].append(tom_score)
                 self.history['zombie'].append(zombie_score)
 
+                # Get population breakdown for display
+                population_info = []
+                for ind in engine.population[:10]:  # Show top 10
+                    arch = ind.gene.gene_dict.get('arch_type', 'Unknown')
+                    fit = f"{ind.fitness:.4f}" if ind.fitness is not None else "Evaluating..."
+                    population_info.append(f"{arch}: {fit}")
+
                 # Send update
                 self.message_queue.put(('update', {
                     'generation': gen + 1,
@@ -563,7 +570,8 @@ Our AI must pass this test at multiple levels of complexity."""),
                     'avg_fitness': avg_fitness,
                     'species_count': species_count,
                     'tom_score': tom_score,
-                    'best_arch': engine.best_individual.gene.gene_dict['arch_type'] if engine.best_individual else 'N/A'
+                    'best_arch': engine.best_individual.gene.gene_dict['arch_type'] if engine.best_individual else 'Initializing...',
+                    'population_breakdown': population_info
                 }))
 
             # Final results
@@ -621,9 +629,21 @@ Our AI must pass this test at multiple levels of complexity."""),
 
         self.progress_var.set((gen / total) * 100)
 
-        self.status_text.insert(tk.END,
-            f"Gen {gen}: Fitness={data['best_fitness']:.3f}, "
-            f"ToM={data['tom_score']:.2f}, Arch={data['best_arch']}\n")
+        # Show generation summary with architecture breakdown
+        status_line = f"Gen {gen}: Best={data['best_fitness']:.4f}, Avg={data.get('avg_fitness', 0):.4f}, "
+        status_line += f"ToM={data['tom_score']:.3f}, Arch={data['best_arch']}"
+        self.status_text.insert(tk.END, status_line + "\n")
+
+        # Show population breakdown if available
+        if 'population_breakdown' in data and data['population_breakdown']:
+            # Count by architecture
+            arch_counts = {}
+            for info in data['population_breakdown']:
+                arch = info.split(':')[0].strip()
+                arch_counts[arch] = arch_counts.get(arch, 0) + 1
+            breakdown = ", ".join([f"{k}:{v}" for k, v in arch_counts.items()])
+            self.status_text.insert(tk.END, f"  Population: {breakdown}\n")
+
         self.status_text.see(tk.END)
 
         # Update plot

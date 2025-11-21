@@ -221,6 +221,25 @@ class AutomatedExperiment:
                   f"Best: {best:.3f} | Avg: {avg:.3f} | "
                   f"Species: {species} | {gen_time:.1f}s", end='', flush=True)
 
+            # Every 5 generations, show detailed population breakdown
+            if (gen + 1) % 5 == 0:
+                print()  # New line
+                # Show architecture distribution
+                arch_counts = {}
+                for ind in self.engine.population:
+                    arch = ind.gene.gene_dict.get('arch_type', 'Unknown')
+                    arch_counts[arch] = arch_counts.get(arch, 0) + 1
+                arch_str = ", ".join([f"{k}:{v}" for k, v in arch_counts.items()])
+                print(f"       Population: {arch_str}")
+
+                # Show top 3 individuals with actual fitness values
+                sorted_pop = sorted([p for p in self.engine.population if p.fitness is not None],
+                                   key=lambda x: x.fitness, reverse=True)[:3]
+                if sorted_pop:
+                    top_str = " | ".join([f"{ind.gene.gene_dict.get('arch_type', '?')}:{ind.fitness:.4f}"
+                                         for ind in sorted_pop])
+                    print(f"       Top 3: {top_str}")
+
         print()  # New line after progress bar
 
         evolution_time = time.time() - evolution_start
@@ -549,6 +568,31 @@ END OF REPORT
         print("\n" + "=" * 70)
 
 
+def run_validation_check():
+    """Run the new comprehensive validation suite before experiment."""
+    try:
+        from validate_baselines import run_full_validation
+        print("\n  Running comprehensive baseline validation...")
+        report = run_full_validation(output_file=None, verbose=False)
+
+        if report.overall_validity == "VALID":
+            print("  [OK] Validation passed - tests appear scientifically sound")
+            return True
+        elif report.overall_validity == "NEEDS_REVIEW":
+            print("  [WARNING] Some validation concerns found:")
+            for rec in report.recommendations[:3]:
+                print(f"    - {rec}")
+            return True
+        else:
+            print("  [ERROR] Validation failed - review test suite before using results")
+            for rec in report.recommendations:
+                print(f"    - {rec}")
+            return False
+    except Exception as e:
+        print(f"  [WARNING] Could not run validation: {e}")
+        return True  # Continue anyway
+
+
 def main():
     """Run automated experiment."""
     # Parse command line args for config overrides
@@ -564,8 +608,27 @@ def main():
                         help='Output directory (default: experiment_results)')
     parser.add_argument('--quick', action='store_true',
                         help='Quick run with fewer generations')
+    parser.add_argument('--skip-validation', action='store_true',
+                        help='Skip comprehensive validation check')
+    parser.add_argument('--validate-only', action='store_true',
+                        help='Only run validation, no experiment')
 
     args = parser.parse_args()
+
+    # Option to run validation only
+    if args.validate_only:
+        print_banner("ToM-NAS Validation Only Mode")
+        from validate_baselines import run_full_validation
+        run_full_validation(output_file="validation_report.json", verbose=True)
+        return 0
+
+    # Run validation check before experiment (unless skipped)
+    if not args.skip_validation:
+        print_banner("Pre-Experiment Validation")
+        if not run_validation_check():
+            print("\n[ERROR] Fix validation issues before running experiment")
+            print("Use --skip-validation to bypass this check")
+            return 1
 
     config = CONFIG.copy()
     config['generations'] = 10 if args.quick else args.generations
