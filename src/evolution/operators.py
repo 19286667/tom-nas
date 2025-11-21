@@ -219,55 +219,64 @@ class AdaptiveMutation:
 
 
 class SpeciesManager:
-    """Manage species/niches for diversity preservation"""
+    """Manage species/niches for diversity preservation.
+
+    Species are defined by architecture type (TRN, RSAN, Transformer, Hybrid).
+    This ensures true coevolution between different architecture families.
+    """
 
     def __init__(self, compatibility_threshold: float = 0.3):
         self.compatibility_threshold = compatibility_threshold
-        self.species = []
+        # Species organized by architecture type
+        self.species: Dict[str, List] = {
+            'TRN': [],
+            'RSAN': [],
+            'Transformer': [],
+            'Hybrid': []
+        }
 
     def speciate(self, population: List[Tuple[nn.Module, ArchitectureGene, float]]):
-        """Divide population into species"""
-        self.species = []
+        """Divide population into species BY ARCHITECTURE TYPE.
 
+        This is the key coevolutionary mechanism - different architectures
+        compete within their own species and cooperate across species.
+        """
+        # Clear existing species
+        for arch_type in self.species:
+            self.species[arch_type] = []
+
+        # Assign each individual to species by arch_type
         for individual, gene, fitness in population:
-            placed = False
-
-            for species in self.species:
-                # Check compatibility with species representative
-                rep_gene = species[0][1]
-                if self._genes_compatible(gene, rep_gene):
-                    species.append((individual, gene, fitness))
-                    placed = True
-                    break
-
-            if not placed:
-                # Create new species
-                self.species.append([(individual, gene, fitness)])
+            arch_type = gene.gene_dict.get('arch_type', 'TRN')
+            if arch_type not in self.species:
+                self.species[arch_type] = []
+            self.species[arch_type].append((individual, gene, fitness))
 
     def _genes_compatible(self, gene1: ArchitectureGene,
                          gene2: ArchitectureGene) -> bool:
-        """Check if two genes are compatible (similar)"""
-        differences = 0
-        total_genes = len(gene1.gene_dict)
-
-        for key in gene1.gene_dict.keys():
-            val1 = gene1.gene_dict[key]
-            val2 = gene2.gene_dict[key]
-
-            if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
-                if abs(val1 - val2) > 0.3 * max(abs(val1), abs(val2), 1.0):
-                    differences += 1
-            elif val1 != val2:
-                differences += 1
-
-        compatibility = 1.0 - (differences / total_genes)
-        return compatibility >= self.compatibility_threshold
+        """Check if two genes are compatible (same architecture type)."""
+        return gene1.gene_dict.get('arch_type') == gene2.gene_dict.get('arch_type')
 
     def get_species_count(self) -> int:
-        return len(self.species)
+        """Return count of non-empty species."""
+        return sum(1 for pop in self.species.values() if len(pop) > 0)
 
     def get_species_sizes(self) -> List[int]:
-        return [len(s) for s in self.species]
+        """Return size of each non-empty species."""
+        return [len(pop) for pop in self.species.values() if len(pop) > 0]
+
+    def get_species_stats(self) -> Dict[str, Dict]:
+        """Return detailed stats per species."""
+        stats = {}
+        for arch_type, population in self.species.items():
+            if population:
+                fitnesses = [f for _, _, f in population if f is not None]
+                stats[arch_type] = {
+                    'count': len(population),
+                    'best_fitness': max(fitnesses) if fitnesses else 0.0,
+                    'avg_fitness': np.mean(fitnesses) if fitnesses else 0.0
+                }
+        return stats
 
 
 class CoevolutionOperator:

@@ -214,16 +214,66 @@ class SallyAnneBenchmark(DevelopmentalToMBenchmark):
             score = anne_thinks_sally_a
             predicted = 'A' if correct else 'B'
 
-        else:
-            # Higher orders - check for appropriate uncertainty
-            # At orders 3+, agent should recognize uncertainty
-            relevant_beliefs = beliefs[self.scenario_gen.SALLY_ABOUT_ANNE_A:].mean().item() \
-                if len(beliefs) > self.scenario_gen.SALLY_ABOUT_ANNE_A else 0.5
-            # Good response: uncertainty (around 0.5)
-            uncertainty_penalty = abs(relevant_beliefs - 0.5)
-            score = 1.0 - uncertainty_penalty
-            correct = score > 0.6
-            predicted = 'uncertain' if correct else 'confident'
+        elif self.order == 3:
+            # Order 3: Sally knows Anne knows Sally's belief
+            # Requires: tracking that Anne observed Sally, so Anne updated her model
+            # Agent must show Sally has SOME model of Anne's knowledge (not random)
+            sally_about_anne = beliefs[self.scenario_gen.SALLY_ABOUT_ANNE_A].item() \
+                if len(beliefs) > self.scenario_gen.SALLY_ABOUT_ANNE_A else 0.0
+            sally_about_anne_b = beliefs[self.scenario_gen.SALLY_ABOUT_ANNE_B].item() \
+                if len(beliefs) > self.scenario_gen.SALLY_ABOUT_ANNE_B else 0.0
+
+            # Sally should track that Anne likely knows Sally thinks A
+            # (because Anne was present when Sally originally saw object)
+            # Score requires ACTIVE prediction, not just uncertainty
+            belief_diff = abs(sally_about_anne - sally_about_anne_b)
+            has_prediction = belief_diff > 0.2  # Must have non-random prediction
+
+            score = sally_about_anne * 0.7 + (0.3 if has_prediction else 0.0)
+            correct = sally_about_anne > 0.4 and has_prediction
+            predicted = f"sally_thinks_anne_knows_A:{sally_about_anne:.2f}"
+
+        elif self.order == 4:
+            # Order 4: Anne thinks Sally thinks Anne knows
+            # Even more nested - requires maintaining coherent recursive model
+            # Must show structure, not random values
+            beliefs_slice = beliefs[8:12] if len(beliefs) > 11 else beliefs[-4:]
+            belief_mean = beliefs_slice.mean().item()
+            belief_std = beliefs_slice.std().item() if len(beliefs_slice) > 1 else 0.0
+
+            # Require STRUCTURED beliefs (std > 0.1) AND coherent prediction
+            has_structure = belief_std > 0.1
+            coherent = 0.2 < belief_mean < 0.8  # Not extreme values
+
+            score = (belief_mean * 0.5 + belief_std * 0.5) if has_structure else belief_mean * 0.3
+            correct = has_structure and coherent
+            predicted = f"structured:{has_structure}, mean:{belief_mean:.2f}"
+
+        else:  # Order 5
+            # Order 5: Deepest nesting - requires full recursive chain
+            # Must demonstrate coherent tracking across ALL levels
+            level_scores = []
+            for i in range(min(6, len(beliefs) // 2)):
+                level_belief = beliefs[i * 2:(i + 1) * 2].mean().item() if len(beliefs) > (i + 1) * 2 else 0.5
+                level_scores.append(level_belief)
+
+            if level_scores:
+                # Check for DECREASING confidence at higher levels (realistic)
+                # Humans have less certainty about deeply nested beliefs
+                is_decreasing = all(level_scores[i] >= level_scores[i+1] - 0.1
+                                   for i in range(len(level_scores)-1))
+                variance = np.var(level_scores) if len(level_scores) > 1 else 0.0
+                has_structure = variance > 0.01
+
+                score = (np.mean(level_scores) * 0.5 +
+                        (0.3 if is_decreasing else 0.0) +
+                        (0.2 if has_structure else 0.0))
+                correct = is_decreasing and has_structure and np.mean(level_scores) > 0.3
+            else:
+                score = 0.0
+                correct = False
+
+            predicted = f"decreasing_confidence:{is_decreasing if level_scores else False}"
 
         return BenchmarkResult(
             name=f"Sally-Anne Order {self.order}",
@@ -436,6 +486,44 @@ class NarrativeToMBenchmark(DevelopmentalToMBenchmark):
         )
 
 
+def validate_tom_hierarchy(scores: Dict[int, float], agent_id: str = "") -> Tuple[bool, List[str]]:
+    """
+    Validate that ToM scores follow expected hierarchy.
+
+    Lower orders should generally be easier than higher orders.
+    Violations suggest tests are broken or agent is pattern-matching.
+
+    Args:
+        scores: Dict mapping order (0-5) to score
+        agent_id: Optional identifier for error messages
+
+    Returns:
+        Tuple of (is_valid, list_of_violations)
+    """
+    violations = []
+
+    for order in range(1, min(6, len(scores))):
+        prev_score = scores.get(order - 1, 0)
+        curr_score = scores.get(order, 0)
+
+        # Higher order significantly easier than lower = violation
+        # Allow small margin (0.15) for noise
+        if curr_score > prev_score + 0.15:
+            violations.append(
+                f"Order {order} ({curr_score:.3f}) > Order {order-1} ({prev_score:.3f})"
+            )
+
+    is_valid = len(violations) == 0
+
+    if not is_valid and agent_id:
+        print(f"\n[ToM HIERARCHY WARNING for {agent_id}]")
+        for v in violations:
+            print(f"  - {v}")
+        print("  This may indicate tests are misconfigured or agent is exploiting test structure.\n")
+
+    return is_valid, violations
+
+
 class ToMBenchmarkSuite:
     """
     Complete Theory of Mind Benchmark Suite.
@@ -445,6 +533,8 @@ class ToMBenchmarkSuite:
     - Smarties test
     - Strategic deception test
     - Narrative comprehension
+
+    Now includes hierarchy validation to catch inverted/broken tests.
     """
 
     def __init__(self, input_dim: int = 191, device: str = 'cpu'):
@@ -465,7 +555,7 @@ class ToMBenchmarkSuite:
         self.benchmarks['strategic_deception'] = StrategicDeceptionBenchmark(input_dim, device)
         self.benchmarks['narrative'] = NarrativeToMBenchmark(input_dim, device)
 
-    def run_full_evaluation(self, agent: nn.Module) -> Dict[str, Any]:
+    def run_full_evaluation(self, agent: nn.Module, agent_id: str = "") -> Dict[str, Any]:
         """Run all benchmarks and return comprehensive results."""
         results = {}
         scores_by_order = {i: [] for i in range(6)}
@@ -493,12 +583,17 @@ class ToMBenchmarkSuite:
         sally_anne_scores = [results[f'sally_anne_order_{i}']['score']
                            for i in range(6) if f'sally_anne_order_{i}' in results]
 
-        # Max ToM order achieved (highest order passed)
+        # Max ToM order achieved (highest order passed WITH valid hierarchy)
         max_order_achieved = -1
         for i in range(6):
             key = f'sally_anne_order_{i}'
             if key in results and results[key]['passed']:
                 max_order_achieved = i
+
+        # HIERARCHY VALIDATION - catch inverted scores
+        sally_anne_dict = {i: results[f'sally_anne_order_{i}']['score']
+                         for i in range(6) if f'sally_anne_order_{i}' in results}
+        hierarchy_valid, violations = validate_tom_hierarchy(sally_anne_dict, agent_id)
 
         return {
             'benchmark_results': results,
@@ -508,7 +603,9 @@ class ToMBenchmarkSuite:
             'scores_by_order': {k: np.mean(v) if v else 0.0
                                for k, v in scores_by_order.items()},
             'num_passed': sum(1 for r in results.values() if r.get('passed', False)),
-            'num_total': len(results)
+            'num_total': len(results),
+            'hierarchy_valid': hierarchy_valid,
+            'hierarchy_violations': violations
         }
 
     def run_developmental_progression(self, agent: nn.Module) -> Dict[str, Any]:
