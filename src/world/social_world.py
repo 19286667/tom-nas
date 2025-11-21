@@ -75,6 +75,31 @@ class SocialWorld4:
         self.mutual_defection_reward = 1.0
         self.resource_transfer_cost = 0.1
 
+        # Store initial config for reset
+        self._num_zombies = num_zombies
+
+    def reset(self):
+        """Reset world to initial state"""
+        self.timestep = 0
+        self.history = []
+        self.coalitions = {}
+        self.next_coalition_id = 0
+
+        # Reinitialize agents
+        self.agents = []
+        for i in range(self.num_agents):
+            agent = Agent(id=i)
+            agent.ontology_state = torch.randn(self.ontology_dim)
+            agent.reputation = {j: 0.5 for j in range(self.num_agents)}
+            self.agents.append(agent)
+
+        # Create new zombies
+        zombie_indices = random.sample(range(self.num_agents), min(self._num_zombies, self.num_agents))
+        for idx in zombie_indices:
+            self.agents[idx] = self.zombie_game.create_zombie(idx)
+            self.agents[idx].ontology_state = torch.randn(self.ontology_dim)
+            self.agents[idx].reputation = {j: 0.5 for j in range(self.num_agents)}
+
     def play_cooperation_game(self, agent1_id: int, agent2_id: int,
                              action1: str, action2: str) -> Dict:
         """Prisoner's Dilemma style cooperation game"""
