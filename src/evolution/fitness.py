@@ -104,29 +104,100 @@ class ToMFitnessEvaluator:
         return metrics
 
     def _observation_to_tensor(self, obs: Dict) -> torch.Tensor:
-        """Convert observation dict to tensor input"""
-        # Simplified conversion - in full version would be more sophisticated
-        features = [
-            obs['own_resources'] / 200.0,
-            obs['own_energy'] / 100.0,
-            float(obs['own_coalition'] is not None)
-        ]
+        """Convert observation dict to tensor input using ontology-aligned encoding.
 
-        # Add features from other agents
-        for other_obs in obs['observations'][:5]:  # Limit to 5 neighbors
-            features.extend([
-                other_obs['estimated_resources'] / 200.0,
-                other_obs['estimated_energy'] / 100.0,
-                other_obs['reputation'],
-                float(other_obs['in_same_coalition'])
-            ])
+        Encoding structure (191 dimensions):
+        - [0-14]: Biological layer (self state)
+        - [15-38]: Affective layer (emotional state)
+        - [39-58]: Social perception (observed agents)
+        - [59-98]: Belief representations (about others)
+        - [99-138]: Action history encoding
+        - [139-178]: Context features
+        - [179-190]: Meta-cognitive features
+        """
+        features = torch.zeros(191)
 
-        # Pad to fixed size
-        while len(features) < 191:
-            features.append(0.0)
-        features = features[:191]
+        # === Biological Layer (0-14) ===
+        # Map resources and energy to biological dimensions
+        features[0] = min(1.0, obs['own_resources'] / 200.0)  # energy_level
+        features[1] = min(1.0, obs['own_energy'] / 100.0)  # fatigue (inverse)
+        features[2] = 1.0 - features[1]  # stress (inverse of energy)
+        features[3] = 0.5 + (features[0] - 0.5) * 0.5  # health (resource dependent)
+        features[4] = 0.5  # baseline arousal
+        # Fill remaining bio slots with normalized baseline values
+        features[5:15] = 0.5
 
-        return torch.tensor(features, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        # === Affective Layer (15-38) ===
+        # Derive emotional state from situation
+        has_coalition = obs['own_coalition'] is not None
+        avg_reputation = np.mean([o['reputation'] for o in obs['observations']]) if obs['observations'] else 0.5
+
+        features[15] = 0.5 + (features[0] - 0.5) * 0.5  # valence (resource dependent)
+        features[16] = 0.3 + 0.4 * (1 - features[1])  # arousal
+        features[17] = 0.5 + 0.3 * float(has_coalition)  # dominance (coalition boost)
+        features[18] = max(0, min(1, features[0]))  # joy (resource proportional)
+        features[19] = max(0, 1 - features[0])  # sadness (inverse)
+        features[20] = max(0, 0.5 - avg_reputation) * 2  # fear (low reputation = fear)
+        features[21] = max(0, 0.5 - features[0]) * 2  # anger (low resources)
+        features[22] = 0.5  # disgust baseline
+        features[23] = 0.3  # surprise baseline
+        features[24] = max(0, 1 - avg_reputation) * 0.5  # shame
+        features[25] = 0.3  # guilt baseline
+        features[26] = avg_reputation  # pride (reputation-based)
+        features[27] = max(0, 0.5 - features[0]) * 2  # envy (low resources)
+        features[28] = 0.3  # jealousy baseline
+        features[29] = avg_reputation  # gratitude
+        features[30] = 0.5 + 0.3 * float(has_coalition)  # compassion
+        features[31] = 0.5 + 0.2 * float(has_coalition)  # love
+        features[32] = avg_reputation  # trust
+        features[33:39] = 0.5  # remaining affect
+
+        # === Social Perception (39-58): Encode observed agents ===
+        num_other_agents = min(5, len(obs['observations']))
+        for i, other_obs in enumerate(obs['observations'][:5]):
+            base_idx = 39 + i * 4
+            features[base_idx] = min(1.0, max(0.0, other_obs['estimated_resources'] / 200.0))
+            features[base_idx + 1] = min(1.0, max(0.0, other_obs['estimated_energy'] / 100.0))
+            features[base_idx + 2] = other_obs['reputation']
+            features[base_idx + 3] = float(other_obs['in_same_coalition'])
+
+        # === Belief Representations (59-98): Model of others' states ===
+        # Encode uncertainty about others' beliefs (higher-order ToM)
+        for i, other_obs in enumerate(obs['observations'][:5]):
+            base_idx = 59 + i * 8
+            # First-order beliefs about this agent
+            features[base_idx] = other_obs['reputation']  # Their likely cooperation
+            features[base_idx + 1] = 0.7 if other_obs['reputation'] > 0.6 else 0.3  # Estimated trustworthiness
+            features[base_idx + 2] = 0.5  # Uncertainty in our belief
+            features[base_idx + 3] = float(other_obs['in_same_coalition'])
+            # Second-order beliefs (what they believe about us)
+            features[base_idx + 4] = 0.5  # Their belief about our cooperation
+            features[base_idx + 5] = 0.5  # Their uncertainty
+            features[base_idx + 6] = 0.5  # Recursive depth marker
+            features[base_idx + 7] = 1.0 / (i + 2)  # Confidence decay with order
+
+        # === Action History Encoding (99-138) ===
+        # Reserved for temporal action patterns (filled during episode)
+        features[99:139] = 0.0
+
+        # === Context Features (139-178) ===
+        features[139] = float(obs['timestep']) / 100.0  # Normalized time
+        features[140] = float(has_coalition)
+        features[141] = float(num_other_agents) / 10.0
+        features[142] = avg_reputation
+        features[143] = features[0]  # Resource level
+        features[144] = features[1]  # Energy level
+        # Game context
+        features[145:179] = 0.5  # Neutral context baseline
+
+        # === Meta-cognitive Features (179-190) ===
+        features[179] = 0.5  # Confidence in own beliefs
+        features[180] = 0.5  # Uncertainty awareness
+        features[181] = float(len(obs['observations'])) / 10.0  # Information completeness
+        features[182] = 0.5  # Decision confidence
+        features[183:191] = 0.5  # Reserved meta-cognitive
+
+        return features.unsqueeze(0).unsqueeze(0)  # Add batch and sequence dims
 
     def _beliefs_to_action(self, beliefs: torch.Tensor, action_value: torch.Tensor,
                           obs: Dict) -> Dict:
