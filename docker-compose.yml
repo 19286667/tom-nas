@@ -1,0 +1,58 @@
+# ToM-NAS Docker Compose Configuration
+# One command to run the entire Theory of Mind Neural Architecture Search system
+
+version: '3.8'
+
+services:
+  # Main ToM-NAS Web Application
+  tomnas:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tom-nas-app
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - LOG_LEVEL=INFO
+    volumes:
+      # Mount for persistent experiment data
+      - tomnas-data:/app/data
+      # Mount for checkpoints
+      - tomnas-checkpoints:/app/checkpoints
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: GPU-enabled version (uncomment if you have NVIDIA GPU)
+  # tomnas-gpu:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.gpu
+  #   container_name: tom-nas-gpu
+  #   ports:
+  #     - "8001:8000"
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   volumes:
+  #     - tomnas-data:/app/data
+  #     - tomnas-checkpoints:/app/checkpoints
+
+volumes:
+  tomnas-data:
+    driver: local
+  tomnas-checkpoints:
+    driver: local
+
+networks:
+  default:
+    name: tomnas-network
