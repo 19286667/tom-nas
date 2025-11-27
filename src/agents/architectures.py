@@ -1,12 +1,13 @@
-from typing import Dict, List, Optional
 """
 Agent Architectures for ToM-NAS - TRN, RSAN, Transformer
 """
+import math
+from typing import Dict, List, Optional
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-import math
 
 class TransparentRNN(nn.Module):
     """Transparent Recurrent Network with complete interpretability"""

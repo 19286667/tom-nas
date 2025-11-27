@@ -47,6 +47,7 @@ class SocialWorld4:
     def __init__(self, num_agents: int, ontology_dim: int, num_zombies: int = 2):
         self.num_agents = num_agents
         self.ontology_dim = ontology_dim
+        self.num_zombies = num_zombies  # Store for reset
         self.timestep = 0
 
         # Initialize agents
@@ -238,6 +239,8 @@ class SocialWorld4:
 
     def step(self, agent_actions: List[Dict], belief_network=None) -> Dict:
         """Execute one timestep of the social world"""
+        # Increment timestep first so result reflects completed step number
+        self.timestep += 1
         results = {
             'timestep': self.timestep,
             'games': [],
@@ -312,7 +315,6 @@ class SocialWorld4:
                 'alive': agent.alive
             })
 
-        self.timestep += 1
         self.history.append(results)
         return results
 
@@ -360,3 +362,25 @@ class SocialWorld4:
             'num_coalitions': len(self.coalitions),
             'zombies_remaining': sum(1 for a in alive_agents if a.is_zombie)
         }
+
+    def reset(self):
+        """Reset the world to initial state with new agents and zombies"""
+        self.timestep = 0
+        self.history = []
+        self.coalitions = {}
+        self.next_coalition_id = 0
+
+        # Reinitialize agents
+        self.agents = []
+        for i in range(self.num_agents):
+            agent = Agent(id=i)
+            agent.ontology_state = torch.randn(self.ontology_dim)
+            agent.reputation = {j: 0.5 for j in range(self.num_agents)}
+            self.agents.append(agent)
+
+        # Create new zombies using stored count
+        zombie_indices = random.sample(range(self.num_agents), min(self.num_zombies, self.num_agents))
+        for idx in zombie_indices:
+            self.agents[idx] = self.zombie_game.create_zombie(idx)
+            self.agents[idx].ontology_state = torch.randn(self.ontology_dim)
+            self.agents[idx].reputation = {j: 0.5 for j in range(self.num_agents)}
