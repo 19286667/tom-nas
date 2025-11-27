@@ -8,6 +8,8 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional
 from collections import defaultdict
 
+from ..utils import observation_to_tensor
+
 
 class ToMFitnessEvaluator:
     """Comprehensive fitness evaluation for Theory of Mind capabilities"""
@@ -105,28 +107,8 @@ class ToMFitnessEvaluator:
 
     def _observation_to_tensor(self, obs: Dict) -> torch.Tensor:
         """Convert observation dict to tensor input"""
-        # Simplified conversion - in full version would be more sophisticated
-        features = [
-            obs['own_resources'] / 200.0,
-            obs['own_energy'] / 100.0,
-            float(obs['own_coalition'] is not None)
-        ]
-
-        # Add features from other agents
-        for other_obs in obs['observations'][:5]:  # Limit to 5 neighbors
-            features.extend([
-                other_obs['estimated_resources'] / 200.0,
-                other_obs['estimated_energy'] / 100.0,
-                other_obs['reputation'],
-                float(other_obs['in_same_coalition'])
-            ])
-
-        # Pad to fixed size
-        while len(features) < 191:
-            features.append(0.0)
-        features = features[:191]
-
-        return torch.tensor(features, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        # Use shared utility and add batch/sequence dimensions
+        return observation_to_tensor(obs).unsqueeze(0).unsqueeze(0)
 
     def _beliefs_to_action(self, beliefs: torch.Tensor, action_value: torch.Tensor,
                           obs: Dict) -> Dict:

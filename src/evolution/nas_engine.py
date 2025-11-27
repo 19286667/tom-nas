@@ -17,9 +17,8 @@ from .operators import (
     PopulationOperators, AdaptiveMutation, SpeciesManager, CoevolutionOperator
 )
 from .fitness import CompositeFitnessFunction
-from ..agents.architectures import (
-    TransparentRNN, RecursiveSelfAttention, TransformerToMAgent, HybridArchitecture
-)
+from ..agents.architectures import HybridArchitecture
+from ..utils import create_model
 
 
 @dataclass
@@ -124,30 +123,8 @@ class NASEngine:
         hidden_dim = gene.gene_dict['hidden_dim']
         num_layers = gene.gene_dict['num_layers']
 
-        if arch_type == 'TRN':
-            return TransparentRNN(
-                self.config.input_dim,
-                hidden_dim,
-                self.config.output_dim,
-                num_layers=num_layers
-            )
-        elif arch_type == 'RSAN':
-            return RecursiveSelfAttention(
-                self.config.input_dim,
-                hidden_dim,
-                self.config.output_dim,
-                num_heads=gene.gene_dict['num_heads'],
-                max_recursion=gene.gene_dict['max_recursion']
-            )
-        elif arch_type == 'Transformer':
-            return TransformerToMAgent(
-                self.config.input_dim,
-                hidden_dim,
-                self.config.output_dim,
-                num_layers=num_layers,
-                num_heads=gene.gene_dict['num_heads']
-            )
-        elif arch_type == 'Hybrid':
+        # HybridArchitecture requires special handling with full gene dict
+        if arch_type == 'Hybrid':
             return HybridArchitecture(
                 self.config.input_dim,
                 hidden_dim,
@@ -155,9 +132,15 @@ class NASEngine:
                 architecture_genes=gene.gene_dict
             )
 
-        # Default to TRN
-        return TransparentRNN(
-            self.config.input_dim, hidden_dim, self.config.output_dim
+        # Use shared utility for standard architectures
+        return create_model(
+            arch_type=arch_type,
+            input_dim=self.config.input_dim,
+            hidden_dim=hidden_dim,
+            output_dim=self.config.output_dim,
+            num_layers=num_layers,
+            num_heads=gene.gene_dict.get('num_heads', 4),
+            max_recursion=gene.gene_dict.get('max_recursion', 5)
         )
 
     def evaluate_population(self):
