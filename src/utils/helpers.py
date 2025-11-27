@@ -74,10 +74,14 @@ def create_model(
         
     Raises:
         ValueError: If arch_type is not recognized
+        
+    Note:
+        For 'Hybrid' architecture, this creates a RecursiveSelfAttention as the base.
+        The NAS engine has special handling for full HybridArchitecture with gene dicts.
     """
     # Import here to avoid circular imports
     from ..agents.architectures import (
-        TransparentRNN, RecursiveSelfAttention, TransformerToMAgent, HybridArchitecture
+        TransparentRNN, RecursiveSelfAttention, TransformerToMAgent
     )
     
     if arch_type == 'TRN':
@@ -94,6 +98,7 @@ def create_model(
         )
     elif arch_type == 'Hybrid':
         # Hybrid uses RSAN as base (best for recursive beliefs)
+        # For full HybridArchitecture with gene dicts, use NAS engine's _gene_to_model
         model = RecursiveSelfAttention(
             input_dim, hidden_dim, output_dim,
             num_heads=num_heads, max_recursion=max_recursion
