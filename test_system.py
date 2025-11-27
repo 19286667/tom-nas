@@ -42,7 +42,16 @@ def test_all():
     except Exception as e:
         print(f"  ✗ Social World failed: {e}")
         all_pass = False
-    
+
+    try:
+        from src.liminal.game_environment import LiminalEnvironment
+        from src.liminal.soul_map import SoulMap
+        from src.liminal.realms import RealmType
+        print(f"  ✓ Liminal: Environment, SoulMap, Realms")
+    except Exception as e:
+        print(f"  ✗ Liminal failed: {e}")
+        all_pass = False
+
     print("="*60)
     if all_pass:
         print("✓ ALL TESTS PASSED!")

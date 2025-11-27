@@ -14,6 +14,7 @@ from . import agents
 from . import world
 from . import evolution
 from . import evaluation
+from . import liminal
 
 __all__ = [
     'core',
@@ -21,5 +22,6 @@ __all__ = [
     'world',
     'evolution',
     'evaluation',
+    'liminal',
     '__version__',
 ]
