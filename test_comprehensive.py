@@ -224,6 +224,25 @@ class TestSocialWorld(unittest.TestCase):
         for agent_id in [0, 1, 2]:
             self.assertEqual(self.world.agents[agent_id].coalition, coalition_id)
 
+    def test_world_reset(self):
+        """Test world reset function"""
+        # Modify world state
+        self.world.timestep = 10
+        self.world.agents[0].resources = 50.0
+        coalition_id = self.world.form_coalition([0, 1])
+
+        # Reset
+        self.world.reset()
+
+        # Check reset state
+        self.assertEqual(self.world.timestep, 0)
+        self.assertEqual(len(self.world.coalitions), 0)
+        self.assertEqual(len(self.world.agents), self.world.num_agents)
+
+        # Check zombies were created
+        zombie_count = sum(1 for a in self.world.agents if a.is_zombie)
+        self.assertEqual(zombie_count, self.world.num_zombies)
+
 
 class TestEvolution(unittest.TestCase):
     """Test Evolution Components"""

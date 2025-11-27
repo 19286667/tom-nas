@@ -1,10 +1,13 @@
 """
 Soul Map Ontology: Complete 181-dimensional psychological grounding for ToM-NAS
+
+This module provides a structured representation of psychological states
+across 9 layers covering biological, affective, and cognitive dimensions.
 """
 import torch
 import torch.nn as nn
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 from dataclasses import dataclass
 
 @dataclass
@@ -57,12 +60,74 @@ class SoulMapOntology:
         self.layer_ranges[layer_num] = (start_idx, len(self.dimensions)-1)
         
     def encode(self, state_dict: Dict[str, float]) -> torch.Tensor:
+        """
+        Encode a state dictionary into a tensor.
+
+        Args:
+            state_dict: Dictionary mapping dimension names to values (0-1 range)
+
+        Returns:
+            torch.Tensor of shape (total_dims,) with encoded values
+
+        Raises:
+            ValueError: If state_dict is not a dictionary
+        """
+        if not isinstance(state_dict, dict):
+            raise ValueError(f"state_dict must be a dict, got {type(state_dict)}")
+
         vector = torch.zeros(self.total_dims)
         for name, value in state_dict.items():
             if name in self.name_to_idx:
                 idx = self.name_to_idx[name]
-                vector[idx] = torch.tensor(value).clamp(0, 1)
+                # Ensure value is numeric and clamp to valid range
+                try:
+                    float_val = float(value)
+                    vector[idx] = torch.tensor(float_val).clamp(0, 1)
+                except (TypeError, ValueError):
+                    # Skip non-numeric values
+                    continue
         return vector
     
     def get_default_state(self) -> torch.Tensor:
+        """
+        Get a neutral default state with all dimensions at 0.5.
+
+        Returns:
+            torch.Tensor of shape (total_dims,) with default values
+        """
         return torch.ones(self.total_dims) * 0.5
+
+    def get_dimension_info(self, name: str) -> Optional[OntologyDimension]:
+        """
+        Get information about a specific dimension by name.
+
+        Args:
+            name: Full dimension name (e.g., 'bio.vision')
+
+        Returns:
+            OntologyDimension if found, None otherwise
+        """
+        if name in self.name_to_idx:
+            idx = self.name_to_idx[name]
+            for dim in self.dimensions:
+                if dim.index == idx:
+                    return dim
+        return None
+
+    def decode(self, vector: torch.Tensor) -> Dict[str, float]:
+        """
+        Decode a tensor back into a state dictionary.
+
+        Args:
+            vector: Tensor of shape (total_dims,)
+
+        Returns:
+            Dictionary mapping dimension names to values
+        """
+        if vector.shape[0] != self.total_dims:
+            raise ValueError(f"Expected vector of size {self.total_dims}, got {vector.shape[0]}")
+
+        state_dict = {}
+        for dim in self.dimensions:
+            state_dict[dim.name] = float(vector[dim.index].item())
+        return state_dict
