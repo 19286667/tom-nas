@@ -342,7 +342,16 @@ class LiminalEnvironment:
             result = self.soul_scanner.shallow_scan(target_npc)
 
         # Reward for successful analysis
-        reward = 0.1 + (depth.value if isinstance(depth, AnalysisDepth) else 0) * 0.05
+        # Map depth to numeric value (enum values are strings)
+        depth_values = {
+            AnalysisDepth.PASSIVE: 0,
+            AnalysisDepth.SHALLOW: 1,
+            AnalysisDepth.MODERATE: 2,
+            AnalysisDepth.DEEP: 3,
+            AnalysisDepth.PREDICTIVE: 4,
+        }
+        depth_num = depth_values.get(depth, 0) if isinstance(depth, AnalysisDepth) else 0
+        reward = 0.1 + depth_num * 0.05
 
         return reward, {
             "analysis_result": result,

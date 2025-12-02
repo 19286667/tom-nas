@@ -397,12 +397,21 @@ class TestIntegration(unittest.TestCase):
 
     def test_end_to_end_evaluation(self):
         """Test evaluating a model on benchmarks end-to-end."""
-        # Create a simple model
-        model = nn.Sequential(
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 181)
-        )
+        # Create a simple model matching benchmark input dimension (64)
+        # Model needs to handle sequence input [batch, seq, 64] -> [batch, 181]
+        class SimpleModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.fc1 = nn.Linear(64, 128)
+                self.fc2 = nn.Linear(128, 181)
+
+            def forward(self, x):
+                # x: [batch, seq, 64]
+                x = torch.relu(self.fc1(x))  # [batch, seq, 128]
+                x = x.mean(dim=1)  # Pool over sequence: [batch, 128]
+                return self.fc2(x)  # [batch, 181]
+
+        model = SimpleModel()
 
         # Quick evaluation
         benchmark = UnifiedBenchmark()

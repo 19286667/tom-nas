@@ -304,8 +304,8 @@ def create_sally_anne_scenario() -> Tuple[List[Event], List[Dict[str, Any]]]:
     tracker.process_event(e3)
     events.append(e3)
 
-    # 4. Sally leaves
-    e4 = tracker.world.agent_exits('Sally', 'room', {'Anne', 'Observer'})
+    # 4. Sally leaves (Sally knows she left, so she's an observer)
+    e4 = tracker.world.agent_exits('Sally', 'room', {'Sally', 'Anne', 'Observer'})
     tracker.process_event(e4)
     events.append(e4)
 

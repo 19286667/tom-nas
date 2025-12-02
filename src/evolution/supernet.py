@@ -299,6 +299,9 @@ class ElasticTransformer(nn.Module):
         # Pool sequence
         x = x.mean(dim=1)
 
+        # Slice back to active dimensions (ElasticTransformerLayer pads to max)
+        x = x[:, :active_hidden]
+
         # Final norm with elastic support
         # FIX: Use F.layer_norm with sliced parameters
         x = F.layer_norm(
@@ -334,6 +337,9 @@ class ElasticTransformer(nn.Module):
             attention_maps.append(attn)
 
         x = x.mean(dim=1)
+
+        # Slice back to active dimensions (ElasticTransformerLayer pads to max)
+        x = x[:, :active_hidden]
 
         # FIX: Use F.layer_norm with sliced parameters
         x = F.layer_norm(
