@@ -1,5 +1,14 @@
 """
 Social World 4: Complete society simulator with zombie detection
+
+This module provides a multi-agent social simulation with:
+- Cooperation, communication, and resource sharing games
+- Zombie detection (agents with impaired ToM)
+- Coalition formation
+- Observation tracking for information asymmetry (NEW)
+
+The observation tracking enables proper Theory of Mind testing:
+agents can only update beliefs based on events they observed.
 """
 import torch
 import numpy as np
@@ -7,6 +16,27 @@ import random
 from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, field
 from collections import defaultdict
+
+
+@dataclass
+class WorldEvent:
+    """
+    Event in the social world with observation tracking.
+
+    This enables information asymmetry - different agents observe
+    different events, leading to divergent beliefs about world state.
+    """
+    timestamp: int
+    event_type: str  # 'move_object', 'agent_enter', 'agent_leave', 'resource_transfer', etc.
+    actor_id: int
+    details: Dict[str, Any] = field(default_factory=dict)
+    observed_by: Set[int] = field(default_factory=set)
+
+    def __post_init__(self):
+        """Actor always observes their own action."""
+        self.observed_by = set(self.observed_by)
+        self.observed_by.add(self.actor_id)
+
 
 @dataclass
 class Agent:
@@ -19,6 +49,8 @@ class Agent:
     alive: bool = True
     zombie_type: Optional[str] = None
     ontology_state: Optional[torch.Tensor] = None
+    location: Optional[str] = None  # Current location for observation tracking
+    beliefs: Dict[str, Any] = field(default_factory=dict)  # Agent's beliefs about world
 
 class ZombieGame:
     """Zombie detection - core ToM validation mechanism"""
@@ -384,3 +416,272 @@ class SocialWorld4:
             self.agents[idx] = self.zombie_game.create_zombie(idx)
             self.agents[idx].ontology_state = torch.randn(self.ontology_dim)
             self.agents[idx].reputation = {j: 0.5 for j in range(self.num_agents)}
+
+    # =========================================================================
+    # Observation Tracking Methods (NEW)
+    # These enable proper Theory of Mind testing with information asymmetry
+    # =========================================================================
+
+    def get_present_agents(self, location: str = 'main') -> Set[int]:
+        """
+        Get set of agent IDs currently at a location.
+
+        Used to determine who observes events at that location.
+        """
+        return {a.id for a in self.agents if a.alive and
+                (a.location == location or a.location is None)}
+
+    def create_event(self, event_type: str, actor_id: int,
+                     details: Dict[str, Any] = None,
+                     location: str = 'main') -> WorldEvent:
+        """
+        Create an event with proper observation tracking.
+
+        Only agents present at the location observe the event.
+        """
+        present = self.get_present_agents(location)
+        event = WorldEvent(
+            timestamp=self.timestep,
+            event_type=event_type,
+            actor_id=actor_id,
+            details=details or {},
+            observed_by=present
+        )
+
+        # Store in history for later querying
+        if not hasattr(self, 'event_log'):
+            self.event_log: List[WorldEvent] = []
+        self.event_log.append(event)
+
+        return event
+
+    def move_object(self, object_name: str, new_location: str,
+                    actor_id: int, observed_by: Set[int] = None) -> WorldEvent:
+        """
+        Move object with observation tracking.
+
+        Creates a world event that only specified agents observe.
+        This is key for creating false beliefs - agents who don't
+        observe the move still believe the object is at the old location.
+        """
+        if not hasattr(self, 'objects'):
+            self.objects: Dict[str, str] = {}
+
+        old_location = self.objects.get(object_name, 'unknown')
+        self.objects[object_name] = new_location
+
+        # Create event with observation tracking
+        if observed_by is None:
+            observed_by = self.get_present_agents()
+
+        event = WorldEvent(
+            timestamp=self.timestep,
+            event_type='move_object',
+            actor_id=actor_id,
+            details={
+                'object': object_name,
+                'from': old_location,
+                'to': new_location
+            },
+            observed_by=observed_by
+        )
+
+        if not hasattr(self, 'event_log'):
+            self.event_log = []
+        self.event_log.append(event)
+
+        # Update agent beliefs based on who observed
+        for agent in self.agents:
+            if agent.id in observed_by:
+                # Agent saw the move - update their belief
+                if 'object_locations' not in agent.beliefs:
+                    agent.beliefs['object_locations'] = {}
+                agent.beliefs['object_locations'][object_name] = new_location
+            # Else: agent's belief unchanged (potential false belief!)
+
+        return event
+
+    def agent_enters(self, agent_id: int, location: str = 'main') -> WorldEvent:
+        """
+        Agent enters a location.
+
+        Other present agents observe this entry.
+        """
+        if 0 <= agent_id < len(self.agents):
+            self.agents[agent_id].location = location
+
+        present = self.get_present_agents(location)
+        event = WorldEvent(
+            timestamp=self.timestep,
+            event_type='agent_enter',
+            actor_id=agent_id,
+            details={'location': location},
+            observed_by=present | {agent_id}
+        )
+
+        if not hasattr(self, 'event_log'):
+            self.event_log = []
+        self.event_log.append(event)
+
+        return event
+
+    def agent_leaves(self, agent_id: int, location: str = 'main') -> WorldEvent:
+        """
+        Agent leaves a location.
+
+        Present agents observe the departure.
+        """
+        present = self.get_present_agents(location)
+
+        if 0 <= agent_id < len(self.agents):
+            self.agents[agent_id].location = None
+
+        event = WorldEvent(
+            timestamp=self.timestep,
+            event_type='agent_leave',
+            actor_id=agent_id,
+            details={'location': location},
+            observed_by=present  # Actor is leaving, so they also observe
+        )
+
+        if not hasattr(self, 'event_log'):
+            self.event_log = []
+        self.event_log.append(event)
+
+        return event
+
+    def get_agent_observations(self, agent_id: int) -> List[WorldEvent]:
+        """
+        Get all events this agent observed.
+
+        Useful for reconstructing an agent's belief state.
+        """
+        if not hasattr(self, 'event_log'):
+            return []
+        return [e for e in self.event_log if agent_id in e.observed_by]
+
+    def get_agent_belief_about_object(self, agent_id: int, object_name: str) -> Optional[str]:
+        """
+        Get what an agent believes about an object's location.
+
+        Based on events they observed.
+        """
+        if 0 <= agent_id < len(self.agents):
+            agent = self.agents[agent_id]
+            return agent.beliefs.get('object_locations', {}).get(object_name)
+        return None
+
+    def compute_belief_accuracy(self, agent_id: int) -> float:
+        """
+        Compute how accurate an agent's beliefs are vs reality.
+
+        Returns value between 0 and 1.
+        """
+        if not hasattr(self, 'objects') or not self.objects:
+            return 1.0
+
+        correct = 0
+        total = 0
+
+        if 0 <= agent_id < len(self.agents):
+            agent = self.agents[agent_id]
+            obj_beliefs = agent.beliefs.get('object_locations', {})
+
+            for obj, actual_loc in self.objects.items():
+                believed_loc = obj_beliefs.get(obj)
+                if believed_loc is not None:
+                    total += 1
+                    if believed_loc == actual_loc:
+                        correct += 1
+
+        return correct / total if total > 0 else 1.0
+
+    def create_false_belief_scenario(self, observer_id: int, actor_id: int,
+                                     object_name: str = 'ball',
+                                     loc1: str = 'basket',
+                                     loc2: str = 'box') -> List[WorldEvent]:
+        """
+        Create a classic Sally-Anne style false belief scenario.
+
+        1. Both agents enter
+        2. Actor puts object in loc1 (both observe)
+        3. Observer leaves (actor remains)
+        4. Actor moves object to loc2 (only actor observes)
+        5. Observer returns
+
+        After this, observer believes object is in loc1,
+        but it's actually in loc2.
+        """
+        events = []
+
+        # Initialize objects dict if needed
+        if not hasattr(self, 'objects'):
+            self.objects = {}
+
+        # 1. Both agents enter
+        events.append(self.agent_enters(observer_id))
+        events.append(self.agent_enters(actor_id))
+
+        # 2. Actor puts object in loc1 (both observe)
+        self.objects[object_name] = loc1
+        e = WorldEvent(
+            timestamp=self.timestep,
+            event_type='put_object',
+            actor_id=actor_id,
+            details={'object': object_name, 'location': loc1},
+            observed_by={observer_id, actor_id}
+        )
+        if not hasattr(self, 'event_log'):
+            self.event_log = []
+        self.event_log.append(e)
+        events.append(e)
+
+        # Update both agents' beliefs
+        for aid in [observer_id, actor_id]:
+            if 0 <= aid < len(self.agents):
+                if 'object_locations' not in self.agents[aid].beliefs:
+                    self.agents[aid].beliefs['object_locations'] = {}
+                self.agents[aid].beliefs['object_locations'][object_name] = loc1
+
+        # 3. Observer leaves
+        self.timestep += 1
+        events.append(self.agent_leaves(observer_id))
+
+        # 4. Actor moves object to loc2 (only actor observes!)
+        self.timestep += 1
+        move_event = self.move_object(
+            object_name, loc2, actor_id,
+            observed_by={actor_id}  # Observer is NOT present!
+        )
+        events.append(move_event)
+
+        # 5. Observer returns
+        self.timestep += 1
+        events.append(self.agent_enters(observer_id))
+
+        return events
+
+    def validate_false_belief_test(self, observer_id: int, object_name: str,
+                                   expected_belief: str) -> Dict[str, Any]:
+        """
+        Validate a false belief test scenario.
+
+        Returns:
+            - belief_correct: Does observer have the expected false belief?
+            - reality: What is the actual location?
+            - belief: What does observer believe?
+        """
+        if not hasattr(self, 'objects'):
+            return {'error': 'No objects tracked'}
+
+        reality = self.objects.get(object_name)
+        belief = self.get_agent_belief_about_object(observer_id, object_name)
+
+        return {
+            'reality': reality,
+            'belief': belief,
+            'expected_belief': expected_belief,
+            'belief_correct': belief == expected_belief,
+            'has_false_belief': belief != reality,
+            'valid_test': belief == expected_belief and reality != expected_belief
+        }

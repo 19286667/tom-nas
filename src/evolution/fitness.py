@@ -1,6 +1,13 @@
 """
 Fitness Functions for ToM-NAS Evolution
 Evaluates agents on Theory of Mind capabilities
+
+This module provides:
+- ToMFitnessEvaluator: World-based evaluation (legacy)
+- SallyAnneFitness: Classic false belief test (legacy)
+- HigherOrderToMFitness: Higher-order ToM tests (legacy)
+- CompositeFitnessFunction: Combined evaluation (legacy)
+- ToMBenchmarkFitness: NEW - Proper ToM evaluation using observation tracking
 """
 import torch
 import torch.nn as nn
@@ -354,3 +361,194 @@ class CompositeFitnessFunction:
             'world_components': world_fitness,
             'higher_order_components': higher_order_scores
         }
+
+
+class ToMBenchmarkFitness:
+    """
+    Proper ToM fitness evaluation using observation tracking.
+
+    This evaluator uses the new data module with proper:
+    - Information asymmetry (agents observe different events)
+    - Ground truth computed from observations
+    - Separation of reality vs belief questions
+
+    A model must demonstrate actual Theory of Mind to score well:
+    - High reality accuracy: Model tracks actual world state
+    - High belief accuracy: Model tracks what agents BELIEVE (may differ from reality)
+    """
+
+    def __init__(self, device: str = 'cpu', num_scenarios: int = 500):
+        """
+        Initialize ToM benchmark fitness evaluator.
+
+        Args:
+            device: Device to run evaluation on
+            num_scenarios: Number of scenarios to use
+        """
+        self.device = device
+        self.num_scenarios = num_scenarios
+        self._scenarios = None
+        self._encoder = None
+        self._evaluator = None
+        self._baseline_results = None
+
+    def _lazy_init(self):
+        """Lazy initialization of data and evaluator."""
+        if self._scenarios is not None:
+            return
+
+        try:
+            from ..data.tomi_loader import ToMiLoader
+            from ..data.encoding import ScenarioEncoder
+            from ..evaluation.tom_evaluator import ToMEvaluator, BaselineEvaluator
+
+            # Load scenarios
+            loader = ToMiLoader(seed=42)
+            self._scenarios = loader.load(self.num_scenarios)
+
+            # Split train/test
+            split_idx = int(len(self._scenarios) * 0.8)
+            self._train_scenarios = self._scenarios[:split_idx]
+            self._test_scenarios = self._scenarios[split_idx:]
+
+            # Initialize encoder and evaluator
+            self._encoder = ScenarioEncoder()
+            self._evaluator = ToMEvaluator(self._encoder, device=self.device)
+
+            # Compute baseline results once
+            baseline = BaselineEvaluator(self._encoder)
+            self._baseline_results = baseline.evaluate(self._test_scenarios)
+
+        except ImportError as e:
+            print(f"Warning: Could not import ToM data modules: {e}")
+            self._scenarios = []
+            self._train_scenarios = []
+            self._test_scenarios = []
+
+    def evaluate(self, agent_model: nn.Module, epochs: int = 5) -> Dict[str, float]:
+        """
+        Evaluate agent fitness on ToM benchmark.
+
+        Args:
+            agent_model: Neural network model to evaluate
+            epochs: Number of training epochs
+
+        Returns:
+            Dict with fitness components
+        """
+        self._lazy_init()
+
+        if not self._scenarios:
+            return {'total_fitness': 0.0, 'tom_accuracy': 0.0}
+
+        # Quick training on train scenarios
+        trained_model = self._quick_train(agent_model, epochs)
+
+        # Evaluate on test scenarios
+        results = self._evaluator.evaluate(trained_model, self._test_scenarios)
+
+        # Compute fitness based on ToM accuracy
+        # Key: Model must beat baseline on belief questions
+        tom_improvement = (results['tom_accuracy'] -
+                          self._baseline_results.get('tom_accuracy', 0.5))
+
+        # Fitness weights ToM accuracy heavily
+        fitness = (
+            results.get('first_order_accuracy', 0) * 0.5 +
+            results.get('second_order_accuracy', 0) * 0.3 +
+            results.get('reality_accuracy', 0) * 0.2
+        )
+
+        # Bonus for actually demonstrating ToM (beating baseline)
+        if tom_improvement > 0.1:
+            fitness += 0.2 * tom_improvement
+
+        return {
+            'total_fitness': fitness,
+            'tom_accuracy': results['tom_accuracy'],
+            'reality_accuracy': results['reality_accuracy'],
+            'first_order_accuracy': results['first_order_accuracy'],
+            'second_order_accuracy': results.get('second_order_accuracy', 0),
+            'overall_accuracy': results['overall_accuracy'],
+            'tom_improvement': tom_improvement,
+            'beats_baseline': tom_improvement > 0.1
+        }
+
+    def _quick_train(self, model: nn.Module, epochs: int) -> nn.Module:
+        """
+        Quick training on ToM scenarios.
+
+        Lightweight training for NAS fitness evaluation.
+        """
+        model.train()
+        model.to(self.device)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        criterion = nn.CrossEntropyLoss()
+
+        for epoch in range(epochs):
+            total_loss = 0
+            num_samples = 0
+
+            for scenario in self._train_scenarios:
+                # Encode scenario
+                x = self._encoder.encode_scenario(scenario).unsqueeze(0).to(self.device)
+
+                # Get target
+                target_idx = self._encoder.get_location_index(scenario.ground_truth_answer)
+                if target_idx < 0:
+                    continue
+
+                # Forward pass
+                output = model(x)
+
+                # Handle various output formats
+                if isinstance(output, dict):
+                    for key in ['beliefs', 'output', 'logits', 'hidden_states']:
+                        if key in output:
+                            output = output[key]
+                            break
+                    else:
+                        output = list(output.values())[0]
+
+                if isinstance(output, tuple):
+                    output = output[0]
+
+                # Get prediction for locations
+                pred = output[0, -1, self._encoder.location_start:self._encoder.location_end]
+
+                # Compute loss
+                target = torch.tensor([target_idx], device=self.device)
+                loss = criterion(pred.unsqueeze(0), target)
+
+                # Backward
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+                total_loss += loss.item()
+                num_samples += 1
+
+        return model
+
+    def get_fitness_for_nas(self, model: nn.Module, epochs: int = 5) -> float:
+        """
+        Get single fitness value for NAS.
+
+        Convenience method that returns just the total fitness.
+        """
+        results = self.evaluate(model, epochs)
+        return results['total_fitness']
+
+
+def create_tom_fitness_evaluator(device: str = 'cpu') -> ToMBenchmarkFitness:
+    """
+    Factory function to create a ToM benchmark fitness evaluator.
+
+    This is the recommended evaluator for NAS experiments as it:
+    1. Uses proper observation tracking for information asymmetry
+    2. Computes ground truth from what agents actually observed
+    3. Distinguishes between reality and belief questions
+    4. Measures actual ToM capability vs reality tracking
+    """
+    return ToMBenchmarkFitness(device=device)
