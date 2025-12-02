@@ -627,9 +627,18 @@ class ToMiDataset:
                 inp = torch.cat([inp, padding], dim=0)
             padded_inputs.append(inp)
 
+        # Pad targets to same length
+        max_tgt_len = max(tgt.shape[0] for tgt in targets)
+        padded_targets = []
+        for tgt in targets:
+            if tgt.shape[0] < max_tgt_len:
+                padding = torch.zeros(max_tgt_len - tgt.shape[0])
+                tgt = torch.cat([tgt, padding], dim=0)
+            padded_targets.append(tgt)
+
         return (
             torch.stack(padded_inputs),
-            torch.stack(targets),
+            torch.stack(padded_targets),
             correct_indices
         )
 

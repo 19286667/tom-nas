@@ -153,11 +153,18 @@ class ElasticMultiheadAttention(nn.Module):
         embed_dim = self.active_embed_dim
         num_heads = self.active_num_heads
         head_dim = embed_dim // num_heads
+        # Ensure dimensions are compatible (embed_dim may not be exactly divisible)
+        usable_dim = num_heads * head_dim
 
         # Project
         q = self.q_proj(query)
         k = self.k_proj(key)
         v = self.v_proj(value)
+
+        # Truncate to usable dimension for head reshaping
+        q = q[..., :usable_dim]
+        k = k[..., :usable_dim]
+        v = v[..., :usable_dim]
 
         # Reshape for multi-head attention
         q = q.view(batch_size, seq_len, num_heads, head_dim).transpose(1, 2)
@@ -175,11 +182,51 @@ class ElasticMultiheadAttention(nn.Module):
         # Apply attention
         attn_output = torch.matmul(attn_weights, v)
 
-        # Reshape and project
-        attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, embed_dim)
+        # Reshape and project (use usable_dim for reshape, output projection handles padding)
+        attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, usable_dim)
+        # Pad back to embed_dim if needed before output projection
+        if usable_dim < embed_dim:
+            padding = torch.zeros(batch_size, seq_len, embed_dim - usable_dim, device=attn_output.device)
+            attn_output = torch.cat([attn_output, padding], dim=-1)
         output = self.out_proj(attn_output)
 
         return output, attn_weights
+
+
+class ElasticLayerNorm(nn.Module):
+    """
+    Layer normalization that adapts to elastic dimensions.
+
+    Stores parameters for max dimension but uses only active portion.
+    """
+
+    def __init__(self, max_normalized_shape: int, eps: float = 1e-5, elementwise_affine: bool = True):
+        super().__init__()
+        self.max_normalized_shape = max_normalized_shape
+        self.eps = eps
+        self.elementwise_affine = elementwise_affine
+        self.active_dim = max_normalized_shape
+
+        if elementwise_affine:
+            self.weight = nn.Parameter(torch.ones(max_normalized_shape))
+            self.bias = nn.Parameter(torch.zeros(max_normalized_shape))
+        else:
+            self.register_parameter('weight', None)
+            self.register_parameter('bias', None)
+
+    def set_active_dim(self, dim: int):
+        """Set active dimension for normalization."""
+        self.active_dim = min(dim, self.max_normalized_shape)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Use only active dimensions
+        actual_dim = x.shape[-1]
+        if self.elementwise_affine:
+            weight = self.weight[:actual_dim]
+            bias = self.bias[:actual_dim]
+            return F.layer_norm(x, (actual_dim,), weight, bias, self.eps)
+        else:
+            return F.layer_norm(x, (actual_dim,), None, None, self.eps)
 
 
 class ElasticRecurrentCell(nn.Module):
@@ -196,7 +243,7 @@ class ElasticRecurrentCell(nn.Module):
         self.update_gate = ElasticLinear(max_input_dim + max_hidden_dim, max_hidden_dim)
         self.reset_gate = ElasticLinear(max_input_dim + max_hidden_dim, max_hidden_dim)
         self.candidate = ElasticLinear(max_input_dim + max_hidden_dim, max_hidden_dim)
-        self.layer_norm = nn.LayerNorm(max_hidden_dim)
+        self.layer_norm = ElasticLayerNorm(max_hidden_dim)
 
         self.active_input_dim = max_input_dim
         self.active_hidden_dim = max_hidden_dim
@@ -210,6 +257,7 @@ class ElasticRecurrentCell(nn.Module):
         self.update_gate.set_active_dims(combined_dim, hidden_dim)
         self.reset_gate.set_active_dims(combined_dim, hidden_dim)
         self.candidate.set_active_dims(combined_dim, hidden_dim)
+        self.layer_norm.set_active_dim(hidden_dim)
 
     def forward(self, x: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
         # Truncate inputs to active dimensions
@@ -291,9 +339,9 @@ class ToMSupernet(nn.Module):
             for _ in range(self.MAX_LAYERS)
         ])
 
-        # Layer norms
+        # Layer norms (elastic for different hidden dimensions)
         self.layer_norms = nn.ModuleList([
-            nn.LayerNorm(self.MAX_HIDDEN_DIM)
+            ElasticLayerNorm(self.MAX_HIDDEN_DIM)
             for _ in range(self.MAX_LAYERS * 2)  # Two per layer for pre-norm
         ])
 
@@ -323,6 +371,9 @@ class ToMSupernet(nn.Module):
         for ff in self.ff_layers:
             ff[0].set_active_dims(hidden_dim, hidden_dim * 4)
             ff[3].set_active_dims(hidden_dim * 4, hidden_dim)
+
+        for ln in self.layer_norms:
+            ln.set_active_dim(hidden_dim)
 
         self.belief_head.set_active_dims(hidden_dim, self.output_dim)
         self.action_head.set_active_dims(hidden_dim, 1)

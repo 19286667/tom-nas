@@ -728,7 +728,7 @@ def create_sally_anne_scenario() -> Tuple[List[Event], List[Question]]:
             actor="Sally",
             action="leave",
             source_location="living_room",
-            observed_by={"Anne", "Observer"}
+            observed_by={"Sally", "Anne", "Observer"}  # Sally observes her own leaving
         ),
         Event(
             timestamp=5,

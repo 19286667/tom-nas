@@ -93,8 +93,9 @@ class TestInformationAsymmetry(unittest.TestCase):
 
         sally_beliefs = self.AgentBeliefs("Sally", events)
 
-        # Sally should have fewer observed events (missed event 4 and 5)
-        self.assertEqual(len(sally_beliefs.observed_events), 4)
+        # Sally observes 5 events: enter, Anne enters, put marble, leave, return
+        # (only misses Anne moving the marble while Sally was away)
+        self.assertEqual(len(sally_beliefs.observed_events), 5)
 
     def test_verification_function(self):
         """Complete verification should pass."""
