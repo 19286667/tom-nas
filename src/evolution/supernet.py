@@ -1,650 +1,780 @@
 """
-Supernet for Neural Architecture Search (NAS)
+Supernet Architecture for Efficient Neural Architecture Search
 
-This module implements elastic/supernet architectures that can be dynamically
-configured during NAS. Key components:
+This module implements a supernet that encompasses multiple architecture configurations
+as subnetworks with shared weights. Training the supernet once allows evaluating
+any subnetwork by inheriting weights, reducing evaluation time from hours to minutes.
 
-- ElasticLSTMCell: LSTM with configurable hidden dimensions
-- ElasticTransformer: Transformer with elastic width/depth
-- ZeroCostProxies: Fast architecture evaluation without training
+Key concepts:
+- Elastic depth: Different numbers of layers can be selected
+- Elastic width: Different hidden dimensions can be selected
+- Weight sharing: Subnetworks inherit weights from the supernet
+- Once-for-All: Train once, evaluate many architectures
 
-The supernet architecture allows efficient weight sharing during search.
+Based on the Once-for-All methodology (MIT) and DyNAS-T framework (Intel Labs).
 """
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Dict, List, Optional, Tuple, Any, Union
+from dataclasses import dataclass, field
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
-import math
+import copy
 
 
 @dataclass
-class ElasticConfig:
-    """Configuration for elastic architecture."""
-    min_hidden_dim: int = 64
-    max_hidden_dim: int = 256
-    min_layers: int = 1
-    max_layers: int = 6
-    min_heads: int = 2
-    max_heads: int = 8
-    dropout_range: Tuple[float, float] = (0.0, 0.3)
+class SubnetConfig:
+    """Configuration for a subnetwork extracted from the supernet."""
+    arch_type: str  # 'trn', 'rsan', 'transformer'
+    num_layers: int
+    hidden_dim: int
+    num_heads: int = 4  # For attention-based architectures
+    dropout: float = 0.1
+    use_skip_connections: bool = True
 
-
-class ElasticLSTMCell(nn.Module):
-    """
-    LSTM Cell with elastic hidden dimension.
-
-    The cell is initialized with max dimensions but can operate with
-    smaller active dimensions for architecture search.
-
-    Bug Fix: LayerNorm is applied dynamically using F.layer_norm
-    to handle variable hidden dimensions properly.
-    """
-
-    def __init__(self, input_dim: int, max_hidden_dim: int = 256):
-        super().__init__()
-        self.input_dim = input_dim
-        self.max_hidden_dim = max_hidden_dim
-
-        # Gates: input, forget, cell, output
-        self.weight_ih = nn.Parameter(torch.randn(4 * max_hidden_dim, input_dim))
-        self.weight_hh = nn.Parameter(torch.randn(4 * max_hidden_dim, max_hidden_dim))
-        self.bias_ih = nn.Parameter(torch.zeros(4 * max_hidden_dim))
-        self.bias_hh = nn.Parameter(torch.zeros(4 * max_hidden_dim))
-
-        # LayerNorm parameters (used dynamically)
-        self.layer_norm = nn.LayerNorm(max_hidden_dim)
-
-        # Initialize
-        self._reset_parameters()
-
-    def _reset_parameters(self):
-        """Initialize parameters using Xavier initialization."""
-        stdv = 1.0 / math.sqrt(self.max_hidden_dim)
-        for weight in [self.weight_ih, self.weight_hh]:
-            nn.init.uniform_(weight, -stdv, stdv)
-
-    def forward(self, x: torch.Tensor, state: Tuple[torch.Tensor, torch.Tensor],
-                active_hidden_dim: Optional[int] = None) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
-        """
-        Forward pass with optional elastic hidden dimension.
-
-        Args:
-            x: Input tensor of shape (batch, input_dim)
-            state: Tuple of (h, c) hidden and cell states
-            active_hidden_dim: Active hidden dimension (uses max if None)
-
-        Returns:
-            h_new: New hidden state
-            (h_new, c_new): New state tuple
-        """
-        h, c = state
-        active_dim = active_hidden_dim or self.max_hidden_dim
-
-        # Slice weights for active dimensions
-        weight_ih = self.weight_ih[:4 * active_dim, :self.input_dim]
-        weight_hh = self.weight_hh[:4 * active_dim, :active_dim]
-        bias_ih = self.bias_ih[:4 * active_dim]
-        bias_hh = self.bias_hh[:4 * active_dim]
-
-        # Slice states
-        h = h[:, :active_dim]
-        c = c[:, :active_dim]
-
-        # LSTM computations
-        gates = F.linear(x, weight_ih, bias_ih) + F.linear(h, weight_hh, bias_hh)
-
-        # Split gates
-        i_gate = torch.sigmoid(gates[:, :active_dim])
-        f_gate = torch.sigmoid(gates[:, active_dim:2*active_dim])
-        g_gate = torch.tanh(gates[:, 2*active_dim:3*active_dim])
-        o_gate = torch.sigmoid(gates[:, 3*active_dim:4*active_dim])
-
-        # Cell and hidden state update
-        c_new = f_gate * c + i_gate * g_gate
-        h_new = o_gate * torch.tanh(c_new)
-
-        # Apply LayerNorm with correct dimensions
-        # FIX: Use F.layer_norm with sliced parameters instead of self.layer_norm
-        h_new = F.layer_norm(
-            h_new,
-            [h_new.shape[-1]],
-            self.layer_norm.weight[:h_new.shape[-1]],
-            self.layer_norm.bias[:h_new.shape[-1]]
-        )
-
-        # Pad back to max dim if needed
-        if active_dim < self.max_hidden_dim:
-            padding = torch.zeros(h_new.shape[0], self.max_hidden_dim - active_dim,
-                                  device=h_new.device, dtype=h_new.dtype)
-            h_new = torch.cat([h_new, padding], dim=1)
-            c_new = torch.cat([c_new, padding], dim=1)
-
-        return h_new, (h_new, c_new)
-
-
-class ElasticTransparentRNN(nn.Module):
-    """
-    Transparent Recurrent Network with elastic architecture.
-
-    TRN uses explicit symbolic computation paths for interpretability.
-    """
-
-    def __init__(self, input_dim: int, max_hidden_dim: int = 256,
-                 output_dim: int = 181, max_layers: int = 4):
-        super().__init__()
-        self.input_dim = input_dim
-        self.max_hidden_dim = max_hidden_dim
-        self.output_dim = output_dim
-        self.max_layers = max_layers
-
-        # Input projection
-        self.input_proj = nn.Linear(input_dim, max_hidden_dim)
-
-        # Elastic LSTM layers
-        self.lstm_layers = nn.ModuleList([
-            ElasticLSTMCell(max_hidden_dim, max_hidden_dim)
-            for _ in range(max_layers)
-        ])
-
-        # Output projection
-        self.output_proj = nn.Linear(max_hidden_dim, output_dim)
-
-        # Symbolic computation paths (for interpretability)
-        self.belief_head = nn.Linear(max_hidden_dim, output_dim)
-        self.attention_scores = None
-
-    def forward(self, x: torch.Tensor, active_config: Optional[Dict] = None) -> torch.Tensor:
-        """
-        Forward pass with elastic configuration.
-
-        Args:
-            x: Input tensor of shape (batch, seq_len, input_dim)
-            active_config: Dict with 'hidden_dim' and 'num_layers'
-
-        Returns:
-            Output tensor of shape (batch, output_dim)
-        """
-        batch_size, seq_len, _ = x.shape
-
-        # Get active configuration
-        active_hidden = active_config.get('hidden_dim', self.max_hidden_dim) if active_config else self.max_hidden_dim
-        active_layers = active_config.get('num_layers', self.max_layers) if active_config else self.max_layers
-
-        # Input projection
-        x = self.input_proj(x)
-
-        # Initialize states
-        h = torch.zeros(batch_size, self.max_hidden_dim, device=x.device)
-        c = torch.zeros(batch_size, self.max_hidden_dim, device=x.device)
-
-        # Process sequence through elastic LSTM layers
-        outputs = []
-        for t in range(seq_len):
-            layer_input = x[:, t, :]
-
-            for layer_idx in range(active_layers):
-                layer_input, (h, c) = self.lstm_layers[layer_idx](
-                    layer_input, (h, c), active_hidden_dim=active_hidden
-                )
-
-            outputs.append(h)
-
-        # Use final hidden state
-        final_h = outputs[-1][:, :active_hidden]
-
-        # FIX: Slice output projection weights for active hidden dim
-        output_weight = self.output_proj.weight[:, :active_hidden]
-        output = F.linear(final_h, output_weight, self.output_proj.bias)
-
-        return output
-
-    def forward_trn(self, x: torch.Tensor, active_config: Optional[Dict] = None) -> Tuple[torch.Tensor, Dict]:
-        """
-        Forward with transparent computation paths.
-
-        Returns output and interpretability information.
-        """
-        batch_size, seq_len, _ = x.shape
-        active_hidden = active_config.get('hidden_dim', self.max_hidden_dim) if active_config else self.max_hidden_dim
-        active_layers = active_config.get('num_layers', self.max_layers) if active_config else self.max_layers
-
-        x = self.input_proj(x)
-
-        h = torch.zeros(batch_size, self.max_hidden_dim, device=x.device)
-        c = torch.zeros(batch_size, self.max_hidden_dim, device=x.device)
-
-        # Track computation paths
-        layer_outputs = []
-        gate_values = []
-
-        for t in range(seq_len):
-            layer_input = x[:, t, :]
-
-            for layer_idx in range(active_layers):
-                layer_input, (h, c) = self.lstm_layers[layer_idx](
-                    layer_input, (h, c), active_hidden_dim=active_hidden
-                )
-                layer_outputs.append(h.clone())
-
-        final_h = layer_outputs[-1][:, :active_hidden] if layer_outputs else h[:, :active_hidden]
-
-        # Belief prediction with proper slicing
-        belief_weight = self.belief_head.weight[:, :active_hidden]
-        belief_output = F.linear(final_h, belief_weight, self.belief_head.bias)
-
-        output_weight = self.output_proj.weight[:, :active_hidden]
-        output = F.linear(final_h, output_weight, self.output_proj.bias)
-
-        interpretation = {
-            'layer_activations': layer_outputs,
-            'belief_predictions': belief_output,
-            'num_active_layers': active_layers,
-            'active_hidden_dim': active_hidden,
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'arch_type': self.arch_type,
+            'num_layers': self.num_layers,
+            'hidden_dim': self.hidden_dim,
+            'num_heads': self.num_heads,
+            'dropout': self.dropout,
+            'use_skip_connections': self.use_skip_connections
         }
 
-        return output, interpretation
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'SubnetConfig':
+        return cls(**data)
 
 
-class ElasticTransformer(nn.Module):
+class ElasticLinear(nn.Module):
     """
-    Transformer with elastic width and depth for NAS.
+    Linear layer that supports elastic width.
+
+    The full layer has max_in_features and max_out_features.
+    At runtime, a subset of features can be used by specifying active dimensions.
     """
 
-    def __init__(self, input_dim: int, max_hidden_dim: int = 256,
-                 output_dim: int = 181, max_layers: int = 6, max_heads: int = 8):
+    def __init__(
+        self,
+        max_in_features: int,
+        max_out_features: int,
+        bias: bool = True
+    ):
         super().__init__()
-        self.input_dim = input_dim
-        self.max_hidden_dim = max_hidden_dim
-        self.output_dim = output_dim
-        self.max_layers = max_layers
-        self.max_heads = max_heads
+        self.max_in_features = max_in_features
+        self.max_out_features = max_out_features
 
-        # Input embedding
-        self.input_embed = nn.Linear(input_dim, max_hidden_dim)
-        self.pos_encoding = PositionalEncoding(max_hidden_dim)
+        self.weight = nn.Parameter(torch.Tensor(max_out_features, max_in_features))
+        if bias:
+            self.bias = nn.Parameter(torch.Tensor(max_out_features))
+        else:
+            self.register_parameter('bias', None)
 
-        # Transformer layers
-        self.transformer_layers = nn.ModuleList([
-            ElasticTransformerLayer(max_hidden_dim, max_heads)
-            for _ in range(max_layers)
-        ])
+        self.reset_parameters()
 
-        # Output projection
-        self.output_proj = nn.Linear(max_hidden_dim, output_dim)
+        # Active dimensions (default to full)
+        self.active_in = max_in_features
+        self.active_out = max_out_features
 
-        # Layer norm (with elastic support)
-        self.final_norm = nn.LayerNorm(max_hidden_dim)
+    def reset_parameters(self):
+        nn.init.kaiming_uniform_(self.weight, a=np.sqrt(5))
+        if self.bias is not None:
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / np.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.bias, -bound, bound)
 
-    def forward(self, x: torch.Tensor, active_config: Optional[Dict] = None) -> torch.Tensor:
-        """
-        Forward pass with elastic configuration.
-        """
-        active_hidden = active_config.get('hidden_dim', self.max_hidden_dim) if active_config else self.max_hidden_dim
-        active_layers = active_config.get('num_layers', self.max_layers) if active_config else self.max_layers
-        active_heads = active_config.get('num_heads', self.max_heads) if active_config else self.max_heads
-
-        # Input embedding
-        x = self.input_embed(x)[:, :, :active_hidden]
-        x = self.pos_encoding(x)
-
-        # Transformer layers
-        for layer_idx in range(active_layers):
-            x = self.transformer_layers[layer_idx](
-                x, active_hidden_dim=active_hidden, active_heads=active_heads
-            )
-
-        # Pool sequence
-        x = x.mean(dim=1)
-
-        # Final norm with elastic support
-        # FIX: Use F.layer_norm with sliced parameters
-        x = F.layer_norm(
-            x,
-            [x.shape[-1]],
-            self.final_norm.weight[:x.shape[-1]],
-            self.final_norm.bias[:x.shape[-1]]
-        )
-
-        # Output projection with sliced weights
-        output_weight = self.output_proj.weight[:, :active_hidden]
-        output = F.linear(x, output_weight, self.output_proj.bias)
-
-        return output
-
-    def forward_transformer(self, x: torch.Tensor, active_config: Optional[Dict] = None) -> Tuple[torch.Tensor, Dict]:
-        """
-        Forward with attention visualization.
-        """
-        active_hidden = active_config.get('hidden_dim', self.max_hidden_dim) if active_config else self.max_hidden_dim
-        active_layers = active_config.get('num_layers', self.max_layers) if active_config else self.max_layers
-        active_heads = active_config.get('num_heads', self.max_heads) if active_config else self.max_heads
-
-        x = self.input_embed(x)[:, :, :active_hidden]
-        x = self.pos_encoding(x)
-
-        attention_maps = []
-        for layer_idx in range(active_layers):
-            x, attn = self.transformer_layers[layer_idx](
-                x, active_hidden_dim=active_hidden, active_heads=active_heads,
-                return_attention=True
-            )
-            attention_maps.append(attn)
-
-        x = x.mean(dim=1)
-
-        # FIX: Use F.layer_norm with sliced parameters
-        x = F.layer_norm(
-            x,
-            [x.shape[-1]],
-            self.final_norm.weight[:x.shape[-1]],
-            self.final_norm.bias[:x.shape[-1]]
-        )
-
-        output_weight = self.output_proj.weight[:, :active_hidden]
-        output = F.linear(x, output_weight, self.output_proj.bias)
-
-        interpretation = {
-            'attention_maps': attention_maps,
-            'num_active_layers': active_layers,
-            'active_hidden_dim': active_hidden,
-            'active_heads': active_heads,
-        }
-
-        return output, interpretation
-
-
-class ElasticTransformerLayer(nn.Module):
-    """Single transformer layer with elastic dimensions."""
-
-    def __init__(self, max_hidden_dim: int, max_heads: int):
-        super().__init__()
-        self.max_hidden_dim = max_hidden_dim
-        self.max_heads = max_heads
-
-        # Multi-head attention
-        self.q_proj = nn.Linear(max_hidden_dim, max_hidden_dim)
-        self.k_proj = nn.Linear(max_hidden_dim, max_hidden_dim)
-        self.v_proj = nn.Linear(max_hidden_dim, max_hidden_dim)
-        self.o_proj = nn.Linear(max_hidden_dim, max_hidden_dim)
-
-        # Feed-forward
-        self.ff1 = nn.Linear(max_hidden_dim, max_hidden_dim * 4)
-        self.ff2 = nn.Linear(max_hidden_dim * 4, max_hidden_dim)
-
-        # Layer norms
-        self.norm1 = nn.LayerNorm(max_hidden_dim)
-        self.norm2 = nn.LayerNorm(max_hidden_dim)
-
-        self.dropout = nn.Dropout(0.1)
-
-    def forward(self, x: torch.Tensor, active_hidden_dim: int = None,
-                active_heads: int = None, return_attention: bool = False):
-        """Forward with elastic configuration."""
-        active_hidden = active_hidden_dim or self.max_hidden_dim
-        active_heads = active_heads or self.max_heads
-
-        batch_size, seq_len, _ = x.shape
-        head_dim = active_hidden // active_heads
-
-        # Slice input to active dimensions
-        x = x[:, :, :active_hidden]
-
-        # Self-attention with residual
-        residual = x
-
-        # FIX: Use F.layer_norm with sliced parameters
-        x = F.layer_norm(
-            x,
-            [x.shape[-1]],
-            self.norm1.weight[:x.shape[-1]],
-            self.norm1.bias[:x.shape[-1]]
-        )
-
-        # Project Q, K, V with sliced weights
-        q = F.linear(x, self.q_proj.weight[:active_hidden, :active_hidden],
-                    self.q_proj.bias[:active_hidden])
-        k = F.linear(x, self.k_proj.weight[:active_hidden, :active_hidden],
-                    self.k_proj.bias[:active_hidden])
-        v = F.linear(x, self.v_proj.weight[:active_hidden, :active_hidden],
-                    self.v_proj.bias[:active_hidden])
-
-        # Reshape for multi-head attention
-        q = q.view(batch_size, seq_len, active_heads, head_dim).transpose(1, 2)
-        k = k.view(batch_size, seq_len, active_heads, head_dim).transpose(1, 2)
-        v = v.view(batch_size, seq_len, active_heads, head_dim).transpose(1, 2)
-
-        # Attention scores
-        attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(head_dim)
-        attn_probs = F.softmax(attn_scores, dim=-1)
-        attn_probs = self.dropout(attn_probs)
-
-        # Apply attention
-        attn_output = torch.matmul(attn_probs, v)
-        attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, active_hidden)
-
-        # Output projection
-        attn_output = F.linear(attn_output, self.o_proj.weight[:active_hidden, :active_hidden],
-                              self.o_proj.bias[:active_hidden])
-        attn_output = self.dropout(attn_output)
-
-        x = residual + attn_output
-
-        # Feed-forward with residual
-        residual = x
-
-        # FIX: Use F.layer_norm with sliced parameters
-        x = F.layer_norm(
-            x,
-            [x.shape[-1]],
-            self.norm2.weight[:x.shape[-1]],
-            self.norm2.bias[:x.shape[-1]]
-        )
-
-        ff_output = F.linear(x, self.ff1.weight[:active_hidden*4, :active_hidden],
-                            self.ff1.bias[:active_hidden*4])
-        ff_output = F.gelu(ff_output)
-        ff_output = F.linear(ff_output, self.ff2.weight[:active_hidden, :active_hidden*4],
-                            self.ff2.bias[:active_hidden])
-        ff_output = self.dropout(ff_output)
-
-        x = residual + ff_output
-
-        # Pad back to max dim if needed
-        if active_hidden < self.max_hidden_dim:
-            padding = torch.zeros(batch_size, seq_len, self.max_hidden_dim - active_hidden,
-                                  device=x.device, dtype=x.dtype)
-            x = torch.cat([x, padding], dim=-1)
-
-        if return_attention:
-            return x, attn_probs
-        return x
-
-
-class PositionalEncoding(nn.Module):
-    """Sinusoidal positional encoding."""
-
-    def __init__(self, d_model: int, max_len: int = 5000):
-        super().__init__()
-
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term[:d_model//2])
-
-        pe = pe.unsqueeze(0)
-        self.register_buffer('pe', pe)
+    def set_active_dims(self, in_features: int, out_features: int):
+        """Set active dimensions for elastic evaluation."""
+        self.active_in = min(in_features, self.max_in_features)
+        self.active_out = min(out_features, self.max_out_features)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Add positional encoding to input."""
-        seq_len = x.shape[1]
-        hidden_dim = x.shape[2]
-        return x + self.pe[:, :seq_len, :hidden_dim]
+        # Use only active dimensions
+        weight = self.weight[:self.active_out, :self.active_in]
+        bias = self.bias[:self.active_out] if self.bias is not None else None
+
+        # Handle input dimension mismatch
+        if x.shape[-1] > self.active_in:
+            x = x[..., :self.active_in]
+        elif x.shape[-1] < self.active_in:
+            # Pad with zeros
+            padding = torch.zeros(*x.shape[:-1], self.active_in - x.shape[-1], device=x.device)
+            x = torch.cat([x, padding], dim=-1)
+
+        return F.linear(x, weight, bias)
 
 
-# Zero-Cost Proxies for fast architecture evaluation
-
-class ZeroCostProxy:
+class ElasticMultiheadAttention(nn.Module):
     """
-    Zero-cost proxies for fast architecture evaluation without training.
-
-    These metrics correlate with final trained performance and allow
-    efficient architecture search.
+    Multi-head attention that supports elastic width and number of heads.
     """
 
-    @staticmethod
-    def synflow(model: nn.Module, input_shape: Tuple[int, ...],
-                device: str = 'cpu') -> float:
+    def __init__(
+        self,
+        max_embed_dim: int,
+        max_num_heads: int,
+        dropout: float = 0.1
+    ):
+        super().__init__()
+        self.max_embed_dim = max_embed_dim
+        self.max_num_heads = max_num_heads
+        self.dropout = dropout
+
+        # Projections
+        self.q_proj = ElasticLinear(max_embed_dim, max_embed_dim)
+        self.k_proj = ElasticLinear(max_embed_dim, max_embed_dim)
+        self.v_proj = ElasticLinear(max_embed_dim, max_embed_dim)
+        self.out_proj = ElasticLinear(max_embed_dim, max_embed_dim)
+
+        # Active dimensions
+        self.active_embed_dim = max_embed_dim
+        self.active_num_heads = max_num_heads
+
+    def set_active_dims(self, embed_dim: int, num_heads: int):
+        """Set active dimensions."""
+        self.active_embed_dim = embed_dim
+        self.active_num_heads = num_heads
+
+        self.q_proj.set_active_dims(embed_dim, embed_dim)
+        self.k_proj.set_active_dims(embed_dim, embed_dim)
+        self.v_proj.set_active_dims(embed_dim, embed_dim)
+        self.out_proj.set_active_dims(embed_dim, embed_dim)
+
+    def forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        attn_mask: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        batch_size, seq_len, _ = query.shape
+        embed_dim = self.active_embed_dim
+        num_heads = self.active_num_heads
+        head_dim = embed_dim // num_heads
+
+        # Project
+        q = self.q_proj(query)
+        k = self.k_proj(key)
+        v = self.v_proj(value)
+
+        # Reshape for multi-head attention
+        q = q.view(batch_size, seq_len, num_heads, head_dim).transpose(1, 2)
+        k = k.view(batch_size, seq_len, num_heads, head_dim).transpose(1, 2)
+        v = v.view(batch_size, seq_len, num_heads, head_dim).transpose(1, 2)
+
+        # Attention scores
+        scores = torch.matmul(q, k.transpose(-2, -1)) / np.sqrt(head_dim)
+        if attn_mask is not None:
+            scores = scores + attn_mask
+
+        attn_weights = F.softmax(scores, dim=-1)
+        attn_weights = F.dropout(attn_weights, p=self.dropout, training=self.training)
+
+        # Apply attention
+        attn_output = torch.matmul(attn_weights, v)
+
+        # Reshape and project
+        attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, embed_dim)
+        output = self.out_proj(attn_output)
+
+        return output, attn_weights
+
+
+class ElasticRecurrentCell(nn.Module):
+    """
+    GRU-style recurrent cell with elastic hidden dimension.
+    """
+
+    def __init__(self, max_input_dim: int, max_hidden_dim: int):
+        super().__init__()
+        self.max_input_dim = max_input_dim
+        self.max_hidden_dim = max_hidden_dim
+
+        # GRU gates
+        self.update_gate = ElasticLinear(max_input_dim + max_hidden_dim, max_hidden_dim)
+        self.reset_gate = ElasticLinear(max_input_dim + max_hidden_dim, max_hidden_dim)
+        self.candidate = ElasticLinear(max_input_dim + max_hidden_dim, max_hidden_dim)
+        self.layer_norm = nn.LayerNorm(max_hidden_dim)
+
+        self.active_input_dim = max_input_dim
+        self.active_hidden_dim = max_hidden_dim
+
+    def set_active_dims(self, input_dim: int, hidden_dim: int):
+        """Set active dimensions."""
+        self.active_input_dim = input_dim
+        self.active_hidden_dim = hidden_dim
+
+        combined_dim = input_dim + hidden_dim
+        self.update_gate.set_active_dims(combined_dim, hidden_dim)
+        self.reset_gate.set_active_dims(combined_dim, hidden_dim)
+        self.candidate.set_active_dims(combined_dim, hidden_dim)
+
+    def forward(self, x: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
+        # Truncate inputs to active dimensions
+        if x.shape[-1] > self.active_input_dim:
+            x = x[..., :self.active_input_dim]
+        if h.shape[-1] > self.active_hidden_dim:
+            h = h[..., :self.active_hidden_dim]
+
+        combined = torch.cat([x, h], dim=-1)
+
+        z = torch.sigmoid(self.update_gate(combined))
+        r = torch.sigmoid(self.reset_gate(combined))
+
+        combined_reset = torch.cat([x, r * h], dim=-1)
+        h_tilde = torch.tanh(self.candidate(combined_reset))
+
+        h_new = (1 - z) * h + z * h_tilde
+
+        # Apply layer norm only to active dimensions
+        h_new = self.layer_norm(h_new)
+
+        return h_new
+
+
+class ToMSupernet(nn.Module):
+    """
+    Supernet for Theory of Mind architectures.
+
+    This supernet encompasses:
+    - TRN: Transparent Recurrent Networks with elastic depth and width
+    - RSAN: Recursive Self-Attention Networks with elastic attention
+    - Transformer: Standard transformer with elastic configuration
+
+    All subnetworks share weights, enabling efficient architecture evaluation.
+    """
+
+    # Search space bounds
+    MAX_LAYERS = 5
+    MAX_HIDDEN_DIM = 256
+    MAX_HEADS = 8
+    MIN_LAYERS = 1
+    MIN_HIDDEN_DIM = 64
+    MIN_HEADS = 2
+
+    def __init__(
+        self,
+        input_dim: int = 181,
+        output_dim: int = 181,
+        dropout: float = 0.1
+    ):
+        super().__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.dropout = dropout
+
+        # Input projection (shared)
+        self.input_proj = ElasticLinear(input_dim, self.MAX_HIDDEN_DIM)
+
+        # TRN components
+        self.trn_cells = nn.ModuleList([
+            ElasticRecurrentCell(self.MAX_HIDDEN_DIM, self.MAX_HIDDEN_DIM)
+            for _ in range(self.MAX_LAYERS)
+        ])
+
+        # RSAN/Transformer attention layers
+        self.attention_layers = nn.ModuleList([
+            ElasticMultiheadAttention(self.MAX_HIDDEN_DIM, self.MAX_HEADS, dropout)
+            for _ in range(self.MAX_LAYERS)
+        ])
+
+        # Feedforward layers for transformer
+        self.ff_layers = nn.ModuleList([
+            nn.Sequential(
+                ElasticLinear(self.MAX_HIDDEN_DIM, self.MAX_HIDDEN_DIM * 4),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                ElasticLinear(self.MAX_HIDDEN_DIM * 4, self.MAX_HIDDEN_DIM)
+            )
+            for _ in range(self.MAX_LAYERS)
+        ])
+
+        # Layer norms
+        self.layer_norms = nn.ModuleList([
+            nn.LayerNorm(self.MAX_HIDDEN_DIM)
+            for _ in range(self.MAX_LAYERS * 2)  # Two per layer for pre-norm
+        ])
+
+        # Output heads
+        self.belief_head = ElasticLinear(self.MAX_HIDDEN_DIM, output_dim)
+        self.action_head = ElasticLinear(self.MAX_HIDDEN_DIM, 1)
+
+        # Current configuration
+        self.active_config: Optional[SubnetConfig] = None
+
+    def set_active_config(self, config: SubnetConfig):
+        """Set the active subnet configuration."""
+        self.active_config = config
+
+        # Configure all elastic components
+        hidden_dim = config.hidden_dim
+        num_heads = config.num_heads
+
+        self.input_proj.set_active_dims(self.input_dim, hidden_dim)
+
+        for cell in self.trn_cells:
+            cell.set_active_dims(hidden_dim, hidden_dim)
+
+        for attn in self.attention_layers:
+            attn.set_active_dims(hidden_dim, num_heads)
+
+        for ff in self.ff_layers:
+            ff[0].set_active_dims(hidden_dim, hidden_dim * 4)
+            ff[3].set_active_dims(hidden_dim * 4, hidden_dim)
+
+        self.belief_head.set_active_dims(hidden_dim, self.output_dim)
+        self.action_head.set_active_dims(hidden_dim, 1)
+
+    def forward_trn(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """Forward pass for TRN subnet."""
+        batch_size, seq_len, _ = x.shape
+        hidden_dim = self.active_config.hidden_dim
+        num_layers = self.active_config.num_layers
+
+        h = self.input_proj(x)
+        hidden = torch.zeros(batch_size, hidden_dim, device=x.device)
+
+        outputs = []
+        for t in range(seq_len):
+            x_t = h[:, t, :]
+
+            for layer_idx in range(num_layers):
+                hidden = self.trn_cells[layer_idx](x_t, hidden)
+                if self.active_config.use_skip_connections and layer_idx > 0:
+                    hidden = hidden + x_t  # Skip connection
+                x_t = hidden
+
+            outputs.append(hidden)
+
+        output_tensor = torch.stack(outputs, dim=1)
+        beliefs = torch.sigmoid(self.belief_head(output_tensor[:, -1, :]))
+        actions = torch.sigmoid(self.action_head(output_tensor[:, -1, :]))
+
+        return {
+            'hidden_states': output_tensor,
+            'beliefs': beliefs,
+            'actions': actions.squeeze(-1),
+            'final_hidden': hidden
+        }
+
+    def forward_rsan(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """Forward pass for RSAN subnet."""
+        batch_size, seq_len, _ = x.shape
+        num_layers = self.active_config.num_layers
+
+        h = self.input_proj(x)
+        attention_patterns = []
+
+        for depth in range(num_layers):
+            h_attn, attn_weights = self.attention_layers[depth](h, h, h)
+            h = h + F.dropout(h_attn, p=self.dropout, training=self.training)
+            attention_patterns.append(attn_weights)
+
+        beliefs = torch.sigmoid(self.belief_head(h[:, -1, :]))
+        actions = torch.sigmoid(self.action_head(h[:, -1, :]))
+
+        return {
+            'hidden_states': h,
+            'beliefs': beliefs,
+            'actions': actions.squeeze(-1),
+            'attention_patterns': attention_patterns
+        }
+
+    def forward_transformer(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """Forward pass for Transformer subnet."""
+        batch_size, seq_len, _ = x.shape
+        num_layers = self.active_config.num_layers
+
+        h = self.input_proj(x)
+
+        for layer_idx in range(num_layers):
+            # Self-attention with pre-norm
+            norm_idx = layer_idx * 2
+            h_norm = self.layer_norms[norm_idx](h)
+            h_attn, _ = self.attention_layers[layer_idx](h_norm, h_norm, h_norm)
+            h = h + F.dropout(h_attn, p=self.dropout, training=self.training)
+
+            # Feedforward with pre-norm
+            h_norm = self.layer_norms[norm_idx + 1](h)
+            h_ff = self.ff_layers[layer_idx][0](h_norm)  # First linear
+            h_ff = F.relu(h_ff)
+            h_ff = F.dropout(h_ff, p=self.dropout, training=self.training)
+            h_ff = self.ff_layers[layer_idx][3](h_ff)  # Second linear
+            h = h + F.dropout(h_ff, p=self.dropout, training=self.training)
+
+        beliefs = torch.sigmoid(self.belief_head(h[:, -1, :]))
+        actions = torch.sigmoid(self.action_head(h[:, -1, :]))
+
+        return {
+            'hidden_states': h,
+            'beliefs': beliefs,
+            'actions': actions.squeeze(-1)
+        }
+
+    def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """Forward pass using current active configuration."""
+        if self.active_config is None:
+            # Default to small transformer
+            self.set_active_config(SubnetConfig(
+                arch_type='transformer',
+                num_layers=2,
+                hidden_dim=128,
+                num_heads=4
+            ))
+
+        arch_type = self.active_config.arch_type.lower()
+
+        if arch_type == 'trn':
+            return self.forward_trn(x)
+        elif arch_type == 'rsan':
+            return self.forward_rsan(x)
+        elif arch_type == 'transformer':
+            return self.forward_transformer(x)
+        else:
+            raise ValueError(f"Unknown architecture type: {arch_type}")
+
+    def extract_subnet(self, config: SubnetConfig) -> nn.Module:
         """
-        Synaptic Flow (SynFlow) proxy.
+        Extract a standalone subnet with inherited weights.
 
-        Measures path-wise pruning saliency without data.
+        Args:
+            config: Configuration for the subnet
+
+        Returns:
+            A standalone nn.Module with copied weights
         """
-        model = model.to(device)
-        model.eval()
+        self.set_active_config(config)
 
-        # Set all parameters to ones
-        signs = {}
-        for name, param in model.named_parameters():
-            signs[name] = param.sign()
-            param.data = torch.ones_like(param)
+        # Create a lightweight wrapper that captures the current config
+        class ExtractedSubnet(nn.Module):
+            def __init__(self, supernet, config):
+                super().__init__()
+                self.config = config
+                self.supernet = supernet
 
-        # Forward pass with ones
-        x = torch.ones(1, *input_shape, device=device)
-        try:
-            output = model(x)
-        except Exception:
-            return 0.0
+            def forward(self, x):
+                self.supernet.set_active_config(self.config)
+                return self.supernet(x)
 
-        # Backward pass
-        if output.requires_grad:
-            output.sum().backward()
+        return ExtractedSubnet(self, config)
 
-        # Compute SynFlow score
-        score = 0.0
-        for name, param in model.named_parameters():
-            if param.grad is not None:
-                score += (signs[name] * param.grad * param).sum().abs().item()
 
-        # Restore parameters
-        model.zero_grad()
+class SupernetTrainer:
+    """
+    Trainer for the ToM Supernet using progressive shrinking.
 
-        return score
+    Progressive shrinking trains the full supernet first, then gradually
+    trains smaller subnets while maintaining shared weight quality.
+    """
 
-    @staticmethod
-    def grad_norm(model: nn.Module, dataloader, device: str = 'cpu') -> float:
+    def __init__(
+        self,
+        supernet: ToMSupernet,
+        device: str = 'cpu',
+        lr: float = 1e-3
+    ):
+        self.supernet = supernet.to(device)
+        self.device = device
+        self.optimizer = torch.optim.Adam(supernet.parameters(), lr=lr)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            self.optimizer, T_max=100
+        )
+
+        # Training history
+        self.losses: List[float] = []
+        self.configs_trained: List[SubnetConfig] = []
+
+    def sample_config(self) -> SubnetConfig:
+        """Sample a random valid subnet configuration."""
+        arch_types = ['trn', 'rsan', 'transformer']
+
+        return SubnetConfig(
+            arch_type=np.random.choice(arch_types),
+            num_layers=np.random.randint(
+                ToMSupernet.MIN_LAYERS,
+                ToMSupernet.MAX_LAYERS + 1
+            ),
+            hidden_dim=np.random.choice([64, 96, 128, 160, 192, 224, 256]),
+            num_heads=np.random.choice([2, 4, 6, 8]),
+            dropout=np.random.choice([0.0, 0.1, 0.2]),
+            use_skip_connections=np.random.random() > 0.3
+        )
+
+    def train_step(
+        self,
+        batch_inputs: torch.Tensor,
+        batch_targets: torch.Tensor,
+        config: Optional[SubnetConfig] = None
+    ) -> float:
         """
-        Gradient norm at initialization.
+        Single training step with a sampled or specified configuration.
 
-        Higher gradient norm often indicates better trainability.
+        Args:
+            batch_inputs: Input tensor
+            batch_targets: Target tensor for beliefs
+            config: Optional config (sampled if not provided)
+
+        Returns:
+            Loss value
         """
-        model = model.to(device)
-        model.train()
+        self.supernet.train()
 
-        total_norm = 0.0
-        count = 0
+        if config is None:
+            config = self.sample_config()
 
-        for batch in dataloader:
-            if count >= 10:  # Only use a few batches
-                break
+        self.supernet.set_active_config(config)
 
-            x, y = batch
-            x, y = x.to(device), y.to(device)
+        self.optimizer.zero_grad()
 
-            model.zero_grad()
-            output = model(x)
+        output = self.supernet(batch_inputs.to(self.device))
+        beliefs = output['beliefs']
 
-            # Simplified loss
-            loss = F.cross_entropy(output, y) if output.dim() > 1 else output.mean()
-            loss.backward()
+        # Compute loss
+        loss = F.binary_cross_entropy(
+            beliefs,
+            batch_targets.to(self.device)
+        )
 
-            # Compute gradient norm
-            batch_norm = 0.0
-            for param in model.parameters():
-                if param.grad is not None:
-                    batch_norm += param.grad.norm(2).item() ** 2
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.supernet.parameters(), 1.0)
+        self.optimizer.step()
 
-            total_norm += batch_norm ** 0.5
-            count += 1
+        loss_val = loss.item()
+        self.losses.append(loss_val)
+        self.configs_trained.append(config)
 
-        return total_norm / max(count, 1)
+        return loss_val
 
-    @staticmethod
-    def jacob_cov(model: nn.Module, input_shape: Tuple[int, ...],
-                  num_samples: int = 32, device: str = 'cpu') -> float:
+    def train_epoch(
+        self,
+        data_loader,
+        configs_per_batch: int = 4
+    ) -> float:
         """
-        Jacobian covariance score.
+        Train for one epoch, sampling multiple configs per batch.
 
-        Measures the rank/diversity of input-output Jacobian.
+        Args:
+            data_loader: DataLoader providing (inputs, targets)
+            configs_per_batch: Number of configurations to sample per batch
+
+        Returns:
+            Average loss for the epoch
         """
-        model = model.to(device)
-        model.eval()
+        epoch_losses = []
 
-        jacobians = []
+        for batch_inputs, batch_targets in data_loader:
+            batch_losses = []
+            for _ in range(configs_per_batch):
+                loss = self.train_step(batch_inputs, batch_targets)
+                batch_losses.append(loss)
+            epoch_losses.extend(batch_losses)
 
-        for _ in range(num_samples):
-            x = torch.randn(1, *input_shape, device=device, requires_grad=True)
+        self.scheduler.step()
+        return np.mean(epoch_losses)
 
-            try:
-                output = model(x)
-            except Exception:
-                return 0.0
+    def progressive_shrinking(
+        self,
+        data_loader,
+        num_epochs: int = 20,
+        phases: int = 4
+    ) -> Dict[str, Any]:
+        """
+        Progressive shrinking training strategy.
 
-            if output.dim() > 1:
-                output = output.view(-1)
+        Trains full network first, then progressively smaller networks.
 
-            # Compute Jacobian for first few outputs
-            for i in range(min(10, output.shape[0])):
-                model.zero_grad()
-                if x.grad is not None:
-                    x.grad.zero_()
+        Args:
+            data_loader: DataLoader for training
+            num_epochs: Total epochs
+            phases: Number of shrinking phases
 
-                output[i].backward(retain_graph=True)
+        Returns:
+            Training statistics
+        """
+        epochs_per_phase = num_epochs // phases
 
-                if x.grad is not None:
-                    jacobians.append(x.grad.view(-1).clone())
+        for phase in range(phases):
+            # Determine size range for this phase
+            # Start with large, progressively include smaller
+            min_layer_mult = 1 - (phase / phases)
+            min_hidden_mult = 1 - (phase / phases)
 
-        if not jacobians:
-            return 0.0
+            for epoch in range(epochs_per_phase):
+                # Sample config biased by phase
+                config = self._sample_config_for_phase(min_layer_mult, min_hidden_mult)
 
-        # Stack and compute covariance
-        jacobian_matrix = torch.stack(jacobians)
+                for batch_inputs, batch_targets in data_loader:
+                    self.train_step(batch_inputs, batch_targets, config)
 
-        # Correlation score (higher = more diverse gradients)
-        try:
-            _, s, _ = torch.svd(jacobian_matrix)
-            score = (s > 1e-5).sum().item() / len(s)  # Effective rank
-        except Exception:
-            score = 0.0
+                if epoch % 5 == 0:
+                    avg_loss = np.mean(self.losses[-100:]) if len(self.losses) >= 100 else np.mean(self.losses)
+                    print(f"Phase {phase+1}/{phases}, Epoch {epoch+1}/{epochs_per_phase}, Loss: {avg_loss:.4f}")
 
-        return score
+        return {
+            'final_loss': np.mean(self.losses[-100:]),
+            'total_configs_trained': len(self.configs_trained),
+            'loss_history': self.losses
+        }
 
-    @staticmethod
-    def compute_all_proxies(model: nn.Module, input_shape: Tuple[int, ...],
-                            dataloader=None, device: str = 'cpu') -> Dict[str, float]:
-        """Compute all available zero-cost proxies."""
-        results = {}
+    def _sample_config_for_phase(
+        self,
+        min_layer_mult: float,
+        min_hidden_mult: float
+    ) -> SubnetConfig:
+        """Sample config appropriate for training phase."""
+        min_layers = max(1, int(ToMSupernet.MAX_LAYERS * min_layer_mult))
+        min_hidden = max(64, int(ToMSupernet.MAX_HIDDEN_DIM * min_hidden_mult))
 
-        results['synflow'] = ZeroCostProxy.synflow(model, input_shape, device)
-        results['jacob_cov'] = ZeroCostProxy.jacob_cov(model, input_shape, device=device)
+        return SubnetConfig(
+            arch_type=np.random.choice(['trn', 'rsan', 'transformer']),
+            num_layers=np.random.randint(min_layers, ToMSupernet.MAX_LAYERS + 1),
+            hidden_dim=np.random.choice([d for d in [64, 96, 128, 160, 192, 224, 256] if d >= min_hidden]),
+            num_heads=np.random.choice([2, 4, 6, 8]),
+            dropout=np.random.choice([0.0, 0.1, 0.2]),
+            use_skip_connections=np.random.random() > 0.3
+        )
 
-        if dataloader:
-            results['grad_norm'] = ZeroCostProxy.grad_norm(model, dataloader, device)
 
-        return results
+class SupernetEvaluator:
+    """
+    Evaluates subnet configurations using inherited supernet weights.
+    """
+
+    def __init__(
+        self,
+        supernet: ToMSupernet,
+        device: str = 'cpu'
+    ):
+        self.supernet = supernet.to(device)
+        self.device = device
+        self.supernet.eval()
+
+    def evaluate_config(
+        self,
+        config: SubnetConfig,
+        eval_data: List[Tuple[torch.Tensor, torch.Tensor]],
+        fine_tune_epochs: int = 0
+    ) -> Dict[str, float]:
+        """
+        Evaluate a subnet configuration.
+
+        Args:
+            config: Configuration to evaluate
+            eval_data: List of (input, target) tensors
+            fine_tune_epochs: Optional fine-tuning epochs
+
+        Returns:
+            Dictionary with accuracy and other metrics
+        """
+        self.supernet.set_active_config(config)
+
+        if fine_tune_epochs > 0:
+            self._fine_tune(config, eval_data, fine_tune_epochs)
+
+        # Evaluate
+        self.supernet.eval()
+        correct = 0
+        total = 0
+
+        with torch.no_grad():
+            for inputs, targets in eval_data:
+                output = self.supernet(inputs.to(self.device))
+                beliefs = output['beliefs']
+
+                # Binary accuracy for belief predictions
+                predictions = (beliefs > 0.5).float()
+                target_binary = (targets.to(self.device) > 0.5).float()
+
+                correct += (predictions == target_binary).sum().item()
+                total += predictions.numel()
+
+        accuracy = correct / total if total > 0 else 0.0
+
+        return {
+            'accuracy': accuracy,
+            'config': config.to_dict(),
+            'param_count': self._count_active_params(config)
+        }
+
+    def _fine_tune(
+        self,
+        config: SubnetConfig,
+        data: List[Tuple[torch.Tensor, torch.Tensor]],
+        epochs: int
+    ):
+        """Brief fine-tuning of subnet."""
+        self.supernet.train()
+        self.supernet.set_active_config(config)
+
+        # Use smaller learning rate for fine-tuning
+        optimizer = torch.optim.Adam(self.supernet.parameters(), lr=1e-4)
+
+        for _ in range(epochs):
+            for inputs, targets in data:
+                optimizer.zero_grad()
+                output = self.supernet(inputs.to(self.device))
+                loss = F.binary_cross_entropy(output['beliefs'], targets.to(self.device))
+                loss.backward()
+                optimizer.step()
+
+    def _count_active_params(self, config: SubnetConfig) -> int:
+        """Count parameters for active configuration."""
+        # Approximation based on config
+        hidden = config.hidden_dim
+        layers = config.num_layers
+        input_dim = self.supernet.input_dim
+        output_dim = self.supernet.output_dim
+
+        # Input projection
+        params = input_dim * hidden + hidden
+
+        if config.arch_type.lower() == 'trn':
+            # GRU cells per layer
+            params += layers * (3 * (hidden + hidden) * hidden + 3 * hidden)
+        else:
+            # Attention + FF per layer
+            params += layers * (4 * hidden * hidden + hidden * hidden * 4 * 2)
+
+        # Output heads
+        params += hidden * output_dim + output_dim + hidden + 1
+
+        return params
 
 
-# Export
-__all__ = [
-    'ElasticConfig',
-    'ElasticLSTMCell',
-    'ElasticTransparentRNN',
-    'ElasticTransformer',
-    'ElasticTransformerLayer',
-    'PositionalEncoding',
-    'ZeroCostProxy',
-]
+def test_supernet():
+    """Test supernet functionality."""
+    print("=" * 60)
+    print("SUPERNET TEST")
+    print("=" * 60)
+
+    # Create supernet
+    supernet = ToMSupernet(input_dim=181, output_dim=181)
+
+    # Test different configurations
+    configs = [
+        SubnetConfig('trn', num_layers=2, hidden_dim=128, num_heads=4),
+        SubnetConfig('rsan', num_layers=3, hidden_dim=96, num_heads=4),
+        SubnetConfig('transformer', num_layers=2, hidden_dim=128, num_heads=4),
+    ]
+
+    # Generate test input
+    x = torch.randn(4, 10, 181)
+
+    for config in configs:
+        print(f"\n--- {config.arch_type.upper()} ---")
+        supernet.set_active_config(config)
+        output = supernet(x)
+
+        print(f"  Config: layers={config.num_layers}, hidden={config.hidden_dim}")
+        print(f"  Beliefs shape: {output['beliefs'].shape}")
+        print(f"  Actions shape: {output['actions'].shape}")
+
+    print("\n" + "=" * 60)
+    print("TEST COMPLETE")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    test_supernet()
