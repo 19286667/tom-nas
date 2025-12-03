@@ -30,9 +30,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from src.core.ontology import SoulMapOntology
 from src.core.beliefs import BeliefNetwork
-from src.agents.architectures import TransparentRNN, RecursiveSelfAttention, TransformerToMAgent
 from src.world.social_world import SocialWorld4
 from src.evaluation.benchmarks import BenchmarkSuite, SallyAnneTest, HigherOrderToMBenchmark
+from src.utils import create_model
 
 
 @dataclass
@@ -178,28 +178,15 @@ class CoevolutionaryTrainer:
 
     def _create_model(self, arch_type: str) -> nn.Module:
         """Create a model of specified architecture type"""
-        if arch_type == 'TRN':
-            return TransparentRNN(
-                self.input_dim, self.hidden_dim, self.output_dim
-            ).to(self.device)
-        elif arch_type == 'RSAN':
-            return RecursiveSelfAttention(
-                self.input_dim, self.hidden_dim, self.output_dim,
-                num_heads=4
-            ).to(self.device)
-        elif arch_type == 'Transformer':
-            return TransformerToMAgent(
-                self.input_dim, self.hidden_dim, self.output_dim,
-                num_layers=3
-            ).to(self.device)
-        elif arch_type == 'Hybrid':
-            # Hybrid uses RSAN as base (best for recursive beliefs)
-            return RecursiveSelfAttention(
-                self.input_dim, self.hidden_dim, self.output_dim,
-                num_heads=4
-            ).to(self.device)
-        else:
-            raise ValueError(f"Unknown architecture type: {arch_type}")
+        return create_model(
+            arch_type=arch_type,
+            input_dim=self.input_dim,
+            hidden_dim=self.hidden_dim,
+            output_dim=self.output_dim,
+            num_layers=3,
+            num_heads=4,
+            device=self.device
+        )
 
     def _initialize_population(self) -> List[AgentIndividual]:
         """Initialize diverse population with multiple architecture types"""
