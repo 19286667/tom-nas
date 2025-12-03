@@ -1,12 +1,26 @@
 """
 ToM-NAS: Theory of Mind Neural Architecture Search
+The Fractal Semiotic Engine
 
 A comprehensive framework for evolving neural architectures capable of
-Theory of Mind reasoning, including recursive belief modeling, zombie detection,
-and social world simulation.
+high-order, transparent Theory of Mind reasoning through:
+
+1. SEMIOTIC KNOWLEDGE GRAPH (Indra's Net) - The omnipresent semantic web
+   where every entity exists in hyperlinked meaning.
+
+2. COGNITIVE CORE (Mentalese + RSC) - TypeScript-style cognitive blocks
+   enabling recursive self-compression and N-th order ToM.
+
+3. POET EVOLUTIONARY CONTROLLER - Paired open-ended evolution with
+   sociological genotypes forcing emergence of deep social cognition.
+
+4. GODOT PHYSICAL BRIDGE - Symbol grounding connecting physics to meaning.
+
+The physical is cognitive. The cognitive is physical.
+In Indra's Net, each pearl reflects all others.
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __author__ = "ToM-NAS Research Team"
 
 from . import core
@@ -14,12 +28,21 @@ from . import agents
 from . import world
 from . import evolution
 from . import evaluation
+from . import knowledge_base
+from . import cognition
+from . import godot_bridge
 
 __all__ = [
+    # Original modules
     'core',
     'agents',
     'world',
     'evolution',
     'evaluation',
+    # Fractal Semiotic Engine modules
+    'knowledge_base',
+    'cognition',
+    'godot_bridge',
+    # Metadata
     '__version__',
 ]
