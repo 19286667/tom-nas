@@ -4,9 +4,8 @@ Social World 4: Complete society simulator with zombie detection
 import torch
 import numpy as np
 import random
-from typing import Dict, List, Optional, Any, Set
+from typing import Dict, List, Optional
 from dataclasses import dataclass, field
-from collections import defaultdict
 
 @dataclass
 class Agent:
@@ -171,17 +170,17 @@ class SocialWorld4:
         detected_correctly = (is_zombie and detection_accuracy < 0.3) or \
                            (not is_zombie and detection_accuracy > 0.7)
 
+        reward = 0.0  # Initialize reward to ensure it's always defined
         if detected_correctly and is_zombie:
             reward = self.zombie_game.detection_reward
             self.agents[detector_id].resources += reward
             result = 'correct_detection'
         elif not is_zombie and detection_accuracy < 0.5:
             # False positive
-            penalty = self.zombie_game.false_positive_penalty
-            self.agents[detector_id].resources += penalty
+            reward = self.zombie_game.false_positive_penalty
+            self.agents[detector_id].resources += reward
             result = 'false_positive'
         else:
-            reward = 0.0
             result = 'no_detection'
 
         return {
@@ -190,7 +189,7 @@ class SocialWorld4:
             'suspect': suspect_id,
             'is_zombie': is_zombie,
             'result': result,
-            'reward': reward if 'reward' in locals() else 0.0
+            'reward': reward
         }
 
     def form_coalition(self, member_ids: List[int]) -> int:

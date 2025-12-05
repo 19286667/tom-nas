@@ -142,13 +142,16 @@ class SocialEdge:
     cooperation_history: List[bool] = field(default_factory=list)
     last_interaction_tick: int = 0
 
+    # Coalition membership (explicit agreement)
+    in_coalition: bool = False
+
     def get_relationship_type(self) -> RelationshipType:
         """Classify relationship based on current metrics."""
         if self.familiarity < 0.1:
             return RelationshipType.STRANGER
         elif self.familiarity < 0.3:
             return RelationshipType.ACQUAINTANCE
-        elif self.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and self.affect > 0.3:
+        elif self.in_coalition and self.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD:
             return RelationshipType.COALITION
         elif self.trust > 0.6 and self.affect > 0:
             return RelationshipType.ALLY
@@ -350,6 +353,13 @@ class SocialNetwork:
                 if len(component) >= 2:  # Minimum coalition size
                     coalitions[f"coalition_{coalition_id}"] = component
                     coalition_id += 1
+                    # Mark edges as in_coalition
+                    for member in component:
+                        for other in component:
+                            if member != other:
+                                edge = self.edges.get((member, other))
+                                if edge:
+                                    edge.in_coalition = True
 
         self.coalitions = coalitions
         return coalitions
