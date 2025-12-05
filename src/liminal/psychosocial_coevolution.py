@@ -88,8 +88,9 @@ class TheoreticalConstants:
 
     # COALITION STABILITY: Threshold for coalition formation/dissolution
     # Source: Harcourt & de Waal (1992). Coalitions and Alliances
-    COALITION_FORMATION_THRESHOLD = 0.6  # Mutual reputation required
+    COALITION_FORMATION_THRESHOLD = 0.6  # Mutual trust required for coalition
     COALITION_DISSOLUTION_THRESHOLD = 0.3  # Below this, coalition breaks
+    COALITION_AFFECT_THRESHOLD = 0.7  # Minimum positive affect for formal coalition (higher than ALLY)
 
     # STATUS HIERARCHY: Rate of dominance relationship crystallization
     # Source: Sapolsky (2005). The Influence of Social Hierarchy on Primate Health
@@ -148,7 +149,8 @@ class SocialEdge:
             return RelationshipType.STRANGER
         elif self.familiarity < 0.3:
             return RelationshipType.ACQUAINTANCE
-        elif self.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and self.affect > 0.3:
+        elif (self.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and 
+              self.affect > TheoreticalConstants.COALITION_AFFECT_THRESHOLD):
             return RelationshipType.COALITION
         elif self.trust > 0.6 and self.affect > 0:
             return RelationshipType.ALLY
@@ -320,7 +322,7 @@ class SocialNetwork:
 
         for (source, target), edge in self.edges.items():
             if (edge.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and
-                edge.affect > 0.2):
+                edge.affect > TheoreticalConstants.COALITION_AFFECT_THRESHOLD):
                 # Check reciprocity
                 reverse = self.edges.get((target, source))
                 if reverse and reverse.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD:

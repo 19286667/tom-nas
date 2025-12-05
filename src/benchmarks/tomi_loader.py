@@ -438,9 +438,20 @@ class ToMiEvaluator:
                 # Get model predictions
                 output = model(events)
 
+                # Handle dict output from ToM models (beliefs key)
+                if isinstance(output, dict):
+                    output = output.get('beliefs', output.get('output', None))
+                    if output is None:
+                        continue
+
                 for question in example.questions:
                     # Get predicted answer
-                    predicted_idx = output.argmax(dim=-1).item()
+                    if output.dim() > 1:
+                        # Handle batched output - get first sample, last timestep
+                        pred_tensor = output[0] if output.dim() == 2 else output[0, -1]
+                    else:
+                        pred_tensor = output
+                    predicted_idx = pred_tensor.argmax(dim=-1).item()
                     correct_idx = self.dataset.encoder.locations_vocab.get(
                         question.correct_answer, 0
                     )
