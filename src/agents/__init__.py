@@ -15,9 +15,15 @@ from .architectures import (
     HybridArchitecture,
 )
 
+# Aliases for backward compatibility
+TRN = TransparentRNN
+RSAN = RecursiveSelfAttention
+
 __all__ = [
     'TransparentRNN',
     'RecursiveSelfAttention',
     'TransformerToMAgent',
     'HybridArchitecture',
+    'TRN',  # Alias for TransparentRNN
+    'RSAN',  # Alias for RecursiveSelfAttention
 ]

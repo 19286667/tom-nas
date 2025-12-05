@@ -16,7 +16,7 @@ from typing import Dict, List
 # Import ToM-NAS core
 from src.core.ontology import SoulMapOntology
 from src.core.beliefs import BeliefNetwork
-from src.agents.architectures import TRN, RSAN, TransformerToM
+from src.agents import TRN, RSAN, TransformerToMAgent as TransformerToM
 
 # Import game systems
 from src.game.soul_map_visualizer import SoulMapVisualizer

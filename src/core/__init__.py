@@ -9,7 +9,7 @@ Contains the foundational components:
 """
 
 from .ontology import SoulMapOntology, OntologyDimension
-from .beliefs import Belief, RecursiveBeliefState, BeliefNetwork
+from .beliefs import BeliefNode, RecursiveBeliefState, BeliefNetwork
 from .events import (
     Event, ActionType, AgentBeliefs, Question, QuestionType,
     EventEncoder, ScenarioEncoder, AnswerDecoder,
@@ -19,7 +19,7 @@ from .events import (
 __all__ = [
     'SoulMapOntology',
     'OntologyDimension',
-    'Belief',
+    'BeliefNode',
     'RecursiveBeliefState',
     'BeliefNetwork',
     # Event system

@@ -22,7 +22,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
 from src.core.ontology import SoulMapOntology
 from src.core.beliefs import BeliefNetwork
-from src.agents.architectures import TRN, RSAN, TransformerToM
+from src.agents import TRN, RSAN, TransformerToMAgent as TransformerToM
 from src.world.social_world import SocialWorld4
 
 # Initialize FastAPI

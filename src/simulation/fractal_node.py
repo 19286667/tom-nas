@@ -643,12 +643,229 @@ def create_simulation(
     return node
 
 
+# Concrete RSCAgent Implementations
+
+class NeuralRSCAgent(RSCAgent):
+    """
+    Neural network-based RSC agent using learned perception and decision-making.
+
+    Uses a simple neural network for perception compression and
+    action selection based on world state.
+    """
+
+    def __init__(
+        self,
+        agent_id: str,
+        tom_depth: int = 3,
+        hidden_dim: int = 128,
+        input_dim: int = 256,
+    ):
+        super().__init__(agent_id, tom_depth)
+        self.hidden_dim = hidden_dim
+        self.input_dim = input_dim
+
+        # Perception network (compresses attention stream)
+        self.perception_net = torch.nn.Sequential(
+            torch.nn.Linear(input_dim, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, hidden_dim // 2),
+        )
+
+        # Decision network (selects action from world state)
+        self.decision_net = torch.nn.Sequential(
+            torch.nn.Linear(hidden_dim // 2 + input_dim, hidden_dim),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_dim, 4),  # 4 action types
+        )
+
+        # Internal state (compressed representation)
+        self.internal_state = torch.zeros(hidden_dim // 2)
+
+    def perceive(self, attention_stream: Any) -> torch.Tensor:
+        """Process incoming perceptions via neural compression."""
+        # Convert attention stream to tensor
+        if isinstance(attention_stream, dict):
+            # Extract entity tensors and aggregate
+            entity_tensors = []
+            for entity_data in attention_stream.get('entities', {}).values():
+                content = entity_data.get('content')
+                if content is not None:
+                    entity_tensors.append(content.flatten()[:self.input_dim])
+
+            if entity_tensors:
+                # Mean pooling over entities
+                input_tensor = torch.stack([
+                    torch.nn.functional.pad(t, (0, max(0, self.input_dim - len(t))))[:self.input_dim]
+                    for t in entity_tensors
+                ]).mean(dim=0)
+            else:
+                input_tensor = torch.zeros(self.input_dim)
+        elif isinstance(attention_stream, torch.Tensor):
+            input_tensor = attention_stream.flatten()[:self.input_dim]
+            if len(input_tensor) < self.input_dim:
+                input_tensor = torch.nn.functional.pad(
+                    input_tensor, (0, self.input_dim - len(input_tensor))
+                )
+        else:
+            input_tensor = torch.zeros(self.input_dim)
+
+        # Compress through perception network
+        with torch.no_grad():
+            self.internal_state = self.perception_net(input_tensor)
+
+        return self.internal_state
+
+    def decide_action(self, world_state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Decide action based on world state and internal state.
+
+        Returns action dict with type: 'physical', 'simulate', or 'none'
+        """
+        # Build input from world state
+        world_features = torch.zeros(self.input_dim)
+        world_features[0] = world_state.get('tick', 0) / 1000.0
+        world_features[1] = world_state.get('entropy', 0.5)
+        world_features[2] = len(world_state.get('agents', [])) / 10.0
+        world_features[3] = len(world_state.get('entities', {})) / 100.0
+
+        # Combine with internal state
+        combined = torch.cat([self.internal_state, world_features])
+
+        # Get action logits
+        with torch.no_grad():
+            action_logits = self.decision_net(combined)
+            action_probs = torch.softmax(action_logits, dim=0)
+            action_idx = torch.argmax(action_probs).item()
+
+        # Map to action types
+        action_types = ['none', 'physical', 'simulate', 'communicate']
+        action_type = action_types[action_idx]
+
+        if action_type == 'physical':
+            return {
+                'type': 'physical',
+                'godot_command': 'move',
+                'target_entity': None,
+                'parameters': {'direction': [1, 0, 0]},
+            }
+        elif action_type == 'simulate':
+            return {
+                'type': 'simulate',
+                'seed_state': {'prediction_seed': self.internal_state.tolist()},
+                'horizon': self.tom_depth * 3,
+            }
+        elif action_type == 'communicate':
+            return {
+                'type': 'physical',
+                'godot_command': 'communicate',
+                'target_entity': None,
+                'parameters': {'message': 'greeting'},
+            }
+        else:
+            return {'type': 'none'}
+
+    def compress(self, data: Any) -> torch.Tensor:
+        """Apply compression to create CognitiveBlock representation."""
+        if isinstance(data, torch.Tensor):
+            return self.perception_net(data.flatten()[:self.input_dim])
+        elif isinstance(data, dict):
+            # Convert dict to tensor representation
+            tensor = torch.zeros(self.input_dim)
+            for i, (k, v) in enumerate(list(data.items())[:self.input_dim]):
+                if isinstance(v, (int, float)):
+                    tensor[i] = float(v)
+            return self.perception_net(tensor)
+        else:
+            return self.internal_state
+
+
+class RuleBasedRSCAgent(RSCAgent):
+    """
+    Rule-based RSC agent for testing and baseline comparisons.
+
+    Uses simple heuristics for perception and decision-making.
+    """
+
+    def __init__(self, agent_id: str, tom_depth: int = 3):
+        super().__init__(agent_id, tom_depth)
+        self.memory: List[Dict[str, Any]] = []
+        self.action_history: List[str] = []
+
+    def perceive(self, attention_stream: Any) -> Dict[str, Any]:
+        """Extract key features from attention stream."""
+        perception = {
+            'tick': 0,
+            'entity_count': 0,
+            'agent_count': 0,
+            'entropy': 1.0,
+        }
+
+        if isinstance(attention_stream, dict):
+            perception['tick'] = attention_stream.get('tick', 0)
+            perception['entity_count'] = len(attention_stream.get('entities', {}))
+            perception['agent_count'] = len(attention_stream.get('agents', []))
+            perception['entropy'] = attention_stream.get('entropy', 1.0)
+
+        # Store in memory (limited)
+        self.memory.append(perception)
+        if len(self.memory) > 100:
+            self.memory = self.memory[-50:]
+
+        return perception
+
+    def decide_action(self, world_state: Dict[str, Any]) -> Dict[str, Any]:
+        """Use heuristic rules for action selection."""
+        entropy = world_state.get('entropy', 1.0)
+        tick = world_state.get('tick', 0)
+
+        # Rule 1: If entropy is low, simulate to predict future
+        if entropy < 0.3:
+            self.action_history.append('simulate')
+            return {
+                'type': 'simulate',
+                'seed_state': {'entropy_crisis': True},
+                'horizon': 5,
+            }
+
+        # Rule 2: Every 10 ticks, take a physical action
+        if tick % 10 == 0:
+            self.action_history.append('physical')
+            return {
+                'type': 'physical',
+                'godot_command': 'explore',
+                'target_entity': None,
+                'parameters': {},
+            }
+
+        # Rule 3: If many other agents, simulate their behavior
+        if world_state.get('agents', []) and len(world_state.get('agents', [])) > 2:
+            if tick % 5 == 0:
+                self.action_history.append('simulate')
+                return {
+                    'type': 'simulate',
+                    'seed_state': {'social_prediction': True},
+                    'horizon': self.tom_depth * 2,
+                }
+
+        # Default: no action
+        self.action_history.append('none')
+        return {'type': 'none'}
+
+    def compress(self, data: Any) -> Dict[str, Any]:
+        """Simple compression by extracting key features."""
+        if isinstance(data, dict):
+            return {k: v for k, v in list(data.items())[:10]}
+        return {'raw': str(data)[:100]}
+
+
 # Export
 __all__ = [
     'SimulationStatus',
     'SimulationConfig',
     'WorldStateVector',
     'RSCAgent',
+    'NeuralRSCAgent',
+    'RuleBasedRSCAgent',
     'SimulationNode',
     'RootSimulationNode',
     'create_simulation',

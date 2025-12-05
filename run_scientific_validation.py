@@ -21,7 +21,7 @@ import json
 from datetime import datetime
 
 from src.core.ontology import SoulMapOntology
-from src.agents.architectures import TRN, RSAN, TransformerToM
+from src.agents import TRN, RSAN, TransformerToMAgent as TransformerToM
 from src.evaluation.scientific_validation import (
     run_scientific_validation,
     ToMBenchmark,
