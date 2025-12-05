@@ -473,7 +473,9 @@ class TRMTrainer:
 
     def load(self, path: str) -> None:
         """Load model checkpoint."""
-        checkpoint = torch.load(path, map_location=self.device)
+        # Note: weights_only=False is required for loading optimizer state
+        # Only load checkpoints from trusted sources
+        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.loss_history = checkpoint.get('loss_history', [])

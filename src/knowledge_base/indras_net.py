@@ -814,9 +814,13 @@ class IndrasNet:
             }, f)
 
     def load(self, filepath: Path) -> None:
-        """Load the graph from disk."""
+        """Load the graph from disk.
+
+        Warning: Only load graph files from trusted sources.
+        Pickle can execute arbitrary code during deserialization.
+        """
         with open(filepath, 'rb') as f:
-            data = pickle.load(f)
+            data = pickle.load(f)  # nosec B301 - trusted source requirement documented
             self._graph = data['graph']
             self._nodes_by_type = data['nodes_by_type']
             self._nodes_by_godot_id = data['nodes_by_godot_id']

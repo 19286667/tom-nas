@@ -405,8 +405,12 @@ class NASEngine:
         print(f"  Checkpoint saved: {filepath}")
 
     def load_checkpoint(self, filepath: str):
-        """Load evolution checkpoint"""
-        checkpoint = torch.load(filepath)
+        """Load evolution checkpoint.
+
+        Note: Only load checkpoints from trusted sources.
+        """
+        # weights_only=False required for loading complex nested objects
+        checkpoint = torch.load(filepath, weights_only=False)
 
         self.generation = checkpoint['generation']
 
