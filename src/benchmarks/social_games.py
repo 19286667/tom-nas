@@ -133,7 +133,6 @@ class SocialGameBenchmark:
                 break
 
             partner_id = random.choice(non_zombies)
-            # Note: partner agent used only for logging/debugging if needed
 
             # Build observation for model
             observation = self._build_cooperation_observation(
@@ -319,8 +318,6 @@ class SocialGameBenchmark:
                 else:
                     true_negatives += 1
 
-        # Note: total is computed for documentation but not needed after
-        # removing unused max(num_scenarios, 1)
         positives = true_positives + false_negatives
         negatives = true_negatives + false_positives
 
@@ -355,7 +352,6 @@ class SocialGameBenchmark:
             while responder_id == proposer_id:
                 responder_id = random.randint(0, self.num_agents - 1)
 
-            # total_resource = 100.0  # Not used, context only
             offer_fraction = random.random()  # How much proposer offers
 
             # Build observation
