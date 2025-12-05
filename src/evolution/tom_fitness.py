@@ -98,9 +98,10 @@ class ToMSpecificFitness:
         if dataset is None:
             self.dataset = ToMiDataset()
             # Note: ToMiDataset constructor already generates 100 synthetic examples by default
-            # If we need more, call generate_synthetic_examples
+            # If we need more, call generate_synthetic_examples to add more
             if len(self.dataset.examples) < DEFAULT_SYNTHETIC_EXAMPLES:
-                self.dataset.generate_synthetic_examples(num_examples=DEFAULT_SYNTHETIC_EXAMPLES)
+                additional_needed = DEFAULT_SYNTHETIC_EXAMPLES - len(self.dataset.examples)
+                self.dataset.generate_synthetic_examples(num_examples=additional_needed)
         else:
             self.dataset = dataset
 
@@ -126,14 +127,14 @@ class ToMSpecificFitness:
         Args:
             model: Neural network model to evaluate
             num_examples: Optional limit on examples
-            split: Dataset split to use (reserved for future use with data splits)
+            split: Dataset split to use (currently unused, reserved for future dataset splits)
 
         Returns:
             ToMFitnessResult with all fitness components
         """
         model = model.to(self.device)
 
-        # Get ToMi accuracies (note: split is not currently supported by ToMiEvaluator)
+        # Get ToMi accuracies
         eval_samples = num_examples if num_examples is not None else 100
         accuracies = self.evaluator.evaluate(model, num_samples=eval_samples)
 
