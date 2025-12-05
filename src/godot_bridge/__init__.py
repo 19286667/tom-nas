@@ -20,6 +20,11 @@ Theoretical Foundation:
 - Embodied Cognition (Varela, Thompson, Rosch)
 - Sensorimotor Contingency Theory (O'Regan & Noë)
 
+Liminal-Godot Integration:
+- The godot/ folder contains the Godot 4.x project
+- godot/python/godot_server.py provides the integrated WebSocket server
+- Run with: python run_godot_server.py (from project root)
+
 Author: ToM-NAS Project
 """
 

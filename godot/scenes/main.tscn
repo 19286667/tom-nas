@@ -1,0 +1,88 @@
+[gd_scene load_steps=8 format=3 uid="uid://bxmain001"]
+
+[ext_resource type="PackedScene" uid="uid://bxplayer001" path="res://scenes/player.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://bxnpc001" path="res://scenes/npc.tscn" id="2_npc"]
+[ext_resource type="PackedScene" uid="uid://bxdebug001" path="res://scenes/debug_panel.tscn" id="3_debug"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+sky_top_color = Color(0.2, 0.3, 0.5, 1)
+sky_horizon_color = Color(0.4, 0.5, 0.6, 1)
+ground_horizon_color = Color(0.4, 0.5, 0.6, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 2
+ambient_light_color = Color(0.5, 0.5, 0.5, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_1"]
+size = Vector3(50, 1, 50)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(50, 1, 50)
+
+[sub_resource type="NavigationMesh" id="NavigationMesh_1"]
+
+[node name="Main" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.433, 0.25, 0, 0.5, 0.866, -0.5, -0.75, 0.433, 10, 20, 10)
+shadow_enabled = true
+
+[node name="Ground" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("BoxMesh_1")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("BoxShape3D_1")
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
+navigation_mesh = SubResource("NavigationMesh_1")
+
+[node name="Player" parent="." instance=ExtResource("1_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="NPC_Paranoid" parent="." instance=ExtResource("2_npc")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 5)
+npc_id = "npc_paranoid"
+display_name = "Suspicious Stranger"
+archetype = "paranoid"
+
+[node name="NPC_Naive" parent="." instance=ExtResource("2_npc")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 5)
+npc_id = "npc_naive"
+display_name = "Trusting Villager"
+archetype = "naive"
+
+[node name="NPC_Manipulative" parent="." instance=ExtResource("2_npc")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -8)
+npc_id = "npc_manipulative"
+display_name = "Charming Merchant"
+archetype = "manipulative"
+
+[node name="DebugPanel" parent="." instance=ExtResource("3_debug")]
+
+[node name="InstructionsLabel" type="Label" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -250.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = 150.0
+grow_horizontal = 0
+text = "CONTROLS:
+WASD - Move
+Mouse - Look
+E - Interact
+Q - Soul Scanner
+F3 - Debug Panel
+ESC - Toggle Mouse"

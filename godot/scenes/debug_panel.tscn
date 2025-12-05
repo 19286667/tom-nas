@@ -1,0 +1,62 @@
+[gd_scene load_steps=2 format=3 uid="uid://bxdebug001"]
+
+[ext_resource type="Script" path="res://scripts/ui/debug_panel.gd" id="1_debug"]
+
+[node name="DebugPanel" type="CanvasLayer"]
+script = ExtResource("1_debug")
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -310.0
+offset_right = 360.0
+offset_bottom = -10.0
+grow_vertical = 0
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "Debug Panel (F3)"
+horizontal_alignment = 1
+
+[node name="ConnectionStatus" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "🔴 Python Backend: Disconnected"
+
+[node name="HSeparator" type="HSeparator" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="NPCLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+text = "NPCs:"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/VBox"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="NPCList" type="VBoxContainer" parent="Panel/VBox/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator2" type="HSeparator" parent="Panel/VBox"]
+layout_mode = 2
+
+[node name="SelectedInfo" type="RichTextLabel" parent="Panel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+text = "Select an NPC to inspect"
