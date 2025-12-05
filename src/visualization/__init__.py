@@ -16,9 +16,9 @@ from .belief_inspector import BeliefInspector
 from .nas_dashboard import NASDashboard
 
 __all__ = [
-    'WorldRenderer',
-    'BeliefInspector',
-    'NASDashboard',
+    "WorldRenderer",
+    "BeliefInspector",
+    "NASDashboard",
 ]
 
 
@@ -26,5 +26,5 @@ def run_app():
     """Launch the Streamlit visualization app."""
     import subprocess
     import sys
-    subprocess.run([sys.executable, "-m", "streamlit", "run",
-                   "src/visualization/app.py"])
+
+    subprocess.run([sys.executable, "-m", "streamlit", "run", "src/visualization/app.py"])

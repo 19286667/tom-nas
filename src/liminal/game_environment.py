@@ -23,24 +23,18 @@ import random
 import json
 
 from .soul_map import SoulMap, SoulMapDelta, REALM_DIMENSIONS
-from .realms import (
-    Realm, RealmType, REALMS, get_realm,
-    RealmTransition, RealmLocation
-)
+from .realms import Realm, RealmType, REALMS, get_realm, RealmTransition, RealmLocation
 from .npcs.base_npc import BaseNPC, NPCState, NPCBehavior
 from .npcs.heroes import HERO_NPCS, create_hero_npc
 from .npcs.archetypes import ARCHETYPES, create_archetype_npc, populate_realm
 from .mechanics.soul_scanner import SoulScanner, AnalysisResult, AnalysisDepth
-from .mechanics.cognitive_hazards import (
-    CognitiveHazard, HAZARD_REGISTRY, apply_hazard, HazardCategory
-)
-from .mechanics.ontological_instability import (
-    OntologicalInstability, InstabilityLevel, calculate_hazard_instability
-)
+from .mechanics.cognitive_hazards import CognitiveHazard, HAZARD_REGISTRY, apply_hazard, HazardCategory
+from .mechanics.ontological_instability import OntologicalInstability, InstabilityLevel, calculate_hazard_instability
 
 
 class ActionType(Enum):
     """Types of actions agents can take."""
+
     MOVE = "move"
     ANALYZE = "analyze"
     INTERVENE = "intervene"
@@ -52,6 +46,7 @@ class ActionType(Enum):
 @dataclass
 class GameState:
     """Complete state of the game at a given tick."""
+
     tick: int
     current_realm: RealmType
     player_position: Tuple[float, float]
@@ -68,12 +63,13 @@ class GameState:
 @dataclass
 class Observation:
     """Observation returned to agents."""
+
     # Player state
     player_soul_map: torch.Tensor  # 65 dims
-    player_context: torch.Tensor   # Additional context
+    player_context: torch.Tensor  # Additional context
 
     # Environment state
-    realm_features: torch.Tensor   # Realm-specific features
+    realm_features: torch.Tensor  # Realm-specific features
     instability_state: torch.Tensor
 
     # Social state
@@ -87,6 +83,7 @@ class Observation:
 @dataclass
 class StepResult:
     """Result of taking an action in the environment."""
+
     observation: Observation
     reward: float
     done: bool
@@ -153,12 +150,12 @@ class LiminalEnvironment:
 
         # Total observation dimension
         self.observation_dim = (
-            self.soul_map_dim +  # Player soul map
-            self.context_dim +   # Player context
-            10 +                 # Realm features
-            5 +                  # Instability state
-            self.max_nearby_npcs * self.soul_map_dim +  # Nearby NPCs
-            self.max_nearby_npcs  # Relationships
+            self.soul_map_dim  # Player soul map
+            + self.context_dim  # Player context
+            + 10  # Realm features
+            + 5  # Instability state
+            + self.max_nearby_npcs * self.soul_map_dim  # Nearby NPCs
+            + self.max_nearby_npcs  # Relationships
         )
 
         # Initialize world
@@ -304,15 +301,11 @@ class LiminalEnvironment:
         new_realm = action.get("new_realm")
         if new_realm and new_realm != self.current_realm:
             can_transition, reason = RealmTransition.can_transition(
-                get_realm(self.current_realm),
-                get_realm(new_realm),
-                self.player_soul_map
+                get_realm(self.current_realm), get_realm(new_realm), self.player_soul_map
             )
             if can_transition:
                 RealmTransition.apply_transition_effects(
-                    get_realm(self.current_realm),
-                    get_realm(new_realm),
-                    self.player_soul_map
+                    get_realm(self.current_realm), get_realm(new_realm), self.player_soul_map
                 )
                 self.current_realm = new_realm
 
@@ -330,10 +323,7 @@ class LiminalEnvironment:
 
         # Perform analysis
         if depth == AnalysisDepth.PREDICTIVE:
-            result = self.soul_scanner.predictive_scan(
-                target_npc,
-                self._get_context_for_npc(target_npc)
-            )
+            result = self.soul_scanner.predictive_scan(target_npc, self._get_context_for_npc(target_npc))
         elif depth == AnalysisDepth.DEEP:
             result = self.soul_scanner.deep_scan(target_npc)
         elif depth == AnalysisDepth.MODERATE:
@@ -371,10 +361,7 @@ class LiminalEnvironment:
 
         # Apply hazard
         success, result = apply_hazard(
-            hazard_name,
-            target_npc,
-            player_tom=self.soul_scanner.player_tom_depth,
-            intensity_modifier=intensity
+            hazard_name, target_npc, player_tom=self.soul_scanner.player_tom_depth, intensity_modifier=intensity
         )
 
         if not success:
@@ -385,19 +372,18 @@ class LiminalEnvironment:
         if hazard:
             instability_amount = calculate_hazard_instability(hazard.category.value)
             self.instability.add_instability(
-                instability_amount,
-                f"hazard:{hazard_name}",
-                f"Applied {hazard_name} to {target_npc.name}",
-                self.tick
+                instability_amount, f"hazard:{hazard_name}", f"Applied {hazard_name} to {target_npc.name}", self.tick
             )
 
         # Record intervention
-        self.interventions_made.append({
-            "tick": self.tick,
-            "target": target_id,
-            "hazard": hazard_name,
-            "result": result,
-        })
+        self.interventions_made.append(
+            {
+                "tick": self.tick,
+                "target": target_id,
+                "hazard": hazard_name,
+                "result": result,
+            }
+        )
 
         # Reward based on outcome
         reward = 0.0
@@ -431,13 +417,15 @@ class LiminalEnvironment:
         prediction_accuracy = self._compare_prediction(prediction, actual_action)
 
         # Record prediction
-        self.predictions_made.append({
-            "tick": self.tick,
-            "target": target_id,
-            "prediction": prediction,
-            "actual": actual_action,
-            "accuracy": prediction_accuracy,
-        })
+        self.predictions_made.append(
+            {
+                "tick": self.tick,
+                "target": target_id,
+                "prediction": prediction,
+                "actual": actual_action,
+                "accuracy": prediction_accuracy,
+            }
+        )
 
         # Reward based on accuracy
         reward = prediction_accuracy * 0.5  # Up to 0.5 reward for perfect prediction
@@ -517,8 +505,7 @@ class LiminalEnvironment:
             "player_nearby": self._calculate_distance(npc.position, self.player_position) < 30,
         }
 
-    def _calculate_distance(self, pos1: Tuple[float, float],
-                           pos2: Tuple[float, float]) -> float:
+    def _calculate_distance(self, pos1: Tuple[float, float], pos2: Tuple[float, float]) -> float:
         """Calculate distance between two positions."""
         return ((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2) ** 0.5
 
@@ -530,8 +517,7 @@ class LiminalEnvironment:
 
     def _calculate_social_density(self, position: Tuple[float, float]) -> float:
         """Calculate NPC density around a position."""
-        nearby = sum(1 for npc in self.npcs.values()
-                    if self._calculate_distance(npc.position, position) < 20)
+        nearby = sum(1 for npc in self.npcs.values() if self._calculate_distance(npc.position, position) < 20)
         return min(1.0, nearby / 20)
 
     def _apply_npc_action(self, npc: BaseNPC, action: Dict[str, Any]) -> None:
@@ -611,35 +597,52 @@ class LiminalEnvironment:
         player_soul_tensor = self.player_soul_map.to_tensor()
 
         # Player context
-        player_context = torch.tensor([
-            self.player_position[0] / 1000,
-            self.player_position[1] / 1000,
-            float(self.current_realm.value == "peregrine"),
-            float(self.current_realm.value == "ministry"),
-            float(self.current_realm.value == "spleen_towns"),
-            float(self.current_realm.value == "city"),
-            float(self.current_realm.value == "hollow"),
-            float(self.current_realm.value == "nothing"),
-            self.soul_scanner.player_tom_depth / 5.0,
-            self.tick / self.max_episode_length,
-        ] + [0.0] * (self.context_dim - 10), dtype=torch.float32)
+        player_context = torch.tensor(
+            [
+                self.player_position[0] / 1000,
+                self.player_position[1] / 1000,
+                float(self.current_realm.value == "peregrine"),
+                float(self.current_realm.value == "ministry"),
+                float(self.current_realm.value == "spleen_towns"),
+                float(self.current_realm.value == "city"),
+                float(self.current_realm.value == "hollow"),
+                float(self.current_realm.value == "nothing"),
+                self.soul_scanner.player_tom_depth / 5.0,
+                self.tick / self.max_episode_length,
+            ]
+            + [0.0] * (self.context_dim - 10),
+            dtype=torch.float32,
+        )
 
         # Realm features
         realm = get_realm(self.current_realm)
-        realm_features = torch.tensor([
-            realm.get_vibe_compatibility(self.player_soul_map),
-            len(realm.locations) / 10,
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ], dtype=torch.float32)
+        realm_features = torch.tensor(
+            [
+                realm.get_vibe_compatibility(self.player_soul_map),
+                len(realm.locations) / 10,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+            ],
+            dtype=torch.float32,
+        )
 
         # Instability state
-        instability_state = torch.tensor([
-            self.instability.instability / 100,
-            self.instability.current_level.value / 5,
-            float(self.instability.nothing_manifested),
-            (self.instability.collapse_timer or 1000) / 1000,
-            len(self.instability.event_history) / 100,
-        ], dtype=torch.float32)
+        instability_state = torch.tensor(
+            [
+                self.instability.instability / 100,
+                self.instability.current_level.value / 5,
+                float(self.instability.nothing_manifested),
+                (self.instability.collapse_timer or 1000) / 1000,
+                len(self.instability.event_history) / 100,
+            ],
+            dtype=torch.float32,
+        )
 
         # Nearby NPCs
         nearby_npc_states = []
@@ -652,19 +655,22 @@ class LiminalEnvironment:
             nearby_npc_states.append(torch.zeros(self.soul_map_dim))
 
         # Relationships (simplified)
-        npc_relationships = torch.tensor([
-            npc.reputation_with_player for npc in nearby_npcs
-        ] + [0.0] * (self.max_nearby_npcs - len(nearby_npcs)), dtype=torch.float32)
+        npc_relationships = torch.tensor(
+            [npc.reputation_with_player for npc in nearby_npcs] + [0.0] * (self.max_nearby_npcs - len(nearby_npcs)),
+            dtype=torch.float32,
+        )
 
         # Build full tensor
-        full_tensor = torch.cat([
-            player_soul_tensor,
-            player_context,
-            realm_features,
-            instability_state,
-            torch.stack(nearby_npc_states).flatten(),
-            npc_relationships,
-        ])
+        full_tensor = torch.cat(
+            [
+                player_soul_tensor,
+                player_context,
+                realm_features,
+                instability_state,
+                torch.stack(nearby_npc_states).flatten(),
+                npc_relationships,
+            ]
+        )
 
         return Observation(
             player_soul_map=player_soul_tensor,
@@ -679,11 +685,9 @@ class LiminalEnvironment:
     def _get_nearby_npcs(self, max_count: int) -> List[BaseNPC]:
         """Get NPCs near the player position."""
         # Filter to same realm and sort by distance
-        same_realm = [npc for npc in self.npcs.values()
-                     if npc.current_realm == self.current_realm]
+        same_realm = [npc for npc in self.npcs.values() if npc.current_realm == self.current_realm]
 
-        sorted_npcs = sorted(same_realm,
-                           key=lambda n: self._calculate_distance(n.position, self.player_position))
+        sorted_npcs = sorted(same_realm, key=lambda n: self._calculate_distance(n.position, self.player_position))
 
         return sorted_npcs[:max_count]
 
@@ -729,17 +733,15 @@ class LiminalEnvironment:
         """Get environment statistics."""
         return {
             "total_npcs": len(self.npcs),
-            "npcs_per_realm": {
-                realm.value: len(self.get_npcs_in_realm(realm))
-                for realm in RealmType
-            },
+            "npcs_per_realm": {realm.value: len(self.get_npcs_in_realm(realm)) for realm in RealmType},
             "hero_count": sum(1 for npc in self.npcs.values() if npc.is_hero),
             "zombie_count": sum(1 for npc in self.npcs.values() if npc.is_zombie),
             "current_tick": self.tick,
             "total_predictions": len(self.predictions_made),
             "prediction_accuracy": (
                 sum(p["accuracy"] for p in self.predictions_made) / len(self.predictions_made)
-                if self.predictions_made else 0.0
+                if self.predictions_made
+                else 0.0
             ),
             "total_interventions": len(self.interventions_made),
             "instability_level": self.instability.current_level.value,
@@ -748,9 +750,9 @@ class LiminalEnvironment:
 
 # Export
 __all__ = [
-    'LiminalEnvironment',
-    'GameState',
-    'Observation',
-    'StepResult',
-    'ActionType',
+    "LiminalEnvironment",
+    "GameState",
+    "Observation",
+    "StepResult",
+    "ActionType",
 ]

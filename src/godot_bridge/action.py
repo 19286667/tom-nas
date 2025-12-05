@@ -27,6 +27,7 @@ from .symbol_grounding import SymbolGrounder, GroundedSymbol
 
 class ActionType(Enum):
     """Types of actions agents can perform."""
+
     # Movement
     MOVE_TO = auto()
     TURN_TO = auto()
@@ -55,6 +56,7 @@ class GodotAction:
     """
     A planned action to be executed in Godot.
     """
+
     action_type: ActionType
     agent_godot_id: int
 
@@ -78,7 +80,7 @@ class GodotAction:
 
     # State
     command_id: str = ""
-    status: str = "pending"              # pending, executing, completed, failed
+    status: str = "pending"  # pending, executing, completed, failed
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
@@ -120,6 +122,7 @@ class ActionResult:
     """
     Result of executing an action in Godot.
     """
+
     action: GodotAction
     success: bool = False
     error_message: Optional[str] = None
@@ -132,7 +135,7 @@ class ActionResult:
     execution_time_ms: float = 0.0
 
     # Feedback for learning
-    was_expected: bool = True            # Did outcome match prediction?
+    was_expected: bool = True  # Did outcome match prediction?
     prediction_error: float = 0.0
 
 
@@ -147,11 +150,7 @@ class ActionExecutor:
     - Action queue management
     """
 
-    def __init__(
-        self,
-        symbol_grounder: SymbolGrounder,
-        send_callback: Optional[Callable[[GodotMessage], None]] = None
-    ):
+    def __init__(self, symbol_grounder: SymbolGrounder, send_callback: Optional[Callable[[GodotMessage], None]] = None):
         """
         Initialize action executor.
 
@@ -185,7 +184,7 @@ class ActionExecutor:
         target_position: Optional[Vector3] = None,
         parameters: Optional[Dict[str, Any]] = None,
         intent_id: Optional[str] = None,
-        reason: str = ""
+        reason: str = "",
     ) -> Optional[GodotAction]:
         """
         Plan an action, checking affordances.
@@ -224,11 +223,7 @@ class ActionExecutor:
 
         return action
 
-    def _check_affordance(
-        self,
-        action_type: ActionType,
-        symbol: GroundedSymbol
-    ) -> bool:
+    def _check_affordance(self, action_type: ActionType, symbol: GroundedSymbol) -> bool:
         """Check if an action is afforded by a symbol."""
         affordance_map = {
             ActionType.PICK_UP: "can_pick_up",
@@ -321,11 +316,7 @@ class ActionExecutor:
         return True
 
     def handle_result(
-        self,
-        command_id: str,
-        success: bool,
-        state_changes: Dict[str, Any] = None,
-        error: str = None
+        self, command_id: str, success: bool, state_changes: Dict[str, Any] = None, error: str = None
     ) -> Optional[ActionResult]:
         """
         Handle result from Godot after action execution.
@@ -394,12 +385,12 @@ class ActionExecutor:
             "flee": ActionType.FLEE,
         }
 
-        action_type_str = getattr(intent, 'action_type', 'wait')
+        action_type_str = getattr(intent, "action_type", "wait")
         action_type = action_map.get(action_type_str.lower(), ActionType.WAIT)
 
         # Get target from intent
-        target_entity = getattr(intent, 'target_entity', None)
-        target_agent = getattr(intent, 'target_agent', None)
+        target_entity = getattr(intent, "target_entity", None)
+        target_agent = getattr(intent, "target_agent", None)
 
         target_entity_id = None
         if target_entity:
@@ -412,20 +403,16 @@ class ActionExecutor:
             agent_id=agent_id,
             action_type=action_type,
             target_entity_id=target_entity_id or None,
-            intent_id=getattr(intent, 'block_id', None),
-            reason=getattr(intent, 'motivation', ''),
+            intent_id=getattr(intent, "block_id", None),
+            reason=getattr(intent, "motivation", ""),
         )
 
     def get_agent_status(self, agent_id: int) -> Dict[str, Any]:
         """Get action status for an agent."""
         return {
-            'queue_length': len(self.action_queues.get(agent_id, [])),
-            'is_executing': agent_id in self.executing,
-            'current_action': (
-                self.executing[agent_id].action_type.name
-                if agent_id in self.executing
-                else None
-            ),
+            "queue_length": len(self.action_queues.get(agent_id, [])),
+            "is_executing": agent_id in self.executing,
+            "current_action": self.executing[agent_id].action_type.name if agent_id in self.executing else None,
         }
 
     def get_statistics(self) -> Dict[str, Any]:
@@ -434,12 +421,10 @@ class ActionExecutor:
         successful = sum(1 for r in self.action_history if r.success)
 
         return {
-            'total_actions': total_actions,
-            'successful': successful,
-            'success_rate': successful / total_actions if total_actions > 0 else 0.0,
-            'agents_executing': len(self.executing),
-            'pending_commands': len(self.pending_results),
-            'total_queued': sum(
-                len(q) for q in self.action_queues.values()
-            ),
+            "total_actions": total_actions,
+            "successful": successful,
+            "success_rate": successful / total_actions if total_actions > 0 else 0.0,
+            "agents_executing": len(self.executing),
+            "pending_commands": len(self.pending_results),
+            "total_queued": sum(len(q) for q in self.action_queues.values()),
         }

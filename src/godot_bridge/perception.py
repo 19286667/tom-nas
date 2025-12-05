@@ -28,7 +28,8 @@ class SensoryInput:
     """
     Raw sensory input from a single modality.
     """
-    modality: str                        # visual, auditory, tactile, etc.
+
+    modality: str  # visual, auditory, tactile, etc.
     source_godot_id: Optional[int] = None
     intensity: float = 1.0
     content: Dict[str, Any] = field(default_factory=dict)
@@ -39,7 +40,7 @@ class SensoryInput:
     distance: float = 0.0
 
     # Attention
-    is_salient: bool = False             # Captured attention
+    is_salient: bool = False  # Captured attention
 
 
 @dataclass
@@ -50,6 +51,7 @@ class PerceptualField:
     Contains all sensory inputs, grounded symbols, and
     the resulting semantic activation.
     """
+
     # Agent identity
     agent_godot_id: int
     agent_name: str
@@ -70,7 +72,7 @@ class PerceptualField:
     activated_archetypes: List[str] = field(default_factory=list)
 
     # Attention
-    focal_object: Optional[int] = None   # Godot ID of attention focus
+    focal_object: Optional[int] = None  # Godot ID of attention focus
     peripheral_objects: List[int] = field(default_factory=list)
 
     # Context
@@ -79,15 +81,13 @@ class PerceptualField:
 
     # Temporal
     timestamp: datetime = field(default_factory=datetime.now)
-    duration_ms: float = 0.0             # How long to process
+    duration_ms: float = 0.0  # How long to process
 
     def get_most_salient(self, n: int = 5) -> List[GroundedSymbol]:
         """Get the N most salient perceived symbols."""
         # Sort by perception count and prototype similarity
         sorted_symbols = sorted(
-            self.grounded_symbols,
-            key=lambda s: (s.perception_count, s.prototype_similarity),
-            reverse=True
+            self.grounded_symbols, key=lambda s: (s.perception_count, s.prototype_similarity), reverse=True
         )
         return sorted_symbols[:n]
 
@@ -104,11 +104,7 @@ class PerceptionProcessor:
     5. Produce PerceptualField ready for cognition
     """
 
-    def __init__(
-        self,
-        symbol_grounder: SymbolGrounder,
-        knowledge_base=None
-    ):
+    def __init__(self, symbol_grounder: SymbolGrounder, knowledge_base=None):
         """
         Initialize perception processor.
 
@@ -130,10 +126,7 @@ class PerceptionProcessor:
         # Statistics
         self.perceptions_processed = 0
 
-    def process_perception(
-        self,
-        perception: AgentPerception
-    ) -> PerceptualField:
+    def process_perception(self, perception: AgentPerception) -> PerceptualField:
         """
         Process a complete perception from Godot.
 
@@ -166,11 +159,8 @@ class PerceptionProcessor:
             sensory = SensoryInput(
                 modality="visual",
                 source_godot_id=entity.godot_id,
-                content={'entity': entity},
-                direction=self._compute_direction(
-                    perception.own_position,
-                    entity.position
-                ),
+                content={"entity": entity},
+                direction=self._compute_direction(perception.own_position, entity.position),
                 distance=perception.own_position.distance_to(entity.position),
             )
 
@@ -186,9 +176,9 @@ class PerceptionProcessor:
         for utterance in perception.heard_utterances:
             sensory = SensoryInput(
                 modality="auditory",
-                source_godot_id=utterance.get('speaker_id'),
-                content={'text': utterance.get('text', '')},
-                intensity=utterance.get('volume', 1.0),
+                source_godot_id=utterance.get("speaker_id"),
+                content={"text": utterance.get("text", "")},
+                intensity=utterance.get("volume", 1.0),
             )
             pfield.auditory_inputs.append(sensory)
 
@@ -196,19 +186,16 @@ class PerceptionProcessor:
         proprio = SensoryInput(
             modality="proprioceptive",
             content={
-                'position': perception.own_position,
-                'velocity': perception.own_velocity,
-                'energy': perception.energy_level,
-                'held_object': perception.held_object,
-            }
+                "position": perception.own_position,
+                "velocity": perception.own_velocity,
+                "energy": perception.energy_level,
+                "held_object": perception.held_object,
+            },
         )
         pfield.proprioceptive_inputs.append(proprio)
 
         # Determine attention focus
-        pfield.focal_object = self._determine_attention_focus(
-            pfield.visual_inputs,
-            context
-        )
+        pfield.focal_object = self._determine_attention_focus(pfield.visual_inputs, context)
 
         # Trigger semantic activation
         if self.knowledge_base and pfield.grounded_symbols:
@@ -231,27 +218,19 @@ class PerceptionProcessor:
 
         return pfield
 
-    def _compute_direction(
-        self,
-        observer: Vector3,
-        target: Vector3
-    ) -> Vector3:
+    def _compute_direction(self, observer: Vector3, target: Vector3) -> Vector3:
         """Compute direction vector from observer to target."""
         dx = target.x - observer.x
         dy = target.y - observer.y
         dz = target.z - observer.z
 
         # Normalize
-        length = (dx*dx + dy*dy + dz*dz) ** 0.5
+        length = (dx * dx + dy * dy + dz * dz) ** 0.5
         if length > 0:
-            return Vector3(dx/length, dy/length, dz/length)
+            return Vector3(dx / length, dy / length, dz / length)
         return Vector3(0, 0, 0)
 
-    def _compute_salience(
-        self,
-        entity: EntityUpdate,
-        context: GroundingContext
-    ) -> bool:
+    def _compute_salience(self, entity: EntityUpdate, context: GroundingContext) -> bool:
         """
         Determine if an entity is salient (attention-grabbing).
 
@@ -288,11 +267,7 @@ class PerceptionProcessor:
 
         return salience_score > self.salience_threshold
 
-    def _determine_attention_focus(
-        self,
-        visual_inputs: List[SensoryInput],
-        context: GroundingContext
-    ) -> Optional[int]:
+    def _determine_attention_focus(self, visual_inputs: List[SensoryInput], context: GroundingContext) -> Optional[int]:
         """Determine what object has attention focus."""
         # Prior attention has momentum
         prior_focus = context.attention_focus
@@ -313,11 +288,7 @@ class PerceptionProcessor:
         closest = min(salient_inputs, key=lambda v: v.distance)
         return closest.source_godot_id
 
-    def _trigger_semantic_activation(
-        self,
-        pfield: PerceptualField,
-        context: GroundingContext
-    ):
+    def _trigger_semantic_activation(self, pfield: PerceptualField, context: GroundingContext):
         """
         Trigger semantic activation through Indra's Net.
 
@@ -333,6 +304,7 @@ class PerceptionProcessor:
             if symbol.semantic_node_id:
                 # Create activation context
                 from ..knowledge_base.schemas import ActivationContext as AC
+
                 ac = AC(
                     current_location=pfield.current_location,
                     perceiving_agent=pfield.agent_name,
@@ -340,10 +312,7 @@ class PerceptionProcessor:
                 )
 
                 # Spread activation
-                activation = self.knowledge_base.spread_activation(
-                    symbol.semantic_node_id,
-                    ac
-                )
+                activation = self.knowledge_base.spread_activation(symbol.semantic_node_id, ac)
 
                 # Aggregate activations
                 for node_id, level in activation.activated_nodes.items():
@@ -362,19 +331,12 @@ class PerceptionProcessor:
         pfield.activated_roles = list(set(pfield.activated_roles))
         pfield.activated_archetypes = list(set(pfield.activated_archetypes))
 
-    def get_recent_perceptions(
-        self,
-        agent_id: int,
-        n: int = 5
-    ) -> List[PerceptualField]:
+    def get_recent_perceptions(self, agent_id: int, n: int = 5) -> List[PerceptualField]:
         """Get recent perceptions for an agent."""
         history = self.perception_history.get(agent_id, [])
         return history[-n:]
 
-    def get_perception_delta(
-        self,
-        agent_id: int
-    ) -> Dict[str, Any]:
+    def get_perception_delta(self, agent_id: int) -> Dict[str, Any]:
         """
         Get what changed since last perception.
 
@@ -382,7 +344,7 @@ class PerceptionProcessor:
         """
         history = self.perception_history.get(agent_id, [])
         if len(history) < 2:
-            return {'new': [], 'gone': [], 'moved': []}
+            return {"new": [], "gone": [], "moved": []}
 
         prev = history[-2]
         curr = history[-1]
@@ -400,9 +362,9 @@ class PerceptionProcessor:
                 moved.append(symbol.godot_id)
 
         return {
-            'new': list(new_objects),
-            'gone': list(gone_objects),
-            'moved': moved,
+            "new": list(new_objects),
+            "gone": list(gone_objects),
+            "moved": moved,
         }
 
     def create_percept_block(self, pfield: PerceptualField):

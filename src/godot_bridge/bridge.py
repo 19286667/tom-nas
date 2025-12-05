@@ -24,20 +24,17 @@ from typing import Dict, List, Optional, Callable, Any, Awaitable
 import threading
 from queue import Queue
 
-from .protocol import (
-    GodotMessage, MessageType, EntityUpdate, AgentPerception,
-    WorldState, AgentCommand
-)
+from .protocol import GodotMessage, MessageType, EntityUpdate, AgentPerception, WorldState, AgentCommand
 from .symbol_grounding import SymbolGrounder, GroundingContext
 from .perception import PerceptionProcessor, PerceptualField
 from .action import ActionExecutor, GodotAction, ActionResult
-
 
 logger = logging.getLogger(__name__)
 
 
 class ConnectionState(Enum):
     """State of the Godot connection."""
+
     DISCONNECTED = auto()
     CONNECTING = auto()
     CONNECTED = auto()
@@ -47,18 +44,20 @@ class ConnectionState(Enum):
 @dataclass
 class BridgeConfig:
     """Configuration for the Godot bridge."""
+
     host: str = "localhost"
     port: int = 9080
     heartbeat_interval_ms: float = 1000.0
     reconnect_delay_ms: float = 5000.0
     message_queue_size: int = 1000
     enable_logging: bool = True
-    log_messages: bool = False           # Log all messages (verbose)
+    log_messages: bool = False  # Log all messages (verbose)
 
 
 @dataclass
 class ConnectionStats:
     """Statistics about the connection."""
+
     messages_sent: int = 0
     messages_received: int = 0
     bytes_sent: int = 0
@@ -76,12 +75,7 @@ class GodotBridge:
     to appropriate handlers (perception, action, etc.).
     """
 
-    def __init__(
-        self,
-        config: BridgeConfig,
-        symbol_grounder: Optional[SymbolGrounder] = None,
-        knowledge_base=None
-    ):
+    def __init__(self, config: BridgeConfig, symbol_grounder: Optional[SymbolGrounder] = None, knowledge_base=None):
         """
         Initialize the Godot bridge.
 
@@ -107,9 +101,7 @@ class GodotBridge:
         self.outgoing_queue: Queue = Queue(maxsize=config.message_queue_size)
 
         # Event handlers
-        self._handlers: Dict[MessageType, List[Callable]] = {
-            msg_type: [] for msg_type in MessageType
-        }
+        self._handlers: Dict[MessageType, List[Callable]] = {msg_type: [] for msg_type in MessageType}
 
         # World state cache
         self.world_state: Optional[WorldState] = None
@@ -141,7 +133,7 @@ class GodotBridge:
             self.last_world_update = datetime.now()
 
             # Ground all entities
-            for entity_dict in msg.payload.get('entities', []):
+            for entity_dict in msg.payload.get("entities", []):
                 entity = EntityUpdate.from_dict(entity_dict)
                 self.grounder.ground_entity(entity)
 
@@ -159,38 +151,32 @@ class GodotBridge:
 
         @self.on(MessageType.ACK)
         def handle_ack(msg: GodotMessage):
-            command_id = msg.payload.get('command_id')
-            success = msg.payload.get('success', True)
+            command_id = msg.payload.get("command_id")
+            success = msg.payload.get("success", True)
             if command_id:
                 self.action_executor.handle_result(
-                    command_id,
-                    success,
-                    msg.payload.get('state_changes'),
-                    msg.payload.get('error')
+                    command_id, success, msg.payload.get("state_changes"), msg.payload.get("error")
                 )
 
     def _parse_perception(self, payload: Dict) -> AgentPerception:
         """Parse perception payload into AgentPerception."""
         from .protocol import Vector3
 
-        visible = [
-            EntityUpdate.from_dict(e)
-            for e in payload.get('visible_entities', [])
-        ]
+        visible = [EntityUpdate.from_dict(e) for e in payload.get("visible_entities", [])]
 
         return AgentPerception(
-            agent_godot_id=payload.get('agent_godot_id', 0),
-            agent_name=payload.get('agent_name', ''),
+            agent_godot_id=payload.get("agent_godot_id", 0),
+            agent_name=payload.get("agent_name", ""),
             visible_entities=visible,
-            occluded_entities=payload.get('occluded_entities', []),
-            heard_utterances=payload.get('heard_utterances', []),
-            own_position=Vector3(**payload.get('own_position', {})),
-            own_velocity=Vector3(**payload.get('own_velocity', {})),
-            own_orientation=Vector3(**payload.get('own_orientation', {})),
-            energy_level=payload.get('energy_level', 1.0),
-            held_object=payload.get('held_object'),
-            current_institution=payload.get('current_institution'),
-            timestamp=payload.get('timestamp', 0.0),
+            occluded_entities=payload.get("occluded_entities", []),
+            heard_utterances=payload.get("heard_utterances", []),
+            own_position=Vector3(**payload.get("own_position", {})),
+            own_velocity=Vector3(**payload.get("own_velocity", {})),
+            own_orientation=Vector3(**payload.get("own_orientation", {})),
+            energy_level=payload.get("energy_level", 1.0),
+            held_object=payload.get("held_object"),
+            current_institution=payload.get("current_institution"),
+            timestamp=payload.get("timestamp", 0.0),
         )
 
     def on(self, message_type: MessageType):
@@ -202,9 +188,11 @@ class GodotBridge:
             def handle_update(msg):
                 ...
         """
+
         def decorator(handler: Callable[[GodotMessage], None]):
             self._handlers[message_type].append(handler)
             return handler
+
         return decorator
 
     def _dispatch_message(self, message: GodotMessage):
@@ -282,11 +270,7 @@ class GodotBridge:
             logger.info(f"Connecting to Godot at {uri}")
             self.state = ConnectionState.CONNECTING
 
-            async with websockets.serve(
-                self._handle_connection,
-                self.config.host,
-                self.config.port
-            ) as server:
+            async with websockets.serve(self._handle_connection, self.config.host, self.config.port) as server:
                 logger.info(f"WebSocket server listening on {uri}")
                 self.state = ConnectionState.CONNECTED
                 self.stats.connection_time = datetime.now()
@@ -319,8 +303,7 @@ class GodotBridge:
 
             # Wait for any to complete (usually means disconnect)
             done, pending = await asyncio.wait(
-                [receive_task, send_task, heartbeat_task],
-                return_when=asyncio.FIRST_COMPLETED
+                [receive_task, send_task, heartbeat_task], return_when=asyncio.FIRST_COMPLETED
             )
 
             # Cancel remaining tasks
@@ -373,10 +356,7 @@ class GodotBridge:
 
     def request_world_state(self):
         """Request full world state from Godot."""
-        message = GodotMessage(
-            message_type=MessageType.WORLD_COMMAND,
-            payload={'command': 'get_world_state'}
-        )
+        message = GodotMessage(message_type=MessageType.WORLD_COMMAND, payload={"command": "get_world_state"})
         self._send_message(message)
 
     def pause_simulation(self):
@@ -411,26 +391,20 @@ class GodotBridge:
     def get_statistics(self) -> Dict[str, Any]:
         """Get bridge statistics."""
         return {
-            'connection': {
-                'state': self.state.name,
-                'connected_since': (
-                    self.stats.connection_time.isoformat()
-                    if self.stats.connection_time else None
-                ),
-                'last_heartbeat': (
-                    self.stats.last_heartbeat.isoformat()
-                    if self.stats.last_heartbeat else None
-                ),
+            "connection": {
+                "state": self.state.name,
+                "connected_since": self.stats.connection_time.isoformat() if self.stats.connection_time else None,
+                "last_heartbeat": self.stats.last_heartbeat.isoformat() if self.stats.last_heartbeat else None,
             },
-            'messages': {
-                'sent': self.stats.messages_sent,
-                'received': self.stats.messages_received,
-                'errors': self.stats.errors,
+            "messages": {
+                "sent": self.stats.messages_sent,
+                "received": self.stats.messages_received,
+                "errors": self.stats.errors,
             },
-            'bytes': {
-                'sent': self.stats.bytes_sent,
-                'received': self.stats.bytes_received,
+            "bytes": {
+                "sent": self.stats.bytes_sent,
+                "received": self.stats.bytes_received,
             },
-            'grounding': self.grounder.get_statistics(),
-            'actions': self.action_executor.get_statistics(),
+            "grounding": self.grounder.get_statistics(),
+            "actions": self.action_executor.get_statistics(),
         }

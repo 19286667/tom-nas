@@ -20,35 +20,37 @@ import json
 
 class MessageType(Enum):
     """Types of messages in the Godot-Python protocol."""
+
     # Godot -> Python
-    ENTITY_UPDATE = auto()        # Entity position/state changed
-    AGENT_PERCEPTION = auto()     # What an agent perceives
-    WORLD_STATE = auto()          # Full world state snapshot
-    COLLISION_EVENT = auto()      # Collision occurred
-    INTERACTION_EVENT = auto()    # Agent interacted with object
-    UTTERANCE_EVENT = auto()      # Agent spoke
+    ENTITY_UPDATE = auto()  # Entity position/state changed
+    AGENT_PERCEPTION = auto()  # What an agent perceives
+    WORLD_STATE = auto()  # Full world state snapshot
+    COLLISION_EVENT = auto()  # Collision occurred
+    INTERACTION_EVENT = auto()  # Agent interacted with object
+    UTTERANCE_EVENT = auto()  # Agent spoke
 
     # Python -> Godot
-    AGENT_COMMAND = auto()        # Command for agent to execute
-    SPAWN_ENTITY = auto()         # Spawn new entity
-    MODIFY_ENTITY = auto()        # Modify existing entity
-    WORLD_COMMAND = auto()        # Global world command
+    AGENT_COMMAND = auto()  # Command for agent to execute
+    SPAWN_ENTITY = auto()  # Spawn new entity
+    MODIFY_ENTITY = auto()  # Modify existing entity
+    WORLD_COMMAND = auto()  # Global world command
 
     # Bidirectional
-    HEARTBEAT = auto()            # Connection keepalive
-    ACK = auto()                  # Acknowledgment
-    ERROR = auto()                # Error message
+    HEARTBEAT = auto()  # Connection keepalive
+    ACK = auto()  # Acknowledgment
+    ERROR = auto()  # Error message
 
     # Simulation control
     PAUSE = auto()
     RESUME = auto()
     RESET = auto()
-    STEP = auto()                 # Single step (for debugging)
+    STEP = auto()  # Single step (for debugging)
 
 
 @dataclass
 class Vector3:
     """3D vector representation."""
+
     x: float = 0.0
     y: float = 0.0
     z: float = 0.0
@@ -57,13 +59,11 @@ class Vector3:
         return (self.x, self.y, self.z)
 
     @classmethod
-    def from_tuple(cls, t: Tuple[float, float, float]) -> 'Vector3':
+    def from_tuple(cls, t: Tuple[float, float, float]) -> "Vector3":
         return cls(x=t[0], y=t[1], z=t[2])
 
-    def distance_to(self, other: 'Vector3') -> float:
-        return ((self.x - other.x)**2 +
-                (self.y - other.y)**2 +
-                (self.z - other.z)**2) ** 0.5
+    def distance_to(self, other: "Vector3") -> float:
+        return ((self.x - other.x) ** 2 + (self.y - other.y) ** 2 + (self.z - other.z) ** 2) ** 0.5
 
 
 @dataclass
@@ -73,10 +73,11 @@ class EntityUpdate:
 
     Sent from Godot when entity state changes.
     """
+
     # Identity
-    godot_id: int                        # Unique Godot node ID
-    entity_type: str                     # "object", "agent", "location"
-    name: str                            # Human-readable name
+    godot_id: int  # Unique Godot node ID
+    entity_type: str  # "object", "agent", "location"
+    name: str  # Human-readable name
 
     # Transform
     position: Vector3 = field(default_factory=Vector3)
@@ -99,42 +100,42 @@ class EntityUpdate:
     # Interaction state
     is_interactable: bool = False
     is_being_held: bool = False
-    held_by: Optional[int] = None        # Agent godot_id
+    held_by: Optional[int] = None  # Agent godot_id
 
     # Timestamp
-    timestamp: float = 0.0               # Simulation time
+    timestamp: float = 0.0  # Simulation time
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'godot_id': self.godot_id,
-            'entity_type': self.entity_type,
-            'name': self.name,
-            'position': asdict(self.position),
-            'rotation': asdict(self.rotation),
-            'velocity': asdict(self.velocity),
-            'is_static': self.is_static,
-            'visible': self.visible,
-            'semantic_tags': self.semantic_tags,
-            'affordances': self.affordances,
-            'is_interactable': self.is_interactable,
-            'timestamp': self.timestamp,
+            "godot_id": self.godot_id,
+            "entity_type": self.entity_type,
+            "name": self.name,
+            "position": asdict(self.position),
+            "rotation": asdict(self.rotation),
+            "velocity": asdict(self.velocity),
+            "is_static": self.is_static,
+            "visible": self.visible,
+            "semantic_tags": self.semantic_tags,
+            "affordances": self.affordances,
+            "is_interactable": self.is_interactable,
+            "timestamp": self.timestamp,
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> 'EntityUpdate':
+    def from_dict(cls, d: Dict[str, Any]) -> "EntityUpdate":
         return cls(
-            godot_id=d['godot_id'],
-            entity_type=d['entity_type'],
-            name=d['name'],
-            position=Vector3(**d.get('position', {})),
-            rotation=Vector3(**d.get('rotation', {})),
-            velocity=Vector3(**d.get('velocity', {})),
-            is_static=d.get('is_static', True),
-            visible=d.get('visible', True),
-            semantic_tags=d.get('semantic_tags', []),
-            affordances=d.get('affordances', []),
-            is_interactable=d.get('is_interactable', False),
-            timestamp=d.get('timestamp', 0.0),
+            godot_id=d["godot_id"],
+            entity_type=d["entity_type"],
+            name=d["name"],
+            position=Vector3(**d.get("position", {})),
+            rotation=Vector3(**d.get("rotation", {})),
+            velocity=Vector3(**d.get("velocity", {})),
+            is_static=d.get("is_static", True),
+            visible=d.get("visible", True),
+            semantic_tags=d.get("semantic_tags", []),
+            affordances=d.get("affordances", []),
+            is_interactable=d.get("is_interactable", False),
+            timestamp=d.get("timestamp", 0.0),
         )
 
 
@@ -145,6 +146,7 @@ class AgentPerception:
 
     Sent from Godot with filtered/occluded vision.
     """
+
     # Perceiving agent
     agent_godot_id: int
     agent_name: str
@@ -164,7 +166,7 @@ class AgentPerception:
 
     # Internal state
     energy_level: float = 1.0
-    held_object: Optional[int] = None    # What agent is holding
+    held_object: Optional[int] = None  # What agent is holding
 
     # Context
     current_location_id: Optional[int] = None
@@ -175,17 +177,17 @@ class AgentPerception:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'agent_godot_id': self.agent_godot_id,
-            'agent_name': self.agent_name,
-            'visible_entities': [e.to_dict() for e in self.visible_entities],
-            'occluded_entities': self.occluded_entities,
-            'heard_utterances': self.heard_utterances,
-            'own_position': asdict(self.own_position),
-            'own_velocity': asdict(self.own_velocity),
-            'energy_level': self.energy_level,
-            'held_object': self.held_object,
-            'current_institution': self.current_institution,
-            'timestamp': self.timestamp,
+            "agent_godot_id": self.agent_godot_id,
+            "agent_name": self.agent_name,
+            "visible_entities": [e.to_dict() for e in self.visible_entities],
+            "occluded_entities": self.occluded_entities,
+            "heard_utterances": self.heard_utterances,
+            "own_position": asdict(self.own_position),
+            "own_velocity": asdict(self.own_velocity),
+            "energy_level": self.energy_level,
+            "held_object": self.held_object,
+            "current_institution": self.current_institution,
+            "timestamp": self.timestamp,
         }
 
 
@@ -196,6 +198,7 @@ class WorldState:
 
     Sent periodically or on request for synchronization.
     """
+
     # All entities
     entities: List[EntityUpdate] = field(default_factory=list)
 
@@ -211,7 +214,7 @@ class WorldState:
     is_paused: bool = False
 
     # Environment conditions
-    time_of_day: float = 12.0            # 0-24 hours
+    time_of_day: float = 12.0  # 0-24 hours
     weather: str = "clear"
 
     # Active institution (global context)
@@ -219,15 +222,15 @@ class WorldState:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'entities': [e.to_dict() for e in self.entities],
-            'agents': self.agents,
-            'locations': self.locations,
-            'simulation_time': self.simulation_time,
-            'timestep': self.timestep,
-            'is_paused': self.is_paused,
-            'time_of_day': self.time_of_day,
-            'weather': self.weather,
-            'active_institution': self.active_institution,
+            "entities": [e.to_dict() for e in self.entities],
+            "agents": self.agents,
+            "locations": self.locations,
+            "simulation_time": self.simulation_time,
+            "timestep": self.timestep,
+            "is_paused": self.is_paused,
+            "time_of_day": self.time_of_day,
+            "weather": self.weather,
+            "active_institution": self.active_institution,
         }
 
 
@@ -238,11 +241,12 @@ class AgentCommand:
 
     Sent from Python to control agent behavior.
     """
+
     # Target agent
     agent_godot_id: int
 
     # Command type
-    command_type: str                    # "move", "interact", "speak", "look", etc.
+    command_type: str  # "move", "interact", "speak", "look", etc.
 
     # Command parameters
     target_position: Optional[Vector3] = None
@@ -252,32 +256,32 @@ class AgentCommand:
     speed: float = 1.0
 
     # Execution parameters
-    priority: int = 0                    # Higher = more urgent
+    priority: int = 0  # Higher = more urgent
     interruptible: bool = True
     timeout_seconds: float = 10.0
 
     # Metadata
-    command_id: str = ""                 # For tracking/acknowledgment
-    reason: str = ""                     # Why this command (for logging)
+    command_id: str = ""  # For tracking/acknowledgment
+    reason: str = ""  # Why this command (for logging)
 
     def to_dict(self) -> Dict[str, Any]:
         d = {
-            'agent_godot_id': self.agent_godot_id,
-            'command_type': self.command_type,
-            'priority': self.priority,
-            'interruptible': self.interruptible,
-            'timeout_seconds': self.timeout_seconds,
-            'command_id': self.command_id,
-            'reason': self.reason,
+            "agent_godot_id": self.agent_godot_id,
+            "command_type": self.command_type,
+            "priority": self.priority,
+            "interruptible": self.interruptible,
+            "timeout_seconds": self.timeout_seconds,
+            "command_id": self.command_id,
+            "reason": self.reason,
         }
         if self.target_position:
-            d['target_position'] = asdict(self.target_position)
+            d["target_position"] = asdict(self.target_position)
         if self.target_entity_id is not None:
-            d['target_entity_id'] = self.target_entity_id
+            d["target_entity_id"] = self.target_entity_id
         if self.utterance_text:
-            d['utterance_text'] = self.utterance_text
+            d["utterance_text"] = self.utterance_text
         if self.animation_name:
-            d['animation_name'] = self.animation_name
+            d["animation_name"] = self.animation_name
         return d
 
 
@@ -286,9 +290,10 @@ class InteractionEvent:
     """
     Event when an agent interacts with an entity.
     """
+
     agent_godot_id: int
     target_godot_id: int
-    interaction_type: str                # "pick_up", "put_down", "use", "examine", etc.
+    interaction_type: str  # "pick_up", "put_down", "use", "examine", etc.
     success: bool = True
     result_data: Dict[str, Any] = field(default_factory=dict)
     timestamp: float = 0.0
@@ -299,9 +304,10 @@ class UtteranceEvent:
     """
     Event when an agent speaks.
     """
+
     speaker_godot_id: int
     text: str
-    volume: float = 1.0                  # Affects who can hear
+    volume: float = 1.0  # Affects who can hear
     target_agent_id: Optional[int] = None  # Directed speech
     hearers: List[int] = field(default_factory=list)  # Who heard it
     timestamp: float = 0.0
@@ -314,33 +320,36 @@ class GodotMessage:
 
     Provides consistent serialization and type dispatch.
     """
+
     message_type: MessageType
     payload: Dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=lambda: datetime.now().timestamp())
-    sequence_id: int = 0                 # For ordering/ack
+    sequence_id: int = 0  # For ordering/ack
 
     def to_json(self) -> str:
         """Serialize to JSON string."""
-        return json.dumps({
-            'type': self.message_type.name,
-            'payload': self.payload,
-            'timestamp': self.timestamp,
-            'sequence_id': self.sequence_id,
-        })
-
-    @classmethod
-    def from_json(cls, json_str: str) -> 'GodotMessage':
-        """Deserialize from JSON string."""
-        d = json.loads(json_str)
-        return cls(
-            message_type=MessageType[d['type']],
-            payload=d.get('payload', {}),
-            timestamp=d.get('timestamp', 0.0),
-            sequence_id=d.get('sequence_id', 0),
+        return json.dumps(
+            {
+                "type": self.message_type.name,
+                "payload": self.payload,
+                "timestamp": self.timestamp,
+                "sequence_id": self.sequence_id,
+            }
         )
 
     @classmethod
-    def create_entity_update(cls, update: EntityUpdate) -> 'GodotMessage':
+    def from_json(cls, json_str: str) -> "GodotMessage":
+        """Deserialize from JSON string."""
+        d = json.loads(json_str)
+        return cls(
+            message_type=MessageType[d["type"]],
+            payload=d.get("payload", {}),
+            timestamp=d.get("timestamp", 0.0),
+            sequence_id=d.get("sequence_id", 0),
+        )
+
+    @classmethod
+    def create_entity_update(cls, update: EntityUpdate) -> "GodotMessage":
         """Create entity update message."""
         return cls(
             message_type=MessageType.ENTITY_UPDATE,
@@ -348,7 +357,7 @@ class GodotMessage:
         )
 
     @classmethod
-    def create_agent_command(cls, command: AgentCommand) -> 'GodotMessage':
+    def create_agent_command(cls, command: AgentCommand) -> "GodotMessage":
         """Create agent command message."""
         return cls(
             message_type=MessageType.AGENT_COMMAND,
@@ -356,7 +365,7 @@ class GodotMessage:
         )
 
     @classmethod
-    def create_world_state(cls, state: WorldState) -> 'GodotMessage':
+    def create_world_state(cls, state: WorldState) -> "GodotMessage":
         """Create world state message."""
         return cls(
             message_type=MessageType.WORLD_STATE,
@@ -364,17 +373,17 @@ class GodotMessage:
         )
 
     @classmethod
-    def create_heartbeat(cls) -> 'GodotMessage':
+    def create_heartbeat(cls) -> "GodotMessage":
         """Create heartbeat message."""
         return cls(
             message_type=MessageType.HEARTBEAT,
-            payload={'ping': True},
+            payload={"ping": True},
         )
 
     @classmethod
-    def create_error(cls, error_msg: str, code: int = 0) -> 'GodotMessage':
+    def create_error(cls, error_msg: str, code: int = 0) -> "GodotMessage":
         """Create error message."""
         return cls(
             message_type=MessageType.ERROR,
-            payload={'error': error_msg, 'code': code},
+            payload={"error": error_msg, "code": code},
         )

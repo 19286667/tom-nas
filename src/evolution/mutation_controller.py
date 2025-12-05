@@ -28,6 +28,7 @@ import random
 @dataclass
 class MutationRecord:
     """Record of a mutation and its outcome."""
+
     parent_encoding: torch.Tensor
     mutation_encoding: torch.Tensor
     fitness_improvement: float
@@ -45,8 +46,8 @@ class ArchitectureEncoder(nn.Module):
     - Type-specific features
     """
 
-    ARCH_TYPES = ['trn', 'rsan', 'transformer']
-    CELL_TYPES = ['gru', 'lstm', 'srn']
+    ARCH_TYPES = ["trn", "rsan", "transformer"]
+    CELL_TYPES = ["gru", "lstm", "srn"]
 
     OUTPUT_DIM = 25
 
@@ -76,30 +77,30 @@ class ArchitectureEncoder(nn.Module):
         vec = torch.zeros(self.OUTPUT_DIM)
 
         # Architecture type (one-hot) - dims 0-2
-        arch_type = config.get('arch_type', 'transformer').lower()
+        arch_type = config.get("arch_type", "transformer").lower()
         arch_idx = self.ARCH_TYPES.index(arch_type) if arch_type in self.ARCH_TYPES else 0
         vec[arch_idx] = 1.0
 
         # Normalized hyperparameters - dims 3-10
-        vec[3] = config.get('num_layers', 2) / 5.0  # Max 5 layers
-        vec[4] = config.get('hidden_dim', 128) / 256.0  # Max 256
-        vec[5] = config.get('num_heads', 4) / 8.0  # Max 8 heads
-        vec[6] = config.get('dropout', 0.1)
-        vec[7] = float(config.get('use_skip_connections', True))
-        vec[8] = config.get('recursion_depth', 3) / 5.0  # For RSAN
-        vec[9] = config.get('learning_rate', 0.001) * 1000  # Normalize
-        vec[10] = np.log10(config.get('param_count', 100000)) / 7.0  # Log-normalized
+        vec[3] = config.get("num_layers", 2) / 5.0  # Max 5 layers
+        vec[4] = config.get("hidden_dim", 128) / 256.0  # Max 256
+        vec[5] = config.get("num_heads", 4) / 8.0  # Max 8 heads
+        vec[6] = config.get("dropout", 0.1)
+        vec[7] = float(config.get("use_skip_connections", True))
+        vec[8] = config.get("recursion_depth", 3) / 5.0  # For RSAN
+        vec[9] = config.get("learning_rate", 0.001) * 1000  # Normalize
+        vec[10] = np.log10(config.get("param_count", 100000)) / 7.0  # Log-normalized
 
         # Cell type (for TRN) - dims 11-13
-        cell_type = config.get('cell_type', 'gru').lower()
+        cell_type = config.get("cell_type", "gru").lower()
         cell_idx = self.CELL_TYPES.index(cell_type) if cell_type in self.CELL_TYPES else 0
         vec[11 + cell_idx] = 1.0
 
         # Architecture-specific features - dims 14-19
-        if arch_type == 'trn':
+        if arch_type == "trn":
             vec[14] = 1.0
             vec[15] = vec[3] * vec[4]  # depth-width interaction for TRN
-        elif arch_type == 'rsan':
+        elif arch_type == "rsan":
             vec[16] = 1.0
             vec[17] = vec[8] * vec[5]  # recursion-heads interaction
         else:  # transformer
@@ -127,19 +128,20 @@ class MutationEncoder(nn.Module):
     """
 
     PARAM_NAMES = [
-        'num_layers', 'hidden_dim', 'num_heads', 'dropout',
-        'use_skip_connections', 'cell_type', 'recursion_depth',
-        'learning_rate', 'arch_type'
+        "num_layers",
+        "hidden_dim",
+        "num_heads",
+        "dropout",
+        "use_skip_connections",
+        "cell_type",
+        "recursion_depth",
+        "learning_rate",
+        "arch_type",
     ]
 
     OUTPUT_DIM = 15
 
-    def encode(
-        self,
-        param_name: str,
-        old_value: Any,
-        new_value: Any
-    ) -> torch.Tensor:
+    def encode(self, param_name: str, old_value: Any, new_value: Any) -> torch.Tensor:
         """
         Encode a mutation.
 
@@ -162,15 +164,15 @@ class MutationEncoder(nn.Module):
             delta = new_value - old_value
 
             # Normalized delta - dim 9
-            if param_name == 'hidden_dim':
+            if param_name == "hidden_dim":
                 vec[9] = delta / 256.0
-            elif param_name == 'num_layers':
+            elif param_name == "num_layers":
                 vec[9] = delta / 5.0
-            elif param_name == 'num_heads':
+            elif param_name == "num_heads":
                 vec[9] = delta / 8.0
-            elif param_name == 'dropout':
+            elif param_name == "dropout":
                 vec[9] = delta
-            elif param_name == 'learning_rate':
+            elif param_name == "learning_rate":
                 vec[9] = delta * 1000
             else:
                 vec[9] = delta
@@ -201,12 +203,7 @@ class MutationController(nn.Module):
     fitness improvement.
     """
 
-    def __init__(
-        self,
-        arch_dim: int = 25,
-        mutation_dim: int = 15,
-        hidden_dim: int = 64
-    ):
+    def __init__(self, arch_dim: int = 25, mutation_dim: int = 15, hidden_dim: int = 64):
         super().__init__()
         self.arch_dim = arch_dim
         self.mutation_dim = mutation_dim
@@ -220,17 +217,13 @@ class MutationController(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(hidden_dim, 1)
+            nn.Linear(hidden_dim, 1),
         )
 
         self.arch_encoder = ArchitectureEncoder()
         self.mutation_encoder = MutationEncoder()
 
-    def forward(
-        self,
-        arch_encoding: torch.Tensor,
-        mutation_encoding: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, arch_encoding: torch.Tensor, mutation_encoding: torch.Tensor) -> torch.Tensor:
         """
         Predict fitness improvement.
 
@@ -244,13 +237,7 @@ class MutationController(nn.Module):
         combined = torch.cat([arch_encoding, mutation_encoding], dim=-1)
         return self.network(combined).squeeze(-1)
 
-    def predict_improvement(
-        self,
-        config: Dict[str, Any],
-        param_name: str,
-        old_value: Any,
-        new_value: Any
-    ) -> float:
+    def predict_improvement(self, config: Dict[str, Any], param_name: str, old_value: Any, new_value: Any) -> float:
         """
         Convenience method to predict improvement for a single mutation.
         """
@@ -278,7 +265,7 @@ class MutationDataset:
         old_value: Any,
         new_value: Any,
         parent_fitness: float,
-        child_fitness: float
+        child_fitness: float,
     ):
         """Add a mutation example to the dataset."""
         arch_enc = self.arch_encoder.encode(parent_config)
@@ -290,7 +277,7 @@ class MutationDataset:
             mutation_encoding=mut_enc,
             fitness_improvement=improvement,
             parent_fitness=parent_fitness,
-            child_fitness=child_fitness
+            child_fitness=child_fitness,
         )
         self.records.append(record)
 
@@ -313,11 +300,7 @@ class ControllerTrainer:
     Trainer for the mutation controller.
     """
 
-    def __init__(
-        self,
-        controller: MutationController,
-        lr: float = 1e-3
-    ):
+    def __init__(self, controller: MutationController, lr: float = 1e-3):
         self.controller = controller
         self.optimizer = torch.optim.Adam(controller.parameters(), lr=lr)
         self.dataset = MutationDataset()
@@ -330,13 +313,10 @@ class ControllerTrainer:
         old_value: Any,
         new_value: Any,
         parent_fitness: float,
-        child_fitness: float
+        child_fitness: float,
     ):
         """Record a mutation and its outcome."""
-        self.dataset.add_example(
-            parent_config, param_name, old_value, new_value,
-            parent_fitness, child_fitness
-        )
+        self.dataset.add_example(parent_config, param_name, old_value, new_value, parent_fitness, child_fitness)
 
     def train(self, epochs: int = 50, batch_size: int = 32) -> float:
         """
@@ -346,7 +326,7 @@ class ControllerTrainer:
             Final training loss
         """
         if len(self.dataset) < 20:
-            return float('inf')  # Not enough data
+            return float("inf")  # Not enough data
 
         self.controller.train()
 
@@ -368,9 +348,9 @@ class ControllerTrainer:
             num_batches = 0
 
             for i in range(0, len(self.dataset), batch_size):
-                batch_arch = arch_encs[i:i+batch_size]
-                batch_mut = mut_encs[i:i+batch_size]
-                batch_imp = imp_norm[i:i+batch_size]
+                batch_arch = arch_encs[i : i + batch_size]
+                batch_mut = mut_encs[i : i + batch_size]
+                batch_imp = imp_norm[i : i + batch_size]
 
                 self.optimizer.zero_grad()
                 pred = self.controller(batch_arch, batch_mut)
@@ -384,7 +364,7 @@ class ControllerTrainer:
             avg_loss = epoch_loss / num_batches
             self.losses.append(avg_loss)
 
-        return self.losses[-1] if self.losses else float('inf')
+        return self.losses[-1] if self.losses else float("inf")
 
 
 class GuidedMutator:
@@ -394,37 +374,30 @@ class GuidedMutator:
 
     # Mutation options for each parameter
     MUTATION_OPTIONS = {
-        'num_layers': [-2, -1, 1, 2],
-        'hidden_dim': [-64, -32, 32, 64],
-        'num_heads': [-2, -1, 1, 2],
-        'dropout': [-0.1, -0.05, 0.05, 0.1],
-        'use_skip_connections': ['toggle'],
-        'recursion_depth': [-1, 1],
-        'learning_rate': [-0.0005, -0.0001, 0.0001, 0.0005]
+        "num_layers": [-2, -1, 1, 2],
+        "hidden_dim": [-64, -32, 32, 64],
+        "num_heads": [-2, -1, 1, 2],
+        "dropout": [-0.1, -0.05, 0.05, 0.1],
+        "use_skip_connections": ["toggle"],
+        "recursion_depth": [-1, 1],
+        "learning_rate": [-0.0005, -0.0001, 0.0001, 0.0005],
     }
 
     # Parameter bounds
     PARAM_BOUNDS = {
-        'num_layers': (1, 5),
-        'hidden_dim': (64, 256),
-        'num_heads': (2, 8),
-        'dropout': (0.0, 0.3),
-        'recursion_depth': (1, 5),
-        'learning_rate': (0.0001, 0.01)
+        "num_layers": (1, 5),
+        "hidden_dim": (64, 256),
+        "num_heads": (2, 8),
+        "dropout": (0.0, 0.3),
+        "recursion_depth": (1, 5),
+        "learning_rate": (0.0001, 0.01),
     }
 
-    def __init__(
-        self,
-        controller: MutationController,
-        exploration_rate: float = 0.2
-    ):
+    def __init__(self, controller: MutationController, exploration_rate: float = 0.2):
         self.controller = controller
         self.exploration_rate = exploration_rate
 
-    def generate_mutations(
-        self,
-        config: Dict[str, Any]
-    ) -> List[Tuple[str, Any, Any, float]]:
+    def generate_mutations(self, config: Dict[str, Any]) -> List[Tuple[str, Any, Any, float]]:
         """
         Generate candidate mutations with predicted improvements.
 
@@ -444,7 +417,7 @@ class GuidedMutator:
 
             for delta in deltas:
                 # Compute new value
-                if delta == 'toggle' and isinstance(old_value, bool):
+                if delta == "toggle" and isinstance(old_value, bool):
                     new_value = not old_value
                 elif isinstance(old_value, (int, float)):
                     new_value = old_value + delta
@@ -460,18 +433,13 @@ class GuidedMutator:
                     continue
 
                 # Predict improvement
-                pred = self.controller.predict_improvement(
-                    config, param_name, old_value, new_value
-                )
+                pred = self.controller.predict_improvement(config, param_name, old_value, new_value)
 
                 candidates.append((param_name, old_value, new_value, pred))
 
         return candidates
 
-    def select_mutation(
-        self,
-        config: Dict[str, Any]
-    ) -> Optional[Tuple[str, Any, Any]]:
+    def select_mutation(self, config: Dict[str, Any]) -> Optional[Tuple[str, Any, Any]]:
         """
         Select a mutation to apply.
 
@@ -508,10 +476,7 @@ class GuidedMutator:
 
         return (choice[0], choice[1], choice[2])
 
-    def apply_mutation(
-        self,
-        config: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def apply_mutation(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Apply a guided mutation to produce a new configuration.
 
@@ -543,8 +508,7 @@ class ControllerAnalyzer:
         self.controller = controller
 
     def analyze_parameter_preferences(
-        self,
-        arch_types: List[str] = None
+        self, arch_types: List[str] = None
     ) -> Dict[str, Dict[str, List[Tuple[float, float]]]]:
         """
         Analyze which parameters the controller prefers to mutate.
@@ -553,22 +517,22 @@ class ControllerAnalyzer:
             Dictionary mapping arch_type -> param_name -> [(delta, predicted_improvement)]
         """
         if arch_types is None:
-            arch_types = ['trn', 'rsan', 'transformer']
+            arch_types = ["trn", "rsan", "transformer"]
 
         results = {}
 
         for arch_type in arch_types:
             # Create template config
             template = {
-                'arch_type': arch_type,
-                'num_layers': 2,
-                'hidden_dim': 128,
-                'num_heads': 4,
-                'dropout': 0.1,
-                'use_skip_connections': True,
-                'recursion_depth': 3,
-                'learning_rate': 0.001,
-                'cell_type': 'gru'
+                "arch_type": arch_type,
+                "num_layers": 2,
+                "hidden_dim": 128,
+                "num_heads": 4,
+                "dropout": 0.1,
+                "use_skip_connections": True,
+                "recursion_depth": 3,
+                "learning_rate": 0.001,
+                "cell_type": "gru",
             }
 
             arch_results = {}
@@ -581,7 +545,7 @@ class ControllerAnalyzer:
                 param_results = []
 
                 for delta in deltas:
-                    if delta == 'toggle' and isinstance(old_value, bool):
+                    if delta == "toggle" and isinstance(old_value, bool):
                         new_value = not old_value
                         effective_delta = 1 if new_value else -1
                     elif isinstance(old_value, (int, float)):
@@ -590,9 +554,7 @@ class ControllerAnalyzer:
                     else:
                         continue
 
-                    pred = self.controller.predict_improvement(
-                        template, param_name, old_value, new_value
-                    )
+                    pred = self.controller.predict_improvement(template, param_name, old_value, new_value)
                     param_results.append((effective_delta, pred))
 
                 arch_results[param_name] = param_results
@@ -601,11 +563,7 @@ class ControllerAnalyzer:
 
         return results
 
-    def get_top_mutations(
-        self,
-        config: Dict[str, Any],
-        top_k: int = 5
-    ) -> List[Tuple[str, Any, Any, float]]:
+    def get_top_mutations(self, config: Dict[str, Any], top_k: int = 5) -> List[Tuple[str, Any, Any, float]]:
         """
         Get the top predicted mutations for a configuration.
         """
@@ -635,8 +593,7 @@ class ControllerAnalyzer:
                     worst = min(results, key=lambda x: x[1])
 
                     direction = "increase" if best[0] > 0 else "decrease"
-                    print(f"  {param_name}: best to {direction} "
-                          f"(pred={best[1]:.4f}), worst pred={worst[1]:.4f}")
+                    print(f"  {param_name}: best to {direction} " f"(pred={best[1]:.4f}), worst pred={worst[1]:.4f}")
 
 
 def test_mutation_controller():
@@ -652,37 +609,34 @@ def test_mutation_controller():
     # Add synthetic training data
     for _ in range(100):
         config = {
-            'arch_type': random.choice(['trn', 'rsan', 'transformer']),
-            'num_layers': random.randint(1, 5),
-            'hidden_dim': random.choice([64, 128, 192, 256]),
-            'num_heads': random.choice([2, 4, 6, 8]),
-            'dropout': random.choice([0.0, 0.1, 0.2]),
-            'use_skip_connections': random.random() > 0.5,
-            'recursion_depth': random.randint(1, 5),
-            'learning_rate': random.choice([0.0001, 0.001, 0.01])
+            "arch_type": random.choice(["trn", "rsan", "transformer"]),
+            "num_layers": random.randint(1, 5),
+            "hidden_dim": random.choice([64, 128, 192, 256]),
+            "num_heads": random.choice([2, 4, 6, 8]),
+            "dropout": random.choice([0.0, 0.1, 0.2]),
+            "use_skip_connections": random.random() > 0.5,
+            "recursion_depth": random.randint(1, 5),
+            "learning_rate": random.choice([0.0001, 0.001, 0.01]),
         }
 
-        param_name = random.choice(['num_layers', 'hidden_dim', 'num_heads'])
+        param_name = random.choice(["num_layers", "hidden_dim", "num_heads"])
         old_value = config[param_name]
 
-        if param_name == 'num_layers':
+        if param_name == "num_layers":
             new_value = max(1, min(5, old_value + random.choice([-1, 1])))
-        elif param_name == 'hidden_dim':
+        elif param_name == "hidden_dim":
             new_value = max(64, min(256, old_value + random.choice([-32, 32])))
         else:
             new_value = max(2, min(8, old_value + random.choice([-2, 2])))
 
         # Synthetic fitness: prefer larger hidden dim, moderate layers
-        parent_fitness = 0.5 + 0.001 * config['hidden_dim'] - 0.05 * abs(config['num_layers'] - 3)
+        parent_fitness = 0.5 + 0.001 * config["hidden_dim"] - 0.05 * abs(config["num_layers"] - 3)
 
         child_config = config.copy()
         child_config[param_name] = new_value
-        child_fitness = 0.5 + 0.001 * child_config['hidden_dim'] - 0.05 * abs(child_config['num_layers'] - 3)
+        child_fitness = 0.5 + 0.001 * child_config["hidden_dim"] - 0.05 * abs(child_config["num_layers"] - 3)
 
-        trainer.add_mutation_record(
-            config, param_name, old_value, new_value,
-            parent_fitness, child_fitness
-        )
+        trainer.add_mutation_record(config, param_name, old_value, new_value, parent_fitness, child_fitness)
 
     # Train
     print("\nTraining controller...")
@@ -697,12 +651,12 @@ def test_mutation_controller():
     # Test guided mutation
     print("\n--- Guided Mutation Test ---")
     test_config = {
-        'arch_type': 'transformer',
-        'num_layers': 2,
-        'hidden_dim': 128,
-        'num_heads': 4,
-        'dropout': 0.1,
-        'use_skip_connections': True
+        "arch_type": "transformer",
+        "num_layers": 2,
+        "hidden_dim": 128,
+        "num_heads": 4,
+        "dropout": 0.1,
+        "use_skip_connections": True,
     }
 
     top_mutations = analyzer.get_top_mutations(test_config)

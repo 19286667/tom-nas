@@ -32,6 +32,7 @@ class ArchitectureFeatures:
     Encodes architectural choices as a fixed-size vector that can be
     used as input to the fitness predictor.
     """
+
     arch_type: str  # 'trn', 'rsan', 'transformer'
     num_layers: int
     hidden_dim: int
@@ -44,12 +45,7 @@ class ArchitectureFeatures:
     depth_ratio: float = 0.0  # num_layers / max_layers
     width_ratio: float = 0.0  # hidden_dim / max_hidden
 
-    def to_vector(
-        self,
-        max_layers: int = 5,
-        max_hidden: int = 256,
-        max_heads: int = 8
-    ) -> torch.Tensor:
+    def to_vector(self, max_layers: int = 5, max_hidden: int = 256, max_heads: int = 8) -> torch.Tensor:
         """
         Convert to feature vector for predictor input.
 
@@ -66,7 +62,7 @@ class ArchitectureFeatures:
         vec = torch.zeros(15)
 
         # One-hot arch type
-        arch_idx = {'trn': 0, 'rsan': 1, 'transformer': 2}.get(self.arch_type.lower(), 0)
+        arch_idx = {"trn": 0, "rsan": 1, "transformer": 2}.get(self.arch_type.lower(), 0)
         vec[arch_idx] = 1.0
 
         # Normalized hyperparameters
@@ -86,8 +82,8 @@ class ArchitectureFeatures:
         vec[9] = vec[3] * vec[4]  # depth-width interaction
         vec[10] = vec[4] * vec[5]  # width-heads interaction
         vec[11] = vec[3] * vec[7]  # depth-skip interaction
-        vec[12] = float(self.arch_type.lower() == 'trn') * vec[3]  # TRN depth
-        vec[13] = float(self.arch_type.lower() != 'trn') * vec[5]  # Attention heads
+        vec[12] = float(self.arch_type.lower() == "trn") * vec[3]  # TRN depth
+        vec[13] = float(self.arch_type.lower() != "trn") * vec[5]  # Attention heads
         vec[14] = vec[3] * vec[4] * vec[5]  # Three-way interaction
 
         return vec
@@ -98,7 +94,7 @@ class ArchitectureFeatures:
         layers = self.num_layers
         base = 181 * hidden + hidden  # Input projection
 
-        if self.arch_type.lower() == 'trn':
+        if self.arch_type.lower() == "trn":
             base += layers * (3 * (hidden * 2) * hidden)
         else:
             base += layers * (4 * hidden * hidden + 8 * hidden * hidden)
@@ -107,15 +103,15 @@ class ArchitectureFeatures:
         return base
 
     @classmethod
-    def from_config(cls, config: Any) -> 'ArchitectureFeatures':
+    def from_config(cls, config: Any) -> "ArchitectureFeatures":
         """Create from SubnetConfig or similar."""
         return cls(
             arch_type=config.arch_type,
             num_layers=config.num_layers,
             hidden_dim=config.hidden_dim,
-            num_heads=getattr(config, 'num_heads', 4),
-            dropout=getattr(config, 'dropout', 0.1),
-            use_skip_connections=getattr(config, 'use_skip_connections', True)
+            num_heads=getattr(config, "num_heads", 4),
+            dropout=getattr(config, "dropout", 0.1),
+            use_skip_connections=getattr(config, "use_skip_connections", True),
         )
 
 
@@ -127,23 +123,14 @@ class FitnessPredictor(nn.Module):
     expected fitness scores based on evaluation data.
     """
 
-    def __init__(
-        self,
-        input_dim: int = 15,
-        hidden_dim: int = 64,
-        num_layers: int = 3
-    ):
+    def __init__(self, input_dim: int = 15, hidden_dim: int = 64, num_layers: int = 3):
         super().__init__()
 
         layers = []
         prev_dim = input_dim
 
         for i in range(num_layers - 1):
-            layers.extend([
-                nn.Linear(prev_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Dropout(0.1)
-            ])
+            layers.extend([nn.Linear(prev_dim, hidden_dim), nn.ReLU(), nn.Dropout(0.1)])
             prev_dim = hidden_dim
 
         layers.append(nn.Linear(prev_dim, 1))
@@ -165,6 +152,7 @@ class FitnessPredictor(nn.Module):
 @dataclass
 class EvaluationRecord:
     """Record of an architecture evaluation."""
+
     features: ArchitectureFeatures
     fitness: float
     accuracy: float
@@ -177,11 +165,7 @@ class PredictorTrainer:
     Trains and updates the fitness predictor.
     """
 
-    def __init__(
-        self,
-        predictor: FitnessPredictor,
-        lr: float = 1e-3
-    ):
+    def __init__(self, predictor: FitnessPredictor, lr: float = 1e-3):
         self.predictor = predictor
         self.optimizer = torch.optim.Adam(predictor.parameters(), lr=lr)
         self.records: List[EvaluationRecord] = []
@@ -203,7 +187,7 @@ class PredictorTrainer:
             Final training loss
         """
         if len(self.records) < 10:
-            return float('inf')  # Not enough data
+            return float("inf")  # Not enough data
 
         self.predictor.train()
 
@@ -226,8 +210,8 @@ class PredictorTrainer:
             num_batches = 0
 
             for i in range(0, len(self.records), batch_size):
-                batch_X = X[i:i+batch_size]
-                batch_y = y_norm[i:i+batch_size]
+                batch_X = X[i : i + batch_size]
+                batch_y = y_norm[i : i + batch_size]
 
                 self.optimizer.zero_grad()
                 pred = self.predictor(batch_X)
@@ -241,12 +225,12 @@ class PredictorTrainer:
             avg_loss = epoch_loss / num_batches
             self.training_losses.append(avg_loss)
 
-        return self.training_losses[-1] if self.training_losses else float('inf')
+        return self.training_losses[-1] if self.training_losses else float("inf")
 
     def get_prediction_stats(self) -> Dict[str, float]:
         """Get statistics about predictor performance."""
         if len(self.records) < 10:
-            return {'correlation': 0.0, 'mse': float('inf')}
+            return {"correlation": 0.0, "mse": float("inf")}
 
         self.predictor.eval()
         with torch.no_grad():
@@ -265,11 +249,7 @@ class PredictorTrainer:
 
         mse = F.mse_loss(y_pred, y_true).item()
 
-        return {
-            'correlation': correlation,
-            'mse': mse,
-            'num_records': len(self.records)
-        }
+        return {"correlation": correlation, "mse": mse, "num_records": len(self.records)}
 
 
 class LINASSearch:
@@ -285,10 +265,7 @@ class LINASSearch:
     """
 
     def __init__(
-        self,
-        supernet,  # ToMSupernet instance
-        supernet_evaluator,  # SupernetEvaluator instance
-        device: str = 'cpu'
+        self, supernet, supernet_evaluator, device: str = "cpu"  # ToMSupernet instance  # SupernetEvaluator instance
     ):
         self.supernet = supernet
         self.evaluator = supernet_evaluator
@@ -304,13 +281,11 @@ class LINASSearch:
         self.all_evaluations: List[EvaluationRecord] = []
 
     def generate_candidates(
-        self,
-        num_candidates: int,
-        arch_types: Optional[List[str]] = None
+        self, num_candidates: int, arch_types: Optional[List[str]] = None
     ) -> List[ArchitectureFeatures]:
         """Generate random candidate architectures."""
         if arch_types is None:
-            arch_types = ['trn', 'rsan', 'transformer']
+            arch_types = ["trn", "rsan", "transformer"]
 
         candidates = []
         for _ in range(num_candidates):
@@ -320,7 +295,7 @@ class LINASSearch:
                 hidden_dim=random.choice([64, 96, 128, 160, 192, 224, 256]),
                 num_heads=random.choice([2, 4, 6, 8]),
                 dropout=random.choice([0.0, 0.1, 0.2]),
-                use_skip_connections=random.random() > 0.3
+                use_skip_connections=random.random() > 0.3,
             )
             features.param_estimate = int(features._estimate_params())
             candidates.append(features)
@@ -332,7 +307,7 @@ class LINASSearch:
         features: ArchitectureFeatures,
         eval_data: List[Tuple[torch.Tensor, torch.Tensor]],
         fine_tune_epochs: int = 2,
-        method: str = 'supernet'
+        method: str = "supernet",
     ) -> EvaluationRecord:
         """
         Evaluate a single architecture.
@@ -354,26 +329,23 @@ class LINASSearch:
             hidden_dim=features.hidden_dim,
             num_heads=features.num_heads,
             dropout=features.dropout,
-            use_skip_connections=features.use_skip_connections
+            use_skip_connections=features.use_skip_connections,
         )
 
-        results = self.evaluator.evaluate_config(
-            config, eval_data, fine_tune_epochs
-        )
+        results = self.evaluator.evaluate_config(config, eval_data, fine_tune_epochs)
 
         record = EvaluationRecord(
             features=features,
-            fitness=results['accuracy'],  # Use accuracy as fitness
-            accuracy=results['accuracy'],
-            param_count=results['param_count'],
-            evaluation_method=method
+            fitness=results["accuracy"],  # Use accuracy as fitness
+            accuracy=results["accuracy"],
+            param_count=results["param_count"],
+            evaluation_method=method,
         )
 
         return record
 
     def predictor_score_candidates(
-        self,
-        candidates: List[ArchitectureFeatures]
+        self, candidates: List[ArchitectureFeatures]
     ) -> List[Tuple[ArchitectureFeatures, float]]:
         """Score candidates using the predictor."""
         self.predictor.eval()
@@ -394,7 +366,7 @@ class LINASSearch:
         eval_data: List[Tuple[torch.Tensor, torch.Tensor]],
         num_candidates: int = 100,
         num_to_evaluate: int = 10,
-        fine_tune_epochs: int = 2
+        fine_tune_epochs: int = 2,
     ) -> Dict[str, Any]:
         """
         Perform one iteration of LINAS search.
@@ -428,9 +400,7 @@ class LINASSearch:
         # Evaluate top candidates
         new_records = []
         for features in top_candidates:
-            record = self.evaluate_architecture(
-                features, eval_data, fine_tune_epochs, method='linas'
-            )
+            record = self.evaluate_architecture(features, eval_data, fine_tune_epochs, method="linas")
             new_records.append(record)
             self.all_evaluations.append(record)
             self.trainer.add_record(record)
@@ -444,11 +414,11 @@ class LINASSearch:
         self.best_architectures = self.best_architectures[:20]
 
         return {
-            'iteration': self.iteration,
-            'num_evaluated': len(new_records),
-            'best_fitness': self.best_architectures[0][1] if self.best_architectures else 0,
-            'avg_fitness': np.mean([r.fitness for r in new_records]),
-            'predictor_stats': self.trainer.get_prediction_stats()
+            "iteration": self.iteration,
+            "num_evaluated": len(new_records),
+            "best_fitness": self.best_architectures[0][1] if self.best_architectures else 0,
+            "avg_fitness": np.mean([r.fitness for r in new_records]),
+            "predictor_stats": self.trainer.get_prediction_stats(),
         }
 
     def run_search(
@@ -456,7 +426,7 @@ class LINASSearch:
         eval_data: List[Tuple[torch.Tensor, torch.Tensor]],
         num_iterations: int = 10,
         candidates_per_iteration: int = 100,
-        evaluations_per_iteration: int = 10
+        evaluations_per_iteration: int = 10,
     ) -> Dict[str, Any]:
         """
         Run complete LINAS search.
@@ -474,21 +444,21 @@ class LINASSearch:
 
         for i in range(num_iterations):
             iter_result = self.search_iteration(
-                eval_data,
-                num_candidates=candidates_per_iteration,
-                num_to_evaluate=evaluations_per_iteration
+                eval_data, num_candidates=candidates_per_iteration, num_to_evaluate=evaluations_per_iteration
             )
             results.append(iter_result)
 
-            print(f"Iteration {i+1}/{num_iterations}: "
-                  f"Best={iter_result['best_fitness']:.4f}, "
-                  f"Avg={iter_result['avg_fitness']:.4f}")
+            print(
+                f"Iteration {i+1}/{num_iterations}: "
+                f"Best={iter_result['best_fitness']:.4f}, "
+                f"Avg={iter_result['avg_fitness']:.4f}"
+            )
 
         return {
-            'best_architectures': self.best_architectures[:10],
-            'total_evaluations': len(self.all_evaluations),
-            'final_predictor_stats': self.trainer.get_prediction_stats(),
-            'iteration_results': results
+            "best_architectures": self.best_architectures[:10],
+            "total_evaluations": len(self.all_evaluations),
+            "final_predictor_stats": self.trainer.get_prediction_stats(),
+            "iteration_results": results,
         }
 
 
@@ -502,13 +472,7 @@ class EfficientNASPipeline:
     Stage 4: Final validation
     """
 
-    def __init__(
-        self,
-        input_dim: int = 181,
-        output_dim: int = 181,
-        device: str = 'cpu',
-        param_budget: int = 500000
-    ):
+    def __init__(self, input_dim: int = 181, output_dim: int = 181, device: str = "cpu", param_budget: int = 500000):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.device = device
@@ -522,11 +486,7 @@ class EfficientNASPipeline:
         self.supernet_evaluator = None
         self.linas_search = None
 
-    def stage1_proxy_filter(
-        self,
-        num_candidates: int = 5000,
-        top_k: int = 500
-    ) -> List[ArchitectureFeatures]:
+    def stage1_proxy_filter(self, num_candidates: int = 5000, top_k: int = 500) -> List[ArchitectureFeatures]:
         """
         Stage 1: Generate candidates and filter with zero-cost proxies.
         """
@@ -536,9 +496,7 @@ class EfficientNASPipeline:
         from ..agents.architectures import TransparentRNN, RecursiveSelfAttention, TransformerToMAgent
 
         self.proxy_evaluator = ZeroCostProxy(
-            input_dim=self.input_dim,
-            device=self.device,
-            target_params=self.param_budget
+            input_dim=self.input_dim, device=self.device, target_params=self.param_budget
         )
 
         # Generate candidate architectures
@@ -546,7 +504,7 @@ class EfficientNASPipeline:
         features_list = []
 
         for _ in range(num_candidates):
-            arch_type = random.choice(['trn', 'rsan', 'transformer'])
+            arch_type = random.choice(["trn", "rsan", "transformer"])
             num_layers = random.randint(1, 5)
             hidden_dim = random.choice([64, 96, 128, 160, 192, 224, 256])
             num_heads = random.choice([2, 4, 6, 8])
@@ -557,13 +515,13 @@ class EfficientNASPipeline:
                 hidden_dim=hidden_dim,
                 num_heads=num_heads,
                 dropout=random.choice([0.0, 0.1, 0.2]),
-                use_skip_connections=random.random() > 0.3
+                use_skip_connections=random.random() > 0.3,
             )
 
             # Create actual model for proxy evaluation
-            if arch_type == 'trn':
+            if arch_type == "trn":
                 model = TransparentRNN(self.input_dim, hidden_dim, self.output_dim, num_layers)
-            elif arch_type == 'rsan':
+            elif arch_type == "rsan":
                 model = RecursiveSelfAttention(self.input_dim, hidden_dim, self.output_dim, num_heads, num_layers)
             else:
                 model = TransformerToMAgent(self.input_dim, hidden_dim, self.output_dim, num_layers, num_heads)
@@ -572,10 +530,7 @@ class EfficientNASPipeline:
             features_list.append(features)
 
         # Filter
-        self.architecture_filter = ArchitectureFilter(
-            self.proxy_evaluator,
-            param_budget=self.param_budget
-        )
+        self.architecture_filter = ArchitectureFilter(self.proxy_evaluator, param_budget=self.param_budget)
 
         filtered = self.architecture_filter.filter_architectures(candidates, top_k=top_k)
 
@@ -588,66 +543,40 @@ class EfficientNASPipeline:
 
         return filtered_features
 
-    def stage2_train_supernet(
-        self,
-        train_data,  # DataLoader or list
-        num_epochs: int = 20
-    ):
+    def stage2_train_supernet(self, train_data, num_epochs: int = 20):  # DataLoader or list
         """
         Stage 2: Train the supernet.
         """
         print("Stage 2: Supernet training")
         from .supernet import ToMSupernet, SupernetTrainer, SupernetEvaluator
 
-        self.supernet = ToMSupernet(
-            input_dim=self.input_dim,
-            output_dim=self.output_dim
-        ).to(self.device)
+        self.supernet = ToMSupernet(input_dim=self.input_dim, output_dim=self.output_dim).to(self.device)
 
-        self.supernet_trainer = SupernetTrainer(
-            self.supernet,
-            device=self.device
-        )
+        self.supernet_trainer = SupernetTrainer(self.supernet, device=self.device)
 
         # Train
-        if hasattr(train_data, '__iter__'):
-            result = self.supernet_trainer.progressive_shrinking(
-                train_data,
-                num_epochs=num_epochs,
-                phases=4
-            )
+        if hasattr(train_data, "__iter__"):
+            result = self.supernet_trainer.progressive_shrinking(train_data, num_epochs=num_epochs, phases=4)
         else:
             print("  Warning: train_data should be iterable")
-            result = {'final_loss': 0.0}
+            result = {"final_loss": 0.0}
 
-        self.supernet_evaluator = SupernetEvaluator(
-            self.supernet,
-            device=self.device
-        )
+        self.supernet_evaluator = SupernetEvaluator(self.supernet, device=self.device)
 
         print(f"  Final loss: {result['final_loss']:.4f}")
 
     def stage3_linas_search(
-        self,
-        eval_data: List[Tuple[torch.Tensor, torch.Tensor]],
-        num_iterations: int = 10
+        self, eval_data: List[Tuple[torch.Tensor, torch.Tensor]], num_iterations: int = 10
     ) -> Dict[str, Any]:
         """
         Stage 3: LINAS predictor-guided search.
         """
         print("Stage 3: LINAS search")
 
-        self.linas_search = LINASSearch(
-            self.supernet,
-            self.supernet_evaluator,
-            device=self.device
-        )
+        self.linas_search = LINASSearch(self.supernet, self.supernet_evaluator, device=self.device)
 
         results = self.linas_search.run_search(
-            eval_data,
-            num_iterations=num_iterations,
-            candidates_per_iteration=100,
-            evaluations_per_iteration=10
+            eval_data, num_iterations=num_iterations, candidates_per_iteration=100, evaluations_per_iteration=10
         )
 
         print(f"  Total evaluations: {results['total_evaluations']}")
@@ -656,9 +585,7 @@ class EfficientNASPipeline:
         return results
 
     def stage4_validate(
-        self,
-        train_fn: Callable,  # Function(features) -> trained_accuracy
-        top_k: int = 5
+        self, train_fn: Callable, top_k: int = 5  # Function(features) -> trained_accuracy
     ) -> List[Tuple[ArchitectureFeatures, float]]:
         """
         Stage 4: Validate top architectures with full training.
@@ -673,8 +600,9 @@ class EfficientNASPipeline:
         validated = []
 
         for features, linas_score in top_architectures:
-            print(f"  Validating {features.arch_type} "
-                  f"(layers={features.num_layers}, hidden={features.hidden_dim})...")
+            print(
+                f"  Validating {features.arch_type} " f"(layers={features.num_layers}, hidden={features.hidden_dim})..."
+            )
 
             final_accuracy = train_fn(features)
             validated.append((features, final_accuracy))
@@ -694,10 +622,7 @@ def test_linas():
     print("=" * 60)
 
     # Create dummy evaluation data
-    eval_data = [
-        (torch.randn(8, 10, 181), torch.rand(8, 181))
-        for _ in range(5)
-    ]
+    eval_data = [(torch.randn(8, 10, 181), torch.rand(8, 181)) for _ in range(5)]
 
     # Create supernet and evaluator
     from .supernet import ToMSupernet, SupernetEvaluator
@@ -708,19 +633,16 @@ def test_linas():
     # Run LINAS search
     search = LINASSearch(supernet, evaluator)
 
-    results = search.run_search(
-        eval_data,
-        num_iterations=3,
-        candidates_per_iteration=20,
-        evaluations_per_iteration=5
-    )
+    results = search.run_search(eval_data, num_iterations=3, candidates_per_iteration=20, evaluations_per_iteration=5)
 
     print(f"\nFinal results:")
     print(f"  Total evaluations: {results['total_evaluations']}")
     print(f"  Best architectures:")
-    for features, fitness in results['best_architectures'][:3]:
-        print(f"    {features.arch_type}: layers={features.num_layers}, "
-              f"hidden={features.hidden_dim}, fitness={fitness:.4f}")
+    for features, fitness in results["best_architectures"][:3]:
+        print(
+            f"    {features.arch_type}: layers={features.num_layers}, "
+            f"hidden={features.hidden_dim}, fitness={fitness:.4f}"
+        )
 
     print("\n" + "=" * 60)
     print("TEST COMPLETE")

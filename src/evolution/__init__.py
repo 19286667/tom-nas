@@ -1,16 +1,22 @@
 # evolution module
 from .nas_engine import NASEngine, EvolutionConfig, Individual
-from .fitness import (
-    ToMFitnessEvaluator, SallyAnneFitness,
-    HigherOrderToMFitness, CompositeFitnessFunction
-)
+from .fitness import ToMFitnessEvaluator, SallyAnneFitness, HigherOrderToMFitness, CompositeFitnessFunction
 from .operators import (
-    ArchitectureGene, WeightMutation, ArchitectureCrossover,
-    PopulationOperators, AdaptiveMutation, SpeciesManager, CoevolutionOperator
+    ArchitectureGene,
+    WeightMutation,
+    ArchitectureCrossover,
+    PopulationOperators,
+    AdaptiveMutation,
+    SpeciesManager,
+    CoevolutionOperator,
 )
 from .poet_controller import (
-    POETController, POETConfig, EnvironmentGenotype, EnvironmentType,
-    AgentEnvironmentPair, create_preset_environment
+    POETController,
+    POETConfig,
+    EnvironmentGenotype,
+    EnvironmentType,
+    AgentEnvironmentPair,
+    create_preset_environment,
 )
 
 # Advanced NAS components
@@ -22,24 +28,52 @@ from .tom_fitness import ToMSpecificFitness, AdversarialToMFitness, CombinedToMF
 
 __all__ = [
     # NAS Engine
-    'NASEngine', 'EvolutionConfig', 'Individual',
+    "NASEngine",
+    "EvolutionConfig",
+    "Individual",
     # Fitness
-    'ToMFitnessEvaluator', 'SallyAnneFitness', 'HigherOrderToMFitness',
-    'CompositeFitnessFunction',
+    "ToMFitnessEvaluator",
+    "SallyAnneFitness",
+    "HigherOrderToMFitness",
+    "CompositeFitnessFunction",
     # Operators
-    'ArchitectureGene', 'WeightMutation', 'ArchitectureCrossover',
-    'PopulationOperators', 'AdaptiveMutation', 'SpeciesManager', 'CoevolutionOperator',
+    "ArchitectureGene",
+    "WeightMutation",
+    "ArchitectureCrossover",
+    "PopulationOperators",
+    "AdaptiveMutation",
+    "SpeciesManager",
+    "CoevolutionOperator",
     # POET
-    'POETController', 'POETConfig', 'EnvironmentGenotype', 'EnvironmentType',
-    'AgentEnvironmentPair', 'create_preset_environment',
+    "POETController",
+    "POETConfig",
+    "EnvironmentGenotype",
+    "EnvironmentType",
+    "AgentEnvironmentPair",
+    "create_preset_environment",
     # Advanced NAS - Supernet
-    'ElasticTransformer', 'ElasticConfig', 'ElasticTransparentRNN', 'ElasticLSTMCell',
+    "ElasticTransformer",
+    "ElasticConfig",
+    "ElasticTransparentRNN",
+    "ElasticLSTMCell",
     # Advanced NAS - Zero-cost proxies
-    'ZeroCostProxy', 'ArchitectureFilter', 'ProxyScore', 'ProxyValidation',
+    "ZeroCostProxy",
+    "ArchitectureFilter",
+    "ProxyScore",
+    "ProxyValidation",
     # Advanced NAS - LINAS
-    'LINASSearch', 'FitnessPredictor', 'EfficientNASPipeline', 'PredictorTrainer',
+    "LINASSearch",
+    "FitnessPredictor",
+    "EfficientNASPipeline",
+    "PredictorTrainer",
     # Advanced NAS - Mutation Controller
-    'MutationController', 'GuidedMutator', 'ControllerTrainer', 'ControllerAnalyzer',
+    "MutationController",
+    "GuidedMutator",
+    "ControllerTrainer",
+    "ControllerAnalyzer",
     # Advanced NAS - ToM-specific fitness
-    'ToMSpecificFitness', 'AdversarialToMFitness', 'CombinedToMFitness', 'EarlyTerminationFitness',
+    "ToMSpecificFitness",
+    "AdversarialToMFitness",
+    "CombinedToMFitness",
+    "EarlyTerminationFitness",
 ]

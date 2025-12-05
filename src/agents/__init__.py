@@ -16,8 +16,8 @@ from .architectures import (
 )
 
 __all__ = [
-    'TransparentRNN',
-    'RecursiveSelfAttention',
-    'TransformerToMAgent',
-    'HybridArchitecture',
+    "TransparentRNN",
+    "RecursiveSelfAttention",
+    "TransformerToMAgent",
+    "HybridArchitecture",
 ]

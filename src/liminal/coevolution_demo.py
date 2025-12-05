@@ -41,10 +41,10 @@ from src.liminal.narrative_emergence import (
     NarrativeArchetype,
 )
 
-
 # =============================================================================
 # DEMO AGENT (Simple ToM-like agent for demonstration)
 # =============================================================================
+
 
 class DemoToMAgent:
     """
@@ -64,10 +64,7 @@ class DemoToMAgent:
         self.interaction_history: List[Dict] = []
 
     def select_action(
-        self,
-        observation: Dict[str, Any],
-        game_state: Any,
-        coevolution: PsychosocialCoevolutionEngine
+        self, observation: Dict[str, Any], game_state: Any, coevolution: PsychosocialCoevolutionEngine
     ) -> Dict[str, Any]:
         """Select action based on observation and social context."""
         # Get social observation
@@ -82,17 +79,14 @@ class DemoToMAgent:
             return self._reactive_action(observation, game_state)
 
     def _strategic_action(
-        self,
-        observation: Dict,
-        game_state: Any,
-        coevolution: PsychosocialCoevolutionEngine
+        self, observation: Dict, game_state: Any, coevolution: PsychosocialCoevolutionEngine
     ) -> Dict[str, Any]:
         """Strategic action using ToM reasoning."""
         network = coevolution.social_network
 
         # Find best interaction target
         target = None
-        best_score = -float('inf')
+        best_score = -float("inf")
 
         for other_id in network.hierarchy:
             if other_id == self.agent_id:
@@ -105,8 +99,7 @@ class DemoToMAgent:
 
                 # Prefer coalition members
                 in_same_coalition = any(
-                    self.agent_id in members and other_id in members
-                    for members in network.coalitions.values()
+                    self.agent_id in members and other_id in members for members in network.coalitions.values()
                 )
                 if in_same_coalition:
                     score += 0.2
@@ -146,6 +139,7 @@ class DemoToMAgent:
 # DEMO POPULATION
 # =============================================================================
 
+
 class DemoPopulation:
     """
     A population of demo agents for co-evolution demonstration.
@@ -169,14 +163,10 @@ class DemoPopulation:
         """
         Simple evolution: replace bottom performers with mutations of top.
         """
-        sorted_agents = sorted(
-            self.agents.items(),
-            key=lambda x: x[1].fitness,
-            reverse=True
-        )
+        sorted_agents = sorted(self.agents.items(), key=lambda x: x[1].fitness, reverse=True)
 
         # Keep top 50%
-        survivors = sorted_agents[:len(sorted_agents) // 2]
+        survivors = sorted_agents[: len(sorted_agents) // 2]
 
         # Replace bottom 50% with mutations
         new_agents = {}
@@ -202,9 +192,11 @@ class DemoPopulation:
 # DEMONSTRATION RUNNER
 # =============================================================================
 
+
 @dataclass
 class DemoMetrics:
     """Metrics collected during demonstration."""
+
     generation: int
     mean_fitness: float
     max_fitness: float
@@ -221,7 +213,7 @@ def run_generation(
     narrative_system: NarrativeEmergenceSystem,
     npcs: Dict[str, BaseNPC],
     ticks_per_generation: int = 100,
-    verbose: bool = False
+    verbose: bool = False,
 ) -> DemoMetrics:
     """
     Run one generation of co-evolution.
@@ -249,9 +241,7 @@ def run_generation(
             action2 = partner.select_action({}, None, coevolution)
 
             # Process interaction
-            outcome = coevolution.process_interaction(
-                agent_id, partner_id, action1, action2
-            )
+            outcome = coevolution.process_interaction(agent_id, partner_id, action1, action2)
 
             # Calculate rewards
             reward1 = 0.1 if action1.get("cooperate") and action2.get("cooperate") else -0.05
@@ -292,9 +282,8 @@ def run_generation(
         coalition_count=state["social_network"]["num_coalitions"],
         active_narratives=len(narrative_system.get_active_narratives()),
         tom_challenge_level=state["tom_challenge_level"],
-        env_complexity=sum(
-            state["environment"]["npc_parameters"].values()
-        ) / len(state["environment"]["npc_parameters"]),
+        env_complexity=sum(state["environment"]["npc_parameters"].values())
+        / len(state["environment"]["npc_parameters"]),
     )
 
 
@@ -303,8 +292,12 @@ def create_demo_npcs(count: int = 50) -> Dict[str, BaseNPC]:
     npcs = {}
 
     archetypes = [
-        "trusting_cooperator", "suspicious_defector", "conditional_reciprocator",
-        "status_seeker", "coalition_builder", "lone_wolf",
+        "trusting_cooperator",
+        "suspicious_defector",
+        "conditional_reciprocator",
+        "status_seeker",
+        "coalition_builder",
+        "lone_wolf",
     ]
 
     for i in range(count):
@@ -332,9 +325,7 @@ def create_demo_npcs(count: int = 50) -> Dict[str, BaseNPC]:
         # Some NPCs are zombies (for validation)
         if random.random() < 0.1:
             npc.is_zombie = True
-            npc.zombie_type = random.choice([
-                "behavioral", "belief", "causal", "metacognitive"
-            ])
+            npc.zombie_type = random.choice(["behavioral", "belief", "causal", "metacognitive"])
 
         npcs[npc_id] = npc
 
@@ -343,36 +334,30 @@ def create_demo_npcs(count: int = 50) -> Dict[str, BaseNPC]:
 
 def print_theoretical_foundations():
     """Print the theoretical foundations of the system."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("THEORETICAL FOUNDATIONS")
-    print("="*70)
+    print("=" * 70)
 
     foundations = [
-        ("Dunbar's Number", TheoreticalConstants.DUNBAR_NUMBER,
-         "Cognitive limit on stable social relationships"),
-        ("Belief Decay", TheoreticalConstants.BELIEF_CONFIDENCE_DECAY,
-         "Confidence drops with ToM recursion depth"),
-        ("Heider Balance", TheoreticalConstants.BALANCE_PRESSURE,
-         "Triadic relationship tend toward balance"),
-        ("Reputation Memory", TheoreticalConstants.REPUTATION_DECAY_RATE,
-         "Temporal decay of social information"),
-        ("Emotional Contagion", TheoreticalConstants.CONTAGION_RATE,
-         "Affect spreads through proximity"),
-        ("Coalition Threshold", TheoreticalConstants.COALITION_FORMATION_THRESHOLD,
-         "Trust required for formal alliance"),
+        ("Dunbar's Number", TheoreticalConstants.DUNBAR_NUMBER, "Cognitive limit on stable social relationships"),
+        ("Belief Decay", TheoreticalConstants.BELIEF_CONFIDENCE_DECAY, "Confidence drops with ToM recursion depth"),
+        ("Heider Balance", TheoreticalConstants.BALANCE_PRESSURE, "Triadic relationship tend toward balance"),
+        ("Reputation Memory", TheoreticalConstants.REPUTATION_DECAY_RATE, "Temporal decay of social information"),
+        ("Emotional Contagion", TheoreticalConstants.CONTAGION_RATE, "Affect spreads through proximity"),
+        (
+            "Coalition Threshold",
+            TheoreticalConstants.COALITION_FORMATION_THRESHOLD,
+            "Trust required for formal alliance",
+        ),
     ]
 
     for name, value, description in foundations:
         print(f"  {name:.<30} {value:>6.3f}  | {description}")
 
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
 
-def print_generation_report(
-    gen: int,
-    metrics: DemoMetrics,
-    narrative_system: NarrativeEmergenceSystem
-):
+def print_generation_report(gen: int, metrics: DemoMetrics, narrative_system: NarrativeEmergenceSystem):
     """Print detailed generation report."""
     print(f"\n{'='*60}")
     print(f"GENERATION {gen} REPORT")
@@ -412,7 +397,7 @@ def run_demo(
     population_size: int = 20,
     ticks_per_generation: int = 100,
     verbose: bool = False,
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
 ):
     """
     Run the complete psychosocial co-evolution demonstration.
@@ -422,9 +407,9 @@ def run_demo(
         np.random.seed(seed)
         torch.manual_seed(seed)
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("PSYCHOSOCIAL CO-EVOLUTION DEMONSTRATION")
-    print("="*70)
+    print("=" * 70)
     print(f"\nThis demonstration shows genuine bidirectional co-evolution:")
     print(f"  - Agents evolve to handle increasingly complex social dynamics")
     print(f"  - Environment evolves to maintain selection pressure")
@@ -488,9 +473,9 @@ def run_demo(
             print(f"  Agents require 4th-order ToM reasoning.")
 
     # Final summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("DEMONSTRATION COMPLETE")
-    print("="*70)
+    print("=" * 70)
 
     print(f"\n  Evolution Summary:")
     print(f"    Initial mean fitness:    {all_metrics[0].mean_fitness:.4f}")
@@ -507,18 +492,14 @@ def run_demo(
     print(f"    Average ToM depth required: {narrative_metrics['average_tom_depth']:.1f}")
 
     print(f"\n  Top narrative archetypes:")
-    sorted_archetypes = sorted(
-        narrative_metrics['by_archetype'].items(),
-        key=lambda x: x[1],
-        reverse=True
-    )
+    sorted_archetypes = sorted(narrative_metrics["by_archetype"].items(), key=lambda x: x[1], reverse=True)
     for archetype, count in sorted_archetypes[:5]:
         if count > 0:
             print(f"    - {archetype}: {count}")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("KEY INSIGHTS")
-    print("="*70)
+    print("=" * 70)
 
     insights = [
         "Bidirectional co-evolution maintains selection pressure",
@@ -531,7 +512,7 @@ def run_demo(
     for insight in insights:
         print(f"  * {insight}")
 
-    print("\n" + "="*70 + "\n")
+    print("\n" + "=" * 70 + "\n")
 
     return all_metrics
 
@@ -540,35 +521,14 @@ def run_demo(
 # MAIN
 # =============================================================================
 
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Psychosocial Co-Evolution Demonstration"
-    )
-    parser.add_argument(
-        "--generations", "-g",
-        type=int, default=10,
-        help="Number of generations to run"
-    )
-    parser.add_argument(
-        "--population", "-p",
-        type=int, default=20,
-        help="Agent population size"
-    )
-    parser.add_argument(
-        "--ticks", "-t",
-        type=int, default=100,
-        help="Ticks per generation"
-    )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Verbose output"
-    )
-    parser.add_argument(
-        "--seed", "-s",
-        type=int, default=None,
-        help="Random seed for reproducibility"
-    )
+    parser = argparse.ArgumentParser(description="Psychosocial Co-Evolution Demonstration")
+    parser.add_argument("--generations", "-g", type=int, default=10, help="Number of generations to run")
+    parser.add_argument("--population", "-p", type=int, default=20, help="Agent population size")
+    parser.add_argument("--ticks", "-t", type=int, default=100, help="Ticks per generation")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
+    parser.add_argument("--seed", "-s", type=int, default=None, help="Random seed for reproducibility")
 
     args = parser.parse_args()
 

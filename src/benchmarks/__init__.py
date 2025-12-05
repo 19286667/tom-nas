@@ -41,6 +41,7 @@ from .socialIQA_loader import (
 @dataclass
 class UnifiedBenchmarkResult:
     """Results from unified benchmark evaluation."""
+
     # ToMi Results
     tomi_tom_accuracy: float
     tomi_control_accuracy: float
@@ -85,10 +86,13 @@ class UnifiedBenchmark:
         print(f"ToM Aggregate Score: {results['tom_aggregate']:.3f}")
     """
 
-    def __init__(self, tomi_data_dir: Optional[str] = None,
-                 social_iqa_data_dir: Optional[str] = None,
-                 num_social_agents: int = 10,
-                 seed: Optional[int] = None):
+    def __init__(
+        self,
+        tomi_data_dir: Optional[str] = None,
+        social_iqa_data_dir: Optional[str] = None,
+        num_social_agents: int = 10,
+        seed: Optional[int] = None,
+    ):
         """
         Initialize all benchmark components.
 
@@ -105,22 +109,16 @@ class UnifiedBenchmark:
         self.social_iqa = SocialIQADataset(social_iqa_data_dir)
         self.social_iqa_evaluator = SocialIQAEvaluator(self.social_iqa)
 
-        self.social_games = SocialGameBenchmark(
-            num_agents=num_social_agents,
-            num_zombies=2,
-            seed=seed
-        )
+        self.social_games = SocialGameBenchmark(num_agents=num_social_agents, num_zombies=2, seed=seed)
 
         # Configuration
         self.weights = {
-            'tomi': 0.4,
-            'social_iqa': 0.3,
-            'social_games': 0.3,
+            "tomi": 0.4,
+            "social_iqa": 0.3,
+            "social_games": 0.3,
         }
 
-    def evaluate_tomi(self, model: nn.Module,
-                      num_samples: int = 100,
-                      device: str = 'cpu') -> Dict[str, float]:
+    def evaluate_tomi(self, model: nn.Module, num_samples: int = 100, device: str = "cpu") -> Dict[str, float]:
         """
         Evaluate model on ToMi false belief scenarios.
 
@@ -131,9 +129,7 @@ class UnifiedBenchmark:
         results = self.tomi_evaluator.evaluate(model, num_samples)
         return results
 
-    def evaluate_social_iqa(self, model: nn.Module,
-                            num_samples: int = 100,
-                            device: str = 'cpu') -> Dict[str, float]:
+    def evaluate_social_iqa(self, model: nn.Module, num_samples: int = 100, device: str = "cpu") -> Dict[str, float]:
         """
         Evaluate model on SocialIQA questions.
 
@@ -142,17 +138,16 @@ class UnifiedBenchmark:
         """
         metrics = self.social_iqa_evaluator.evaluate(model, num_samples, device)
         return {
-            'accuracy': metrics.accuracy,
-            'intent_accuracy': metrics.intent_accuracy,
-            'emotion_accuracy': metrics.emotion_accuracy,
-            'motivation_accuracy': metrics.motivation_accuracy,
-            'subsequent_accuracy': metrics.subsequent_accuracy,
-            'prerequisite_accuracy': metrics.prerequisite_accuracy,
-            'num_examples': metrics.num_examples,
+            "accuracy": metrics.accuracy,
+            "intent_accuracy": metrics.intent_accuracy,
+            "emotion_accuracy": metrics.emotion_accuracy,
+            "motivation_accuracy": metrics.motivation_accuracy,
+            "subsequent_accuracy": metrics.subsequent_accuracy,
+            "prerequisite_accuracy": metrics.prerequisite_accuracy,
+            "num_examples": metrics.num_examples,
         }
 
-    def evaluate_social_games(self, model: nn.Module,
-                              device: str = 'cpu') -> SocialGameResult:
+    def evaluate_social_games(self, model: nn.Module, device: str = "cpu") -> SocialGameResult:
         """
         Evaluate model on interactive social games.
 
@@ -161,9 +156,7 @@ class UnifiedBenchmark:
         """
         return self.social_games.full_evaluation(model, device)
 
-    def full_evaluation(self, model: nn.Module,
-                        device: str = 'cpu',
-                        model_name: str = "") -> UnifiedBenchmarkResult:
+    def full_evaluation(self, model: nn.Module, device: str = "cpu", model_name: str = "") -> UnifiedBenchmarkResult:
         """
         Run all benchmarks and return unified scores.
 
@@ -183,59 +176,54 @@ class UnifiedBenchmark:
         # Compute aggregate ToM score
         # Weight by importance: false belief is core ToM, others are supporting
         tom_aggregate = (
-            tomi_results['tom_accuracy'] * self.weights['tomi'] +
-            social_iqa_results['accuracy'] * self.weights['social_iqa'] +
-            social_games_results.prediction_accuracy * self.weights['social_games']
+            tomi_results["tom_accuracy"] * self.weights["tomi"]
+            + social_iqa_results["accuracy"] * self.weights["social_iqa"]
+            + social_games_results.prediction_accuracy * self.weights["social_games"]
         )
 
         # Control score (tasks that don't require ToM)
         control_aggregate = (
-            tomi_results['control_accuracy'] * self.weights['tomi'] +
-            social_iqa_results['subsequent_accuracy'] * self.weights['social_iqa'] +
-            social_games_results.cooperation_rate * self.weights['social_games']
+            tomi_results["control_accuracy"] * self.weights["tomi"]
+            + social_iqa_results["subsequent_accuracy"] * self.weights["social_iqa"]
+            + social_games_results.cooperation_rate * self.weights["social_games"]
         )
 
         # ToM specificity: how much better on ToM vs control
         tom_specificity = tom_aggregate - control_aggregate
 
         total_examples = (
-            tomi_results.get('total_examples', 100) +
-            social_iqa_results.get('num_examples', 100) +
-            social_games_results.num_episodes
+            tomi_results.get("total_examples", 100)
+            + social_iqa_results.get("num_examples", 100)
+            + social_games_results.num_episodes
         )
 
         return UnifiedBenchmarkResult(
             # ToMi
-            tomi_tom_accuracy=tomi_results['tom_accuracy'],
-            tomi_control_accuracy=tomi_results['control_accuracy'],
-            tomi_specificity=tomi_results['specificity'],
-            tomi_first_order=tomi_results['first_order_accuracy'],
-            tomi_second_order=tomi_results['second_order_accuracy'],
-
+            tomi_tom_accuracy=tomi_results["tom_accuracy"],
+            tomi_control_accuracy=tomi_results["control_accuracy"],
+            tomi_specificity=tomi_results["specificity"],
+            tomi_first_order=tomi_results["first_order_accuracy"],
+            tomi_second_order=tomi_results["second_order_accuracy"],
             # SocialIQA
-            social_iqa_accuracy=social_iqa_results['accuracy'],
-            social_iqa_intent=social_iqa_results['intent_accuracy'],
-            social_iqa_emotion=social_iqa_results['emotion_accuracy'],
-            social_iqa_motivation=social_iqa_results['motivation_accuracy'],
-
+            social_iqa_accuracy=social_iqa_results["accuracy"],
+            social_iqa_intent=social_iqa_results["intent_accuracy"],
+            social_iqa_emotion=social_iqa_results["emotion_accuracy"],
+            social_iqa_motivation=social_iqa_results["motivation_accuracy"],
             # Social Games
             social_games_cooperation=social_games_results.cooperation_rate,
             social_games_prediction=social_games_results.prediction_accuracy,
             social_games_zombie_detection=social_games_results.zombie_detection_accuracy,
             social_games_deception_detection=social_games_results.deception_detection_accuracy,
-
             # Aggregates
             tom_aggregate=tom_aggregate,
             control_aggregate=control_aggregate,
             tom_specificity=tom_specificity,
-
             # Metadata
             total_examples=total_examples,
             model_name=model_name,
         )
 
-    def quick_evaluation(self, model: nn.Module,
-                         device: str = 'cpu') -> Dict[str, float]:
+    def quick_evaluation(self, model: nn.Module, device: str = "cpu") -> Dict[str, float]:
         """
         Fast evaluation using fewer samples.
 
@@ -244,45 +232,43 @@ class UnifiedBenchmark:
         tomi_results = self.evaluate_tomi(model, num_samples=20, device=device)
 
         # Skip full social games for speed
-        tom_score = tomi_results['tom_accuracy']
-        control_score = tomi_results['control_accuracy']
+        tom_score = tomi_results["tom_accuracy"]
+        control_score = tomi_results["control_accuracy"]
 
         return {
-            'tom_score': tom_score,
-            'control_score': control_score,
-            'specificity': tom_score - control_score,
-            'first_order': tomi_results['first_order_accuracy'],
+            "tom_score": tom_score,
+            "control_score": control_score,
+            "specificity": tom_score - control_score,
+            "first_order": tomi_results["first_order_accuracy"],
         }
 
     def get_benchmark_summary(self) -> Dict[str, Any]:
         """Get summary of available benchmarks."""
         return {
-            'tomi': {
-                'name': 'Theory of Mind Inventory',
-                'examples': len(self.tomi),
-                'question_types': ['first_order', 'second_order', 'reality', 'memory'],
-                'requires_tom': True,
+            "tomi": {
+                "name": "Theory of Mind Inventory",
+                "examples": len(self.tomi),
+                "question_types": ["first_order", "second_order", "reality", "memory"],
+                "requires_tom": True,
             },
-            'social_iqa': {
-                'name': 'Social Intelligence QA',
-                'examples': len(self.social_iqa),
-                'question_types': ['intent', 'emotion', 'motivation', 'subsequent', 'prerequisite'],
-                'requires_tom': True,
+            "social_iqa": {
+                "name": "Social Intelligence QA",
+                "examples": len(self.social_iqa),
+                "question_types": ["intent", "emotion", "motivation", "subsequent", "prerequisite"],
+                "requires_tom": True,
             },
-            'social_games': {
-                'name': 'Interactive Social Games',
-                'game_types': ['cooperation', 'zombie_detection', 'deception', 'fairness'],
-                'num_agents': self.social_games.num_agents,
-                'requires_tom': True,
+            "social_games": {
+                "name": "Interactive Social Games",
+                "game_types": ["cooperation", "zombie_detection", "deception", "fairness"],
+                "num_agents": self.social_games.num_agents,
+                "requires_tom": True,
             },
-            'weights': self.weights,
+            "weights": self.weights,
         }
 
 
 # Convenience function for quick evaluation
-def evaluate_tom_model(model: nn.Module,
-                       device: str = 'cpu',
-                       quick: bool = False) -> Dict[str, float]:
+def evaluate_tom_model(model: nn.Module, device: str = "cpu", quick: bool = False) -> Dict[str, float]:
     """
     Convenience function to evaluate a model on ToM benchmarks.
 
@@ -301,40 +287,37 @@ def evaluate_tom_model(model: nn.Module,
     else:
         results = benchmark.full_evaluation(model, device)
         return {
-            'tom_aggregate': results.tom_aggregate,
-            'control_aggregate': results.control_aggregate,
-            'tom_specificity': results.tom_specificity,
-            'tomi_accuracy': results.tomi_tom_accuracy,
-            'social_iqa_accuracy': results.social_iqa_accuracy,
-            'social_games_prediction': results.social_games_prediction,
+            "tom_aggregate": results.tom_aggregate,
+            "control_aggregate": results.control_aggregate,
+            "tom_specificity": results.tom_specificity,
+            "tomi_accuracy": results.tomi_tom_accuracy,
+            "social_iqa_accuracy": results.social_iqa_accuracy,
+            "social_games_prediction": results.social_games_prediction,
         }
 
 
 # Export all
 __all__ = [
     # ToMi
-    'ToMiDataset',
-    'ToMiParser',
-    'ToMiEvaluator',
-    'ToMiExample',
-    'ToMiQuestion',
-    'EventEncoder',
-
+    "ToMiDataset",
+    "ToMiParser",
+    "ToMiEvaluator",
+    "ToMiExample",
+    "ToMiQuestion",
+    "EventEncoder",
     # Social Games
-    'SocialGameBenchmark',
-    'SocialGameResult',
-    'CooperationMetrics',
-    'DeceptionMetrics',
-
+    "SocialGameBenchmark",
+    "SocialGameResult",
+    "CooperationMetrics",
+    "DeceptionMetrics",
     # SocialIQA
-    'SocialIQADataset',
-    'SocialIQAExample',
-    'SocialIQAEncoder',
-    'SocialIQAEvaluator',
-    'SocialIQAMetrics',
-
+    "SocialIQADataset",
+    "SocialIQAExample",
+    "SocialIQAEncoder",
+    "SocialIQAEvaluator",
+    "SocialIQAMetrics",
     # Unified
-    'UnifiedBenchmark',
-    'UnifiedBenchmarkResult',
-    'evaluate_tom_model',
+    "UnifiedBenchmark",
+    "UnifiedBenchmarkResult",
+    "evaluate_tom_model",
 ]

@@ -10,7 +10,7 @@ Contains the social simulation environment:
 from .social_world import Agent, ZombieGame, SocialWorld4
 
 __all__ = [
-    'Agent',
-    'ZombieGame',
-    'SocialWorld4',
+    "Agent",
+    "ZombieGame",
+    "SocialWorld4",
 ]

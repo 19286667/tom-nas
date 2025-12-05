@@ -12,11 +12,11 @@ from .cognitive_hazards import CognitiveHazard, HAZARD_REGISTRY, apply_hazard
 from .ontological_instability import OntologicalInstability, InstabilityLevel
 
 __all__ = [
-    'SoulScanner',
-    'AnalysisResult',
-    'CognitiveHazard',
-    'HAZARD_REGISTRY',
-    'apply_hazard',
-    'OntologicalInstability',
-    'InstabilityLevel',
+    "SoulScanner",
+    "AnalysisResult",
+    "CognitiveHazard",
+    "HAZARD_REGISTRY",
+    "apply_hazard",
+    "OntologicalInstability",
+    "InstabilityLevel",
 ]

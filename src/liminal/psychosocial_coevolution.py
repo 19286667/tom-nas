@@ -42,11 +42,11 @@ import math
 from .soul_map import SoulMap, SoulMapDelta
 from .npcs.base_npc import BaseNPC
 
-
 # =============================================================================
 # THEORETICAL CONSTANTS
 # Each constant is derived from empirical research or principled design
 # =============================================================================
+
 
 class TheoreticalConstants:
     """
@@ -108,14 +108,16 @@ class TheoreticalConstants:
 # SOCIAL NETWORK DYNAMICS
 # =============================================================================
 
+
 class RelationshipType(Enum):
     """Types of dyadic relationships between agents."""
-    STRANGER = auto()      # No significant history
+
+    STRANGER = auto()  # No significant history
     ACQUAINTANCE = auto()  # Some interaction history
-    ALLY = auto()          # Positive reciprocal relationship
-    RIVAL = auto()         # Competitive relationship
-    ENEMY = auto()         # Negative reciprocal relationship
-    COALITION = auto()     # Formally allied (explicit agreement)
+    ALLY = auto()  # Positive reciprocal relationship
+    RIVAL = auto()  # Competitive relationship
+    ENEMY = auto()  # Negative reciprocal relationship
+    COALITION = auto()  # Formally allied (explicit agreement)
 
 
 @dataclass
@@ -126,13 +128,14 @@ class SocialEdge:
     Relationships are directional: A's view of B may differ from B's view of A.
     This captures asymmetric social perception, a core ToM challenge.
     """
+
     source_id: str
     target_id: str
 
     # Core relationship metrics
-    trust: float = 0.5          # Expectation of cooperative behavior
-    familiarity: float = 0.0    # Interaction history depth
-    affect: float = 0.0         # Emotional valence (-1 to +1)
+    trust: float = 0.5  # Expectation of cooperative behavior
+    familiarity: float = 0.0  # Interaction history depth
+    affect: float = 0.0  # Emotional valence (-1 to +1)
 
     # Belief about target's view of source (2nd order ToM)
     perceived_trust: float = 0.5
@@ -217,9 +220,9 @@ class SocialNetwork:
             self.edges[key] = SocialEdge(source_id=source, target_id=target)
         return self.edges[key]
 
-    def record_interaction(self, agent1: str, agent2: str,
-                          outcome1_cooperated: bool, outcome2_cooperated: bool,
-                          tick: int):
+    def record_interaction(
+        self, agent1: str, agent2: str, outcome1_cooperated: bool, outcome2_cooperated: bool, tick: int
+    ):
         """Record bilateral interaction between two agents."""
         edge1 = self.get_or_create_edge(agent1, agent2)
         edge2 = self.get_or_create_edge(agent2, agent1)
@@ -279,11 +282,7 @@ class SocialNetwork:
     def _apply_balance_pressure(self, a: str, b: str, c: str, tick: int):
         """Apply Heider balance pressure to an imbalanced triad."""
         # Find the weakest link and adjust it
-        edges = [
-            (a, b, self.edges.get((a, b))),
-            (b, c, self.edges.get((b, c))),
-            (a, c, self.edges.get((a, c)))
-        ]
+        edges = [(a, b, self.edges.get((a, b))), (b, c, self.edges.get((b, c))), (a, c, self.edges.get((a, c)))]
 
         # Find weakest relationship (lowest familiarity)
         edges = [(s, t, e) for s, t, e in edges if e is not None]
@@ -319,8 +318,7 @@ class SocialNetwork:
         adjacency: Dict[str, Set[str]] = defaultdict(set)
 
         for (source, target), edge in self.edges.items():
-            if (edge.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and
-                edge.affect > 0.2):
+            if edge.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and edge.affect > 0.2:
                 # Check reciprocity
                 reverse = self.edges.get((target, source))
                 if reverse and reverse.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD:
@@ -396,6 +394,7 @@ class SocialNetwork:
 # BELIEF PROPAGATION SYSTEM
 # =============================================================================
 
+
 @dataclass
 class PropagatingBelief:
     """
@@ -406,11 +405,12 @@ class PropagatingBelief:
     2. Observation (medium fidelity, no trust required)
     3. Gossip (low fidelity, mediated by relationships)
     """
+
     belief_id: str
     content: Dict[str, Any]  # What the belief is about
-    source_id: str           # Original source
-    confidence: float        # Current confidence level
-    timestamp: int           # When created
+    source_id: str  # Original source
+    confidence: float  # Current confidence level
+    timestamp: int  # When created
 
     # Spread tracking
     holders: Set[str] = field(default_factory=set)  # Who holds this belief
@@ -430,8 +430,7 @@ class BeliefPropagationEngine:
         self.beliefs: Dict[str, PropagatingBelief] = {}
         self.agent_beliefs: Dict[str, Set[str]] = defaultdict(set)  # agent -> belief_ids
 
-    def introduce_belief(self, belief_id: str, content: Dict[str, Any],
-                        source_id: str, tick: int) -> PropagatingBelief:
+    def introduce_belief(self, belief_id: str, content: Dict[str, Any], source_id: str, tick: int) -> PropagatingBelief:
         """Introduce a new belief into the system."""
         belief = PropagatingBelief(
             belief_id=belief_id,
@@ -439,7 +438,7 @@ class BeliefPropagationEngine:
             source_id=source_id,
             confidence=1.0,
             timestamp=tick,
-            holders={source_id}
+            holders={source_id},
         )
         self.beliefs[belief_id] = belief
         self.agent_beliefs[source_id].add(belief_id)
@@ -500,11 +499,7 @@ class BeliefPropagationEngine:
 
     def get_agent_knowledge(self, agent_id: str) -> Dict[str, PropagatingBelief]:
         """Get all beliefs held by an agent."""
-        return {
-            bid: self.beliefs[bid]
-            for bid in self.agent_beliefs.get(agent_id, set())
-            if bid in self.beliefs
-        }
+        return {bid: self.beliefs[bid] for bid in self.agent_beliefs.get(agent_id, set()) if bid in self.beliefs}
 
     def create_knowledge_asymmetry_tensor(self, agents: List[str]) -> torch.Tensor:
         """
@@ -539,13 +534,15 @@ class BeliefPropagationEngine:
 # ENVIRONMENTAL CO-EVOLUTION
 # =============================================================================
 
+
 class EnvironmentEvolutionStrategy(Enum):
     """Strategies for environment adaptation."""
-    STATIC = auto()           # No adaptation (baseline)
-    REACTIVE = auto()         # Respond to agent behavior
-    ADVERSARIAL = auto()      # Actively challenge agents
-    SCAFFOLDING = auto()      # Gradually increase difficulty
-    ECOLOGICAL = auto()       # Realistic evolutionary pressure
+
+    STATIC = auto()  # No adaptation (baseline)
+    REACTIVE = auto()  # Respond to agent behavior
+    ADVERSARIAL = auto()  # Actively challenge agents
+    SCAFFOLDING = auto()  # Gradually increase difficulty
+    ECOLOGICAL = auto()  # Realistic evolutionary pressure
 
 
 @dataclass
@@ -556,9 +553,10 @@ class EnvironmentalPressure:
     These pressures evolve based on agent population fitness,
     creating the co-evolutionary dynamic.
     """
+
     pressure_id: str
     pressure_type: str  # "resource_scarcity", "social_threat", "cognitive_demand"
-    intensity: float    # 0-1 scale
+    intensity: float  # 0-1 scale
     target_dimension: str  # Which soul map dimension this affects
 
     # Evolution tracking
@@ -604,10 +602,10 @@ class PsychosocialEnvironmentEvolution:
         # NPC population parameters (evolve these)
         self.npc_base_parameters: Dict[str, float] = {
             "deception_sophistication": 0.3,  # How complex NPC deception is
-            "coalition_fluidity": 0.5,        # How often coalitions change
-            "belief_complexity": 0.4,         # Depth of NPC belief systems
-            "emotional_volatility": 0.5,      # How much NPC emotions shift
-            "communication_noise": 0.2,       # Reliability of NPC communication
+            "coalition_fluidity": 0.5,  # How often coalitions change
+            "belief_complexity": 0.4,  # Depth of NPC belief systems
+            "emotional_volatility": 0.5,  # How much NPC emotions shift
+            "communication_noise": 0.2,  # Reliability of NPC communication
         }
 
         # Generation counter
@@ -624,21 +622,21 @@ class PsychosocialEnvironmentEvolution:
                 pressure_type="resource_scarcity",
                 intensity=0.3,
                 target_dimension="survival_drive",
-                generation_introduced=0
+                generation_introduced=0,
             ),
             EnvironmentalPressure(
                 pressure_id="social_trust_challenge",
                 pressure_type="social_threat",
                 intensity=0.3,
                 target_dimension="trust_default",
-                generation_introduced=0
+                generation_introduced=0,
             ),
             EnvironmentalPressure(
                 pressure_id="belief_reasoning_demand",
                 pressure_type="cognitive_demand",
                 intensity=0.3,
                 target_dimension="tom_depth",
-                generation_introduced=0
+                generation_introduced=0,
             ),
         ]
 
@@ -676,9 +674,7 @@ class PsychosocialEnvironmentEvolution:
             changes = self._reactive_evolution(performance_analysis)
 
         # Record pressure states
-        self.pressure_history.append({
-            pid: p.intensity for pid, p in self.pressures.items()
-        })
+        self.pressure_history.append({pid: p.intensity for pid, p in self.pressures.items()})
 
         return changes
 
@@ -716,10 +712,7 @@ class PsychosocialEnvironmentEvolution:
         if analysis["mean_fitness"] > 0.7:
             # Increase sophistication parameters
             for param in self.npc_base_parameters:
-                self.npc_base_parameters[param] = min(
-                    1.0,
-                    self.npc_base_parameters[param] + self.evolution_rate
-                )
+                self.npc_base_parameters[param] = min(1.0, self.npc_base_parameters[param] + self.evolution_rate)
             changes["npc_parameters"] = dict(self.npc_base_parameters)
 
             # Introduce new pressure if old ones are solved
@@ -825,7 +818,7 @@ class PsychosocialEnvironmentEvolution:
             pressure_type=template[1],
             intensity=0.3,
             target_dimension=template[2],
-            generation_introduced=self.generation
+            generation_introduced=self.generation,
         )
 
     def _add_diversity_pressure(self):
@@ -845,7 +838,7 @@ class PsychosocialEnvironmentEvolution:
                     pressure_type="diversity",
                     intensity=0.3,
                     target_dimension="cooperation_tendency",
-                    generation_introduced=self.generation
+                    generation_introduced=self.generation,
                 )
                 break
 
@@ -892,8 +885,7 @@ class PsychosocialEnvironmentEvolution:
             "generation": self.generation,
             "strategy": self.strategy.name,
             "pressures": {
-                pid: {"intensity": p.intensity, "type": p.pressure_type}
-                for pid, p in self.pressures.items()
+                pid: {"intensity": p.intensity, "type": p.pressure_type} for pid, p in self.pressures.items()
             },
             "npc_parameters": self.npc_base_parameters,
             "fitness_trend": self.fitness_history[-10:] if self.fitness_history else [],
@@ -903,6 +895,7 @@ class PsychosocialEnvironmentEvolution:
 # =============================================================================
 # INTEGRATED CO-EVOLUTION SYSTEM
 # =============================================================================
+
 
 class PsychosocialCoevolutionEngine:
     """
@@ -975,9 +968,7 @@ class PsychosocialCoevolutionEngine:
 
         # Update social network
         if self.enable_social_dynamics:
-            self.social_network.record_interaction(
-                agent1_id, agent2_id, a1_cooperated, a2_cooperated, self.tick
-            )
+            self.social_network.record_interaction(agent1_id, agent2_id, a1_cooperated, a2_cooperated, self.tick)
 
         # Propagate beliefs from interaction
         if self.enable_belief_propagation:
@@ -1004,11 +995,7 @@ class PsychosocialCoevolutionEngine:
         cooperative_actions = {"interact", "validate", "share", "help", "cooperate"}
         return action_type.lower() in cooperative_actions
 
-    def _determine_outcome(
-        self,
-        action1: Dict[str, Any],
-        action2: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _determine_outcome(self, action1: Dict[str, Any], action2: Dict[str, Any]) -> Dict[str, Any]:
         """Determine the outcome of an interaction."""
         # Simplified outcome determination
         outcome = {"competitive": False}
@@ -1017,12 +1004,9 @@ class PsychosocialCoevolutionEngine:
         if action1.get("type") == "compete" or action2.get("type") == "compete":
             outcome["competitive"] = True
             # Random winner for now (could be based on status/resources)
-            outcome["winner"] = random.choice([
-                action1.get("agent_id"), action2.get("agent_id")
-            ])
+            outcome["winner"] = random.choice([action1.get("agent_id"), action2.get("agent_id")])
             outcome["loser"] = (
-                action2.get("agent_id") if outcome["winner"] == action1.get("agent_id")
-                else action1.get("agent_id")
+                action2.get("agent_id") if outcome["winner"] == action1.get("agent_id") else action1.get("agent_id")
             )
 
         return outcome
@@ -1068,10 +1052,7 @@ class PsychosocialCoevolutionEngine:
     def _record_metrics(self):
         """Record complexity metrics."""
         # Social complexity: number of significant relationships
-        significant_edges = sum(
-            1 for e in self.social_network.edges.values()
-            if e.familiarity > 0.3
-        )
+        significant_edges = sum(1 for e in self.social_network.edges.values() if e.familiarity > 0.3)
         self.metrics["social_complexity"].append(significant_edges)
 
         # Coalition count
@@ -1082,10 +1063,11 @@ class PsychosocialCoevolutionEngine:
             statuses = sorted(self.social_network.hierarchy.values())
             n = len(statuses)
             if n > 1:
-                gini = sum(
-                    (2 * i - n - 1) * s
-                    for i, s in enumerate(statuses, 1)
-                ) / (n * sum(statuses)) if sum(statuses) > 0 else 0
+                gini = (
+                    sum((2 * i - n - 1) * s for i, s in enumerate(statuses, 1)) / (n * sum(statuses))
+                    if sum(statuses) > 0
+                    else 0
+                )
                 self.metrics["hierarchy_gini"].append(abs(gini))
 
     def get_social_observation(self, agent_id: str) -> torch.Tensor:
@@ -1098,30 +1080,26 @@ class PsychosocialCoevolutionEngine:
         obs = []
 
         # Agent's relationships (top 15 by familiarity)
-        agent_edges = [
-            e for e in self.social_network.edges.values()
-            if e.source_id == agent_id
-        ]
+        agent_edges = [e for e in self.social_network.edges.values() if e.source_id == agent_id]
         agent_edges.sort(key=lambda e: e.familiarity, reverse=True)
 
         for i in range(TheoreticalConstants.DUNBAR_NUMBER):
             if i < len(agent_edges):
                 edge = agent_edges[i]
-                obs.extend([
-                    edge.trust,
-                    edge.familiarity,
-                    edge.affect,
-                    edge.perceived_trust,
-                    float(edge.get_relationship_type().value) / 6
-                ])
+                obs.extend(
+                    [
+                        edge.trust,
+                        edge.familiarity,
+                        edge.affect,
+                        edge.perceived_trust,
+                        float(edge.get_relationship_type().value) / 6,
+                    ]
+                )
             else:
                 obs.extend([0.5, 0.0, 0.0, 0.5, 0.0])
 
         # Coalition membership
-        in_coalition = any(
-            agent_id in members
-            for members in self.social_network.coalitions.values()
-        )
+        in_coalition = any(agent_id in members for members in self.social_network.coalitions.values())
         obs.append(float(in_coalition))
 
         # Hierarchy position
@@ -1169,16 +1147,11 @@ class PsychosocialCoevolutionEngine:
             },
             "belief_engine": {
                 "active_beliefs": len(self.belief_engine.beliefs),
-                "total_holders": sum(
-                    len(b.holders) for b in self.belief_engine.beliefs.values()
-                ),
+                "total_holders": sum(len(b.holders) for b in self.belief_engine.beliefs.values()),
             },
             "environment": self.env_evolution.get_evolution_state(),
             "tom_challenge_level": self.get_tom_challenge_level(),
-            "metrics": {
-                k: v[-10:] if v else []
-                for k, v in self.metrics.items()
-            },
+            "metrics": {k: v[-10:] if v else [] for k, v in self.metrics.items()},
         }
 
 
@@ -1188,22 +1161,18 @@ class PsychosocialCoevolutionEngine:
 
 __all__ = [
     # Constants
-    'TheoreticalConstants',
-
+    "TheoreticalConstants",
     # Social Network
-    'RelationshipType',
-    'SocialEdge',
-    'SocialNetwork',
-
+    "RelationshipType",
+    "SocialEdge",
+    "SocialNetwork",
     # Belief Propagation
-    'PropagatingBelief',
-    'BeliefPropagationEngine',
-
+    "PropagatingBelief",
+    "BeliefPropagationEngine",
     # Environmental Evolution
-    'EnvironmentEvolutionStrategy',
-    'EnvironmentalPressure',
-    'PsychosocialEnvironmentEvolution',
-
+    "EnvironmentEvolutionStrategy",
+    "EnvironmentalPressure",
+    "PsychosocialEnvironmentEvolution",
     # Main Engine
-    'PsychosocialCoevolutionEngine',
+    "PsychosocialCoevolutionEngine",
 ]

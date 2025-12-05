@@ -25,6 +25,7 @@ from abc import ABC, abstractmethod
 
 class SimulationStatus(Enum):
     """Status of a simulation node."""
+
     INITIALIZING = auto()
     ACTIVE = auto()
     PAUSED = auto()
@@ -35,6 +36,7 @@ class SimulationStatus(Enum):
 @dataclass
 class SimulationConfig:
     """Configuration for a SimulationNode."""
+
     max_recursive_depth: int = 5  # Prevent infinite recursion
     entropy_threshold: float = 0.1  # Below this, simulation dissolves
     max_ticks_per_step: int = 100  # Prevent runaway simulations
@@ -47,9 +49,10 @@ class SimulationConfig:
 class WorldStateVector:
     """
     A localized Vector Database entry representing world state.
-    
+
     Each simulation has its own "pocket reality" stored as vectors.
     """
+
     vector_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     content: Optional[torch.Tensor] = None
     entity_id: Optional[str] = None
@@ -57,8 +60,8 @@ class WorldStateVector:
     semantic_links: List[str] = field(default_factory=list)
     last_updated_tick: int = 0
     confidence: float = 1.0
-    
-    def similarity(self, other: 'WorldStateVector') -> float:
+
+    def similarity(self, other: "WorldStateVector") -> float:
         """Calculate cosine similarity between vectors."""
         if self.content is None or other.content is None:
             return 0.0
@@ -74,25 +77,25 @@ class WorldStateVector:
 class RSCAgent(ABC):
     """
     Abstract base class for agents using Recursive Self-Compression.
-    
+
     RSC agents:
     1. Receive attention streams (Worldsim protocol)
     2. Compress into CognitiveBlocks via TRM
     3. Can act OR spawn nested simulations
     """
-    
+
     def __init__(self, agent_id: str, tom_depth: int = 3):
         self.agent_id = agent_id
         self.tom_depth = tom_depth
         self.current_simulation_id: Optional[str] = None
         self.compression_ratio: float = 1.0
         self.surprise_threshold: float = 0.7  # Triggers architecture search
-        
+
     @abstractmethod
     def perceive(self, attention_stream: Any) -> Any:
         """Process incoming perceptions via TRM."""
         pass
-    
+
     @abstractmethod
     def decide_action(self, world_state: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -101,12 +104,12 @@ class RSCAgent(ABC):
         - SIMULATE: Return simulation request
         """
         pass
-    
+
     @abstractmethod
     def compress(self, data: Any) -> Any:
         """Apply TRM compression to create CognitiveBlock."""
         pass
-    
+
     def should_search_architecture(self, surprise: float) -> bool:
         """Check if compression failure warrants architecture search."""
         return surprise > self.surprise_threshold
@@ -115,22 +118,22 @@ class RSCAgent(ABC):
 class SimulationNode:
     """
     A Fractal Container for the simulation tree.
-    
+
     The simulation is not a singleton; it is a TREE. Each node:
     - Holds a localized Vector Database (world state)
     - Contains active RSC_Agent instances
     - Maintains registry of child (nested) simulations
     - Enforces information density threshold ("The Nothing")
-    
+
     When step() is called on the Root Node, it recursively steps
     all active child nodes, creating a cascading update through
     the entire fractal structure.
     """
-    
+
     def __init__(
         self,
         node_id: Optional[str] = None,
-        parent_node: Optional['SimulationNode'] = None,
+        parent_node: Optional["SimulationNode"] = None,
         config: Optional[SimulationConfig] = None,
         spawning_agent_id: Optional[str] = None,
     ):
@@ -138,40 +141,40 @@ class SimulationNode:
         self.parent_node = parent_node
         self.config = config or SimulationConfig()
         self.spawning_agent_id = spawning_agent_id  # Agent that created this simulation
-        
+
         # Calculate recursive depth
         self.recursive_depth = 0
         if parent_node:
             self.recursive_depth = parent_node.recursive_depth + 1
-        
+
         # State
         self.status = SimulationStatus.INITIALIZING
         self.current_tick = 0
-        
+
         # World state (localized Vector Database)
         self.world_state: Dict[str, WorldStateVector] = {}
-        
+
         # Agents in this simulation
         self.agents: Dict[str, RSCAgent] = {}
-        
+
         # Child simulations (nested predictions)
-        self.child_nodes: Dict[str, 'SimulationNode'] = {}
-        
+        self.child_nodes: Dict[str, "SimulationNode"] = {}
+
         # Entropy tracking
         self.semantic_entropy = 1.0  # High = complex, Low = dissolving
         self.information_density = 1.0
         self.entropy_history: List[float] = []
-        
+
         # Event log
         self.event_log: List[Dict[str, Any]] = []
-        
+
         # Godot sync queue
         self.godot_action_queue: List[Dict[str, Any]] = []
-        
+
     def initialize(self, initial_state: Optional[Dict[str, Any]] = None) -> bool:
         """
         Initialize the simulation with starting state.
-        
+
         For the root node, this comes from Godot.
         For child nodes, this comes from the parent's world state.
         """
@@ -179,28 +182,28 @@ class SimulationNode:
             self.status = SimulationStatus.TERMINATED
             self._log_event("init_failed", "Max recursive depth exceeded")
             return False
-        
+
         if initial_state:
             for entity_id, data in initial_state.items():
                 self._add_world_state(entity_id, data)
-        
+
         self.status = SimulationStatus.ACTIVE
         self._log_event("initialized", f"Depth={self.recursive_depth}")
         return True
-    
+
     def step(self) -> Dict[str, Any]:
         """
         Execute one tick of the simulation.
-        
+
         This recursively steps all child nodes, creating a cascading
         update through the entire fractal tree.
-        
+
         Returns:
             Dict with tick results including any Godot actions
         """
         if self.status != SimulationStatus.ACTIVE:
             return {"status": self.status.name, "tick": self.current_tick}
-        
+
         self.current_tick += 1
         results = {
             "node_id": self.node_id,
@@ -210,120 +213,114 @@ class SimulationNode:
             "child_results": [],
             "godot_actions": [],
         }
-        
+
         # 1. Check entropy threshold (The Nothing)
         self._calculate_entropy()
         if self._should_dissolve():
             self._dissolve()
             results["status"] = "dissolved"
             return results
-        
+
         # 2. Collect perceptions for agents
         world_snapshot = self._get_world_snapshot()
-        
+
         # 3. Let each agent process and decide
         for agent_id, agent in self.agents.items():
             agent_result = self._process_agent_tick(agent, world_snapshot)
             results["agent_actions"].append(agent_result)
-            
+
             # If agent wants to simulate, spawn child node
             if agent_result.get("action_type") == "simulate":
                 child_result = self._spawn_child_simulation(agent, agent_result)
                 results["child_results"].append(child_result)
-        
+
         # 4. Recursively step all child simulations
         for child_id, child_node in list(self.child_nodes.items()):
             if child_node.status == SimulationStatus.ACTIVE:
                 child_tick_result = child_node.step()
                 results["child_results"].append(child_tick_result)
-                
+
                 # Clean up terminated children
                 if child_node.status in [SimulationStatus.TERMINATED, SimulationStatus.DISSOLVING]:
                     self._cleanup_child(child_id)
-        
+
         # 5. Collect Godot actions for root to dispatch
         results["godot_actions"] = self.godot_action_queue.copy()
         self.godot_action_queue.clear()
-        
+
         results["entropy"] = self.semantic_entropy
         results["status"] = "active"
         return results
-    
-    def _process_agent_tick(
-        self,
-        agent: RSCAgent,
-        world_snapshot: Dict[str, Any]
-    ) -> Dict[str, Any]:
+
+    def _process_agent_tick(self, agent: RSCAgent, world_snapshot: Dict[str, Any]) -> Dict[str, Any]:
         """Process a single tick for one agent."""
         # Agent perceives world
         perception = agent.perceive(world_snapshot)
-        
+
         # Agent decides action
         action = agent.decide_action(world_snapshot)
-        
+
         result = {
             "agent_id": agent.agent_id,
             "action_type": action.get("type", "none"),
             "action_data": action,
         }
-        
+
         # Handle different action types
         if action.get("type") == "physical":
             # Queue for Godot execution
-            self.godot_action_queue.append({
-                "agent_id": agent.agent_id,
-                "command": action.get("godot_command"),
-                "target": action.get("target_entity"),
-                "params": action.get("parameters", {}),
-            })
-            
+            self.godot_action_queue.append(
+                {
+                    "agent_id": agent.agent_id,
+                    "command": action.get("godot_command"),
+                    "target": action.get("target_entity"),
+                    "params": action.get("parameters", {}),
+                }
+            )
+
         elif action.get("type") == "simulate":
             # Will be handled by _spawn_child_simulation
             result["simulation_seed"] = action.get("seed_state")
             result["simulation_horizon"] = action.get("horizon", 10)
-        
+
         return result
-    
-    def _spawn_child_simulation(
-        self,
-        agent: RSCAgent,
-        simulation_request: Dict[str, Any]
-    ) -> Dict[str, Any]:
+
+    def _spawn_child_simulation(self, agent: RSCAgent, simulation_request: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a nested simulation for agent prediction.
-        
+
         The agent feeds a CognitiveBlock (seed) into a new SimulationNode
         to predict future states.
         """
         child_id = f"{self.node_id}_child_{len(self.child_nodes)}_{agent.agent_id}"
-        
+
         child = SimulationNode(
             node_id=child_id,
             parent_node=self,
             config=self.config,
             spawning_agent_id=agent.agent_id,
         )
-        
+
         # Initialize with seed state from agent's compressed representation
         seed_state = simulation_request.get("seed_state", {})
         if child.initialize(seed_state):
             self.child_nodes[child_id] = child
             self._log_event("child_spawned", f"Agent {agent.agent_id} spawned {child_id}")
-            
+
             # Run simulation for requested horizon with early termination
             horizon = simulation_request.get("horizon", 10)
             prediction_results = []
             convergence_window = 3  # Check convergence over last N ticks
             convergence_threshold = 0.01  # Entropy change threshold
-            
+
             for i in range(min(horizon, self.config.max_ticks_per_step)):
                 tick_result = child.step()
                 prediction_results.append(tick_result)
-                
+
                 # Early termination conditions
                 if child.status != SimulationStatus.ACTIVE:
                     break
-                
+
                 # Check for convergence (entropy stable)
                 if len(child.entropy_history) >= convergence_window:
                     recent = child.entropy_history[-convergence_window:]
@@ -331,7 +328,7 @@ class SimulationNode:
                     if entropy_change < convergence_threshold:
                         self._log_event("simulation_converged", f"{child_id} converged at tick {i}")
                         break
-            
+
             return {
                 "child_id": child_id,
                 "status": "completed",
@@ -345,7 +342,7 @@ class SimulationNode:
                 "status": "failed",
                 "reason": "Initialization failed (max depth?)",
             }
-    
+
     def _cleanup_child(self, child_id: str) -> None:
         """Clean up a terminated child simulation."""
         if child_id in self.child_nodes:
@@ -353,94 +350,88 @@ class SimulationNode:
             # Optionally extract useful information before deletion
             self._log_event("child_cleaned", f"Removed {child_id}")
             del self.child_nodes[child_id]
-    
+
     def _calculate_entropy(self) -> float:
         """
         Calculate semantic entropy of the simulation.
-        
+
         Entropy measures the complexity/richness of the simulation.
         Low entropy triggers "The Nothing" - dissolution.
         """
         if not self.world_state:
             self.semantic_entropy = 0.0
             return 0.0
-        
+
         # Count unique semantic concepts
         all_concepts: Set[str] = set()
         for state_vec in self.world_state.values():
             all_concepts.update(state_vec.semantic_links)
-        
+
         concept_diversity = len(all_concepts) / max(len(self.world_state), 1)
-        
+
         # Activity level (events this tick)
         recent_events = [e for e in self.event_log if e.get("tick", 0) == self.current_tick]
         activity_level = len(recent_events) / 10.0
-        
+
         # Agent complexity
         agent_complexity = sum(a.tom_depth for a in self.agents.values()) / max(len(self.agents), 1) / 5.0
-        
+
         # Combined entropy
         self.semantic_entropy = min(1.0, (concept_diversity + activity_level + agent_complexity) / 3)
         self.entropy_history.append(self.semantic_entropy)
-        
+
         # Information density based on world state richness
         vector_norms = [
-            torch.norm(v.content).item() if v.content is not None else 0.0
-            for v in self.world_state.values()
+            torch.norm(v.content).item() if v.content is not None else 0.0 for v in self.world_state.values()
         ]
         self.information_density = np.mean(vector_norms) if vector_norms else 0.0
-        
+
         return self.semantic_entropy
-    
+
     def _should_dissolve(self) -> bool:
         """
         Check if simulation should dissolve into "The Nothing".
-        
+
         Enforces information density threshold - simulations that
         lack semantic complexity are terminated.
         """
         # Check entropy threshold
         if self.semantic_entropy < self.config.entropy_threshold:
             return True
-        
+
         # Check for sustained low entropy
         if len(self.entropy_history) > 10:
             recent = self.entropy_history[-10:]
             if all(e < self.config.entropy_threshold * 1.5 for e in recent):
                 return True
-        
+
         return False
-    
+
     def _dissolve(self) -> None:
         """
         Dissolve simulation into "The Nothing".
-        
+
         This represents the collapse of a prediction/simulation
         that failed to maintain semantic coherence.
         """
         self.status = SimulationStatus.DISSOLVING
         self._log_event("dissolving", f"Entropy={self.semantic_entropy:.3f}")
-        
+
         # Terminate all child simulations
         for child_id, child in list(self.child_nodes.items()):
             child._dissolve()
             self._cleanup_child(child_id)
-        
+
         # Clear agents
         self.agents.clear()
-        
+
         # Clear world state
         self.world_state.clear()
-        
+
         self.status = SimulationStatus.TERMINATED
         self._log_event("dissolved", "Became The Nothing")
-    
-    def _add_world_state(
-        self,
-        entity_id: str,
-        data: Any,
-        entity_type: str = "generic"
-    ) -> WorldStateVector:
+
+    def _add_world_state(self, entity_id: str, data: Any, entity_type: str = "generic") -> WorldStateVector:
         """Add or update world state for an entity."""
         if isinstance(data, torch.Tensor):
             content = data
@@ -451,7 +442,7 @@ class SimulationNode:
             content = torch.zeros(self.config.vector_db_dim)
         else:
             content = torch.zeros(self.config.vector_db_dim)
-        
+
         state_vec = WorldStateVector(
             entity_id=entity_id,
             entity_type=entity_type,
@@ -460,7 +451,7 @@ class SimulationNode:
         )
         self.world_state[entity_id] = state_vec
         return state_vec
-    
+
     def _get_world_snapshot(self) -> Dict[str, Any]:
         """Get a snapshot of current world state."""
         return {
@@ -478,25 +469,27 @@ class SimulationNode:
             "agents": list(self.agents.keys()),
             "children": list(self.child_nodes.keys()),
         }
-    
+
     def _log_event(self, event_type: str, details: str = "") -> None:
         """Log an event in this simulation."""
-        self.event_log.append({
-            "tick": self.current_tick,
-            "type": event_type,
-            "details": details,
-            "node_id": self.node_id,
-            "depth": self.recursive_depth,
-        })
-    
+        self.event_log.append(
+            {
+                "tick": self.current_tick,
+                "type": event_type,
+                "details": details,
+                "node_id": self.node_id,
+                "depth": self.recursive_depth,
+            }
+        )
+
     # Public interface methods
-    
+
     def add_agent(self, agent: RSCAgent) -> None:
         """Add an agent to this simulation."""
         agent.current_simulation_id = self.node_id
         self.agents[agent.agent_id] = agent
         self._log_event("agent_added", agent.agent_id)
-    
+
     def remove_agent(self, agent_id: str) -> Optional[RSCAgent]:
         """Remove and return an agent from this simulation."""
         if agent_id in self.agents:
@@ -505,27 +498,20 @@ class SimulationNode:
             self._log_event("agent_removed", agent_id)
             return agent
         return None
-    
-    def query_world_state(
-        self,
-        query_vector: torch.Tensor,
-        top_k: int = 5
-    ) -> List[WorldStateVector]:
+
+    def query_world_state(self, query_vector: torch.Tensor, top_k: int = 5) -> List[WorldStateVector]:
         """
         Query world state using vector similarity.
-        
+
         This is the Vector Database query for semantic retrieval.
         """
         query_wsv = WorldStateVector(content=query_vector)
-        
-        similarities = [
-            (eid, query_wsv.similarity(wsv))
-            for eid, wsv in self.world_state.items()
-        ]
+
+        similarities = [(eid, query_wsv.similarity(wsv)) for eid, wsv in self.world_state.items()]
         similarities.sort(key=lambda x: x[1], reverse=True)
-        
+
         return [self.world_state[eid] for eid, _ in similarities[:top_k]]
-    
+
     def get_tree_structure(self) -> Dict[str, Any]:
         """Get the full tree structure from this node down."""
         return {
@@ -536,12 +522,9 @@ class SimulationNode:
             "entropy": self.semantic_entropy,
             "num_agents": len(self.agents),
             "num_entities": len(self.world_state),
-            "children": {
-                child_id: child.get_tree_structure()
-                for child_id, child in self.child_nodes.items()
-            }
+            "children": {child_id: child.get_tree_structure() for child_id, child in self.child_nodes.items()},
         }
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Serialize simulation state to dictionary."""
         return {
@@ -562,13 +545,13 @@ class SimulationNode:
 class RootSimulationNode(SimulationNode):
     """
     The root node of the simulation tree.
-    
+
     Special properties:
     - Connects to Godot via WebSocket
     - Has no parent
     - Recursive depth = 0 (reality)
     """
-    
+
     def __init__(
         self,
         config: Optional[SimulationConfig] = None,
@@ -580,11 +563,11 @@ class RootSimulationNode(SimulationNode):
             config=config or SimulationConfig(),
         )
         self.godot_bridge = godot_bridge
-        
+
     def sync_with_godot(self, godot_state: Dict[str, Any]) -> None:
         """
         Sync world state from Godot physics engine.
-        
+
         This is called every frame to update the simulation
         with physical reality.
         """
@@ -594,26 +577,26 @@ class RootSimulationNode(SimulationNode):
                 entity_data.get("state", {}),
                 entity_data.get("type", "godot_entity"),
             )
-    
+
     def dispatch_actions_to_godot(self) -> List[Dict[str, Any]]:
         """
         Get all queued Godot actions from entire tree.
-        
+
         Walks the tree and collects all physical actions
         to send to Godot.
         """
         all_actions = []
         all_actions.extend(self.godot_action_queue)
-        
+
         def collect_child_actions(node: SimulationNode):
             for child in node.child_nodes.values():
                 all_actions.extend(child.godot_action_queue)
                 child.godot_action_queue.clear()
                 collect_child_actions(child)
-        
+
         collect_child_actions(self)
         self.godot_action_queue.clear()
-        
+
         return all_actions
 
 
@@ -625,12 +608,12 @@ def create_simulation(
 ) -> SimulationNode:
     """
     Create a new simulation node.
-    
+
     Args:
         initial_state: Initial world state dictionary
         config: Simulation configuration
         is_root: Whether this is the root node
-    
+
     Returns:
         Initialized SimulationNode
     """
@@ -638,18 +621,18 @@ def create_simulation(
         node = RootSimulationNode(config=config)
     else:
         node = SimulationNode(config=config)
-    
+
     node.initialize(initial_state)
     return node
 
 
 # Export
 __all__ = [
-    'SimulationStatus',
-    'SimulationConfig',
-    'WorldStateVector',
-    'RSCAgent',
-    'SimulationNode',
-    'RootSimulationNode',
-    'create_simulation',
+    "SimulationStatus",
+    "SimulationConfig",
+    "WorldStateVector",
+    "RSCAgent",
+    "SimulationNode",
+    "RootSimulationNode",
+    "create_simulation",
 ]

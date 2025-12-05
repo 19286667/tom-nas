@@ -83,10 +83,21 @@ class TestSocialEdge:
 
         edge = SocialEdge(source_id="a", target_id="b")
         edge.trust = 0.8
-        edge.affect = 0.5
+        edge.affect = 0.2  # Positive but below COALITION threshold (0.3)
         edge.familiarity = 0.5
 
         assert edge.get_relationship_type() == RelationshipType.ALLY
+
+    def test_relationship_type_coalition(self):
+        """Test coalition classification - highest trust tier with strong affect."""
+        from src.liminal.psychosocial_coevolution import SocialEdge, RelationshipType, TheoreticalConstants
+
+        edge = SocialEdge(source_id="a", target_id="b")
+        edge.trust = 0.8  # Above COALITION_FORMATION_THRESHOLD (0.6)
+        edge.affect = 0.5  # Above coalition affect threshold (0.3)
+        edge.familiarity = 0.5  # Above acquaintance threshold
+
+        assert edge.get_relationship_type() == RelationshipType.COALITION
 
     def test_relationship_type_enemy(self):
         """Test enemy classification."""

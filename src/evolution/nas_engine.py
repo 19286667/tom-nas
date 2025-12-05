@@ -2,6 +2,7 @@
 Neural Architecture Search Engine for ToM-NAS
 Main evolutionary algorithm coordinating architecture evolution
 """
+
 import torch
 import torch.nn as nn
 import copy
@@ -13,18 +14,22 @@ from collections import defaultdict
 import json
 
 from .operators import (
-    ArchitectureGene, WeightMutation, ArchitectureCrossover,
-    PopulationOperators, AdaptiveMutation, SpeciesManager, CoevolutionOperator
+    ArchitectureGene,
+    WeightMutation,
+    ArchitectureCrossover,
+    PopulationOperators,
+    AdaptiveMutation,
+    SpeciesManager,
+    CoevolutionOperator,
 )
 from .fitness import CompositeFitnessFunction
-from ..agents.architectures import (
-    TransparentRNN, RecursiveSelfAttention, TransformerToMAgent, HybridArchitecture
-)
+from ..agents.architectures import TransparentRNN, RecursiveSelfAttention, TransformerToMAgent, HybridArchitecture
 
 
 @dataclass
 class EvolutionConfig:
     """Configuration for evolutionary process"""
+
     population_size: int = 20
     num_generations: int = 100
     elite_size: int = 2
@@ -35,7 +40,7 @@ class EvolutionConfig:
     use_speciation: bool = True
     use_coevolution: bool = True
     fitness_episodes: int = 5
-    device: str = 'cpu'
+    device: str = "cpu"
     input_dim: int = 191
     output_dim: int = 181
     checkpoint_interval: int = 10
@@ -44,8 +49,7 @@ class EvolutionConfig:
 class Individual:
     """Represents one individual in the population"""
 
-    def __init__(self, model: nn.Module, gene: ArchitectureGene,
-                 fitness: Optional[float] = None, generation: int = 0):
+    def __init__(self, model: nn.Module, gene: ArchitectureGene, fitness: Optional[float] = None, generation: int = 0):
         self.model = model
         self.gene = gene
         self.fitness = fitness
@@ -54,9 +58,11 @@ class Individual:
         self.parent_ids = []
 
     def __repr__(self):
-        return (f"Individual(arch={self.gene.gene_dict['arch_type']}, "
-                f"fitness={self.fitness:.4f if self.fitness else 'None'}, "
-                f"gen={self.generation})")
+        return (
+            f"Individual(arch={self.gene.gene_dict['arch_type']}, "
+            f"fitness={self.fitness:.4f if self.fitness else 'None'}, "
+            f"gen={self.generation})"
+        )
 
 
 class NASEngine:
@@ -68,9 +74,7 @@ class NASEngine:
         self.belief_network = belief_network
 
         # Fitness evaluator
-        self.fitness_fn = CompositeFitnessFunction(
-            world, belief_network, config.device
-        )
+        self.fitness_fn = CompositeFitnessFunction(world, belief_network, config.device)
 
         # Evolution operators
         self.population_ops = PopulationOperators()
@@ -84,13 +88,7 @@ class NASEngine:
         self.best_individual: Optional[Individual] = None
 
         # History tracking
-        self.history = {
-            'best_fitness': [],
-            'avg_fitness': [],
-            'diversity': [],
-            'species_count': [],
-            'best_genes': []
-        }
+        self.history = {"best_fitness": [], "avg_fitness": [], "diversity": [], "species_count": [], "best_genes": []}
 
     def initialize_population(self):
         """Create initial population with diverse architectures"""
@@ -108,57 +106,47 @@ class NASEngine:
         """Create random architecture gene"""
         gene = ArchitectureGene()
 
-        gene.gene_dict['arch_type'] = random.choice(['TRN', 'RSAN', 'Transformer'])
-        gene.gene_dict['num_layers'] = random.randint(1, 4)
-        gene.gene_dict['hidden_dim'] = random.choice([64, 128, 256])
-        gene.gene_dict['num_heads'] = random.choice([2, 4, 8])
-        gene.gene_dict['max_recursion'] = random.randint(3, 7)
-        gene.gene_dict['dropout_rate'] = random.uniform(0.0, 0.3)
-        gene.gene_dict['learning_rate'] = random.uniform(0.0001, 0.01)
+        gene.gene_dict["arch_type"] = random.choice(["TRN", "RSAN", "Transformer"])
+        gene.gene_dict["num_layers"] = random.randint(1, 4)
+        gene.gene_dict["hidden_dim"] = random.choice([64, 128, 256])
+        gene.gene_dict["num_heads"] = random.choice([2, 4, 8])
+        gene.gene_dict["max_recursion"] = random.randint(3, 7)
+        gene.gene_dict["dropout_rate"] = random.uniform(0.0, 0.3)
+        gene.gene_dict["learning_rate"] = random.uniform(0.0001, 0.01)
 
         return gene
 
     def _gene_to_model(self, gene: ArchitectureGene) -> nn.Module:
         """Convert gene to actual neural network"""
-        arch_type = gene.gene_dict['arch_type']
-        hidden_dim = gene.gene_dict['hidden_dim']
-        num_layers = gene.gene_dict['num_layers']
+        arch_type = gene.gene_dict["arch_type"]
+        hidden_dim = gene.gene_dict["hidden_dim"]
+        num_layers = gene.gene_dict["num_layers"]
 
-        if arch_type == 'TRN':
-            return TransparentRNN(
-                self.config.input_dim,
-                hidden_dim,
-                self.config.output_dim,
-                num_layers=num_layers
-            )
-        elif arch_type == 'RSAN':
+        if arch_type == "TRN":
+            return TransparentRNN(self.config.input_dim, hidden_dim, self.config.output_dim, num_layers=num_layers)
+        elif arch_type == "RSAN":
             return RecursiveSelfAttention(
                 self.config.input_dim,
                 hidden_dim,
                 self.config.output_dim,
-                num_heads=gene.gene_dict['num_heads'],
-                max_recursion=gene.gene_dict['max_recursion']
+                num_heads=gene.gene_dict["num_heads"],
+                max_recursion=gene.gene_dict["max_recursion"],
             )
-        elif arch_type == 'Transformer':
+        elif arch_type == "Transformer":
             return TransformerToMAgent(
                 self.config.input_dim,
                 hidden_dim,
                 self.config.output_dim,
                 num_layers=num_layers,
-                num_heads=gene.gene_dict['num_heads']
+                num_heads=gene.gene_dict["num_heads"],
             )
-        elif arch_type == 'Hybrid':
+        elif arch_type == "Hybrid":
             return HybridArchitecture(
-                self.config.input_dim,
-                hidden_dim,
-                self.config.output_dim,
-                architecture_genes=gene.gene_dict
+                self.config.input_dim, hidden_dim, self.config.output_dim, architecture_genes=gene.gene_dict
             )
 
         # Default to TRN
-        return TransparentRNN(
-            self.config.input_dim, hidden_dim, self.config.output_dim
-        )
+        return TransparentRNN(self.config.input_dim, hidden_dim, self.config.output_dim)
 
     def evaluate_population(self):
         """Evaluate fitness of all individuals"""
@@ -166,11 +154,8 @@ class NASEngine:
 
         for i, individual in enumerate(self.population):
             if individual.fitness is None:
-                fitness_results = self.fitness_fn.evaluate(
-                    individual.model,
-                    num_episodes=self.config.fitness_episodes
-                )
-                individual.fitness = fitness_results['total_fitness']
+                fitness_results = self.fitness_fn.evaluate(individual.model, num_episodes=self.config.fitness_episodes)
+                individual.fitness = fitness_results["total_fitness"]
 
                 if i % 5 == 0:
                     print(f"  Evaluated {i+1}/{len(self.population)} individuals")
@@ -184,7 +169,7 @@ class NASEngine:
     def evolve_generation(self):
         """Evolve population for one generation"""
         print(f"\nGeneration {self.generation}")
-        print("="*60)
+        print("=" * 60)
 
         # Evaluate current population
         self.evaluate_population()
@@ -199,19 +184,17 @@ class NASEngine:
         print(f"  Diversity:       {diversity:.4f}")
 
         # Record history
-        self.history['best_fitness'].append(max(fitnesses))
-        self.history['avg_fitness'].append(avg_fitness)
-        self.history['diversity'].append(diversity)
-        self.history['best_genes'].append(copy.deepcopy(self.best_individual.gene.gene_dict))
+        self.history["best_fitness"].append(max(fitnesses))
+        self.history["avg_fitness"].append(avg_fitness)
+        self.history["diversity"].append(diversity)
+        self.history["best_genes"].append(copy.deepcopy(self.best_individual.gene.gene_dict))
 
         # Speciation
         if self.config.use_speciation and self.species_manager:
-            pop_with_genes = [
-                (ind.model, ind.gene, ind.fitness) for ind in self.population
-            ]
+            pop_with_genes = [(ind.model, ind.gene, ind.fitness) for ind in self.population]
             self.species_manager.speciate(pop_with_genes)
             num_species = self.species_manager.get_species_count()
-            self.history['species_count'].append(num_species)
+            self.history["species_count"].append(num_species)
             print(f"  Species count:   {num_species}")
 
         # Coevolution adaptations
@@ -235,8 +218,7 @@ class NASEngine:
 
         # Elitism - keep best individuals
         elite = self.population_ops.elitism_selection(
-            [(ind.model, ind.fitness) for ind in self.population],
-            self.config.elite_size
+            [(ind.model, ind.fitness) for ind in self.population], self.config.elite_size
         )
 
         for model in elite:
@@ -244,10 +226,7 @@ class NASEngine:
             for ind in self.population:
                 if ind.model is model:
                     new_ind = Individual(
-                        copy.deepcopy(model),
-                        copy.deepcopy(ind.gene),
-                        ind.fitness,
-                        self.generation + 1
+                        copy.deepcopy(model), copy.deepcopy(ind.gene), ind.fitness, self.generation + 1
                     )
                     new_population.append(new_ind)
                     break
@@ -256,12 +235,10 @@ class NASEngine:
         while len(new_population) < self.config.population_size:
             # Selection
             parent1_model = self.population_ops.tournament_selection(
-                [(ind.model, ind.fitness) for ind in self.population],
-                self.config.tournament_size
+                [(ind.model, ind.fitness) for ind in self.population], self.config.tournament_size
             )
             parent2_model = self.population_ops.tournament_selection(
-                [(ind.model, ind.fitness) for ind in self.population],
-                self.config.tournament_size
+                [(ind.model, ind.fitness) for ind in self.population], self.config.tournament_size
             )
 
             # Find parent genes
@@ -311,10 +288,7 @@ class NASEngine:
 
         for i in range(len(self.population)):
             for j in range(i + 1, len(self.population)):
-                distance = self._gene_distance(
-                    self.population[i].gene,
-                    self.population[j].gene
-                )
+                distance = self._gene_distance(self.population[i].gene, self.population[j].gene)
                 total_distance += distance
                 comparisons += 1
 
@@ -343,15 +317,15 @@ class NASEngine:
         if num_generations is None:
             num_generations = self.config.num_generations
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("ToM-NAS Evolution Starting")
-        print("="*60)
+        print("=" * 60)
         print(f"Population size: {self.config.population_size}")
         print(f"Generations:     {num_generations}")
         print(f"Elite size:      {self.config.elite_size}")
         print(f"Mutation rate:   {self.config.mutation_rate}")
         print(f"Crossover rate:  {self.config.crossover_rate}")
-        print("="*60)
+        print("=" * 60)
 
         # Initialize if needed
         if not self.population:
@@ -365,40 +339,36 @@ class NASEngine:
             if (gen + 1) % self.config.checkpoint_interval == 0:
                 self.save_checkpoint(f"checkpoint_gen_{gen+1}.pt")
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Evolution Complete!")
-        print("="*60)
+        print("=" * 60)
         print(f"Best fitness achieved: {self.best_individual.fitness:.4f}")
         print(f"Best architecture: {self.best_individual.gene.gene_dict['arch_type']}")
-        print("="*60)
+        print("=" * 60)
 
         return self.best_individual
 
     def save_checkpoint(self, filepath: str):
         """Save evolution checkpoint"""
         checkpoint = {
-            'generation': self.generation,
-            'best_individual': {
-                'model_state': self.best_individual.model.state_dict(),
-                'gene': self.best_individual.gene.gene_dict,
-                'fitness': self.best_individual.fitness
+            "generation": self.generation,
+            "best_individual": {
+                "model_state": self.best_individual.model.state_dict(),
+                "gene": self.best_individual.gene.gene_dict,
+                "fitness": self.best_individual.fitness,
             },
-            'population': [
-                {
-                    'gene': ind.gene.gene_dict,
-                    'fitness': ind.fitness,
-                    'generation': ind.generation
-                }
+            "population": [
+                {"gene": ind.gene.gene_dict, "fitness": ind.fitness, "generation": ind.generation}
                 for ind in self.population
             ],
-            'history': self.history,
-            'config': {
-                'population_size': self.config.population_size,
-                'num_generations': self.config.num_generations,
-                'elite_size': self.config.elite_size,
-                'mutation_rate': self.config.mutation_rate,
-                'crossover_rate': self.config.crossover_rate
-            }
+            "history": self.history,
+            "config": {
+                "population_size": self.config.population_size,
+                "num_generations": self.config.num_generations,
+                "elite_size": self.config.elite_size,
+                "mutation_rate": self.config.mutation_rate,
+                "crossover_rate": self.config.crossover_rate,
+            },
         }
 
         torch.save(checkpoint, filepath)
@@ -408,22 +378,19 @@ class NASEngine:
         """Load evolution checkpoint"""
         checkpoint = torch.load(filepath)
 
-        self.generation = checkpoint['generation']
+        self.generation = checkpoint["generation"]
 
         # Restore best individual
         best_gene = ArchitectureGene()
-        best_gene.gene_dict = checkpoint['best_individual']['gene']
+        best_gene.gene_dict = checkpoint["best_individual"]["gene"]
         best_model = self._gene_to_model(best_gene)
-        best_model.load_state_dict(checkpoint['best_individual']['model_state'])
+        best_model.load_state_dict(checkpoint["best_individual"]["model_state"])
 
         self.best_individual = Individual(
-            best_model,
-            best_gene,
-            checkpoint['best_individual']['fitness'],
-            self.generation
+            best_model, best_gene, checkpoint["best_individual"]["fitness"], self.generation
         )
 
-        self.history = checkpoint['history']
+        self.history = checkpoint["history"]
 
         print(f"Checkpoint loaded from generation {self.generation}")
         print(f"Best fitness: {self.best_individual.fitness:.4f}")
@@ -435,11 +402,11 @@ class NASEngine:
     def get_evolution_summary(self) -> Dict:
         """Get summary of evolution process"""
         return {
-            'total_generations': self.generation,
-            'best_fitness': self.best_individual.fitness if self.best_individual else 0.0,
-            'best_architecture': self.best_individual.gene.gene_dict if self.best_individual else {},
-            'fitness_history': self.history['best_fitness'],
-            'avg_fitness_history': self.history['avg_fitness'],
-            'diversity_history': self.history['diversity'],
-            'final_population_size': len(self.population)
+            "total_generations": self.generation,
+            "best_fitness": self.best_individual.fitness if self.best_individual else 0.0,
+            "best_architecture": self.best_individual.gene.gene_dict if self.best_individual else {},
+            "fitness_history": self.history["best_fitness"],
+            "avg_fitness_history": self.history["avg_fitness"],
+            "diversity_history": self.history["diversity"],
+            "final_population_size": len(self.population),
         }

@@ -89,8 +89,7 @@ class LiminalAgentAdapter:
             5: ActionType.INTERACT,
         }
 
-    def observation_to_model_input(self, observation: Observation,
-                                   seq_len: int = 20) -> torch.Tensor:
+    def observation_to_model_input(self, observation: Observation, seq_len: int = 20) -> torch.Tensor:
         """
         Convert Liminal observation to model input format.
 
@@ -105,7 +104,7 @@ class LiminalAgentAdapter:
             padding = torch.zeros(self.input_dim - obs_tensor.shape[0])
             obs_tensor = torch.cat([obs_tensor, padding])
         elif obs_tensor.shape[0] > self.input_dim:
-            obs_tensor = obs_tensor[:self.input_dim]
+            obs_tensor = obs_tensor[: self.input_dim]
 
         # Create sequence (repeat observation for now - could use history)
         sequence = obs_tensor.unsqueeze(0).repeat(seq_len, 1)
@@ -113,8 +112,7 @@ class LiminalAgentAdapter:
         # Add batch dimension
         return sequence.unsqueeze(0).to(self.device)
 
-    def model_output_to_action(self, output: Dict[str, torch.Tensor],
-                               game_state: Any) -> Dict[str, Any]:
+    def model_output_to_action(self, output: Dict[str, torch.Tensor], game_state: Any) -> Dict[str, Any]:
         """
         Convert model output to Liminal action.
 
@@ -126,8 +124,8 @@ class LiminalAgentAdapter:
             Action dict for environment step
         """
         # Get beliefs and actions
-        beliefs = output.get('beliefs', torch.zeros(1, self.output_dim))
-        actions = output.get('actions', torch.zeros(1))
+        beliefs = output.get("beliefs", torch.zeros(1, self.output_dim))
+        actions = output.get("actions", torch.zeros(1))
 
         # Interpret action value
         action_value = actions[0].item()
@@ -167,10 +165,7 @@ class LiminalAgentAdapter:
     def _select_hazard(self, beliefs: torch.Tensor) -> str:
         """Select appropriate hazard based on belief state."""
         # Simple heuristic based on belief values
-        hazards = [
-            "doubt", "fear", "validation", "reassurance",
-            "curiosity", "clarity", "empathy", "paradox"
-        ]
+        hazards = ["doubt", "fear", "validation", "reassurance", "curiosity", "clarity", "empathy", "paradox"]
 
         # Use belief tensor to weight selection
         idx = int(abs(beliefs[0, :8].sum().item() * 10)) % len(hazards)
@@ -182,8 +177,7 @@ class LiminalAgentAdapter:
         idx = int(abs(beliefs[0, 0].item() * 10)) % len(action_types)
         return {"action_type": action_types[idx]}
 
-    def _generate_movement(self, beliefs: torch.Tensor,
-                          game_state: Any) -> Tuple[float, float]:
+    def _generate_movement(self, beliefs: torch.Tensor, game_state: Any) -> Tuple[float, float]:
         """Generate movement target from beliefs."""
         current = game_state.player_position
 
@@ -193,8 +187,7 @@ class LiminalAgentAdapter:
 
         return (current[0] + dx, current[1] + dy)
 
-    def select_action(self, observation: Observation,
-                      game_state: Any) -> Dict[str, Any]:
+    def select_action(self, observation: Observation, game_state: Any) -> Dict[str, Any]:
         """
         Main method to select an action given an observation.
 
@@ -233,8 +226,7 @@ class LiminalFitnessEvaluator:
         """
         self.config = config or LiminalFitnessConfig()
 
-    def evaluate_agent(self, model: nn.Module,
-                       seed: Optional[int] = None) -> Dict[str, float]:
+    def evaluate_agent(self, model: nn.Module, seed: Optional[int] = None) -> Dict[str, float]:
         """
         Evaluate a ToM-NAS agent in the Liminal environment.
 
@@ -271,19 +263,19 @@ class LiminalFitnessEvaluator:
 
         # Calculate total fitness
         avg_scores["total_fitness"] = (
-            avg_scores["prediction_accuracy"] * self.config.prediction_accuracy_weight +
-            avg_scores["intervention_success"] * self.config.intervention_success_weight +
-            avg_scores["social_navigation"] * self.config.social_navigation_weight +
-            avg_scores["stability_maintenance"] * self.config.stability_maintenance_weight +
-            avg_scores["exploration"] * self.config.exploration_weight +
-            avg_scores["survival"] * self.config.survival_weight
+            avg_scores["prediction_accuracy"] * self.config.prediction_accuracy_weight
+            + avg_scores["intervention_success"] * self.config.intervention_success_weight
+            + avg_scores["social_navigation"] * self.config.social_navigation_weight
+            + avg_scores["stability_maintenance"] * self.config.stability_maintenance_weight
+            + avg_scores["exploration"] * self.config.exploration_weight
+            + avg_scores["survival"] * self.config.survival_weight
         ) * self.config.reward_scale
 
         return avg_scores
 
-    def _run_episode(self, env: LiminalEnvironment,
-                     adapter: LiminalAgentAdapter,
-                     seed: Optional[int]) -> Dict[str, float]:
+    def _run_episode(
+        self, env: LiminalEnvironment, adapter: LiminalAgentAdapter, seed: Optional[int]
+    ) -> Dict[str, float]:
         """Run a single episode and return scores."""
         observation = env.reset(seed)
         game_state = env._get_game_state()
@@ -335,10 +327,8 @@ class LiminalFitnessEvaluator:
 
         # Calculate scores
         return {
-            "prediction_accuracy": (predictions_correct / predictions_made
-                                   if predictions_made > 0 else 0.0),
-            "intervention_success": (interventions_success / interventions_made
-                                    if interventions_made > 0 else 0.0),
+            "prediction_accuracy": predictions_correct / predictions_made if predictions_made > 0 else 0.0,
+            "intervention_success": interventions_success / interventions_made if interventions_made > 0 else 0.0,
             "social_navigation": total_reward / max(1, total_steps) + 0.5,
             "stability_maintenance": steps_stable / max(1, total_steps),
             "exploration": len(realms_visited) / len(list(env.npcs.values())[0].current_realm.__class__),
@@ -422,8 +412,7 @@ class LiminalDataGenerator:
 
         action = {"type": action_type}
 
-        if action_type in [ActionType.ANALYZE, ActionType.INTERVENE,
-                          ActionType.PREDICT, ActionType.INTERACT]:
+        if action_type in [ActionType.ANALYZE, ActionType.INTERVENE, ActionType.PREDICT, ActionType.INTERACT]:
             if game_state.nearby_npcs:
                 action["target_id"] = random.choice(game_state.nearby_npcs)
 
@@ -447,6 +436,7 @@ class LiminalDataGenerator:
             return {}
 
         import random
+
         samples = random.sample(self.collected_data, batch_size)
 
         observations = torch.stack([s["observation"] for s in samples])
@@ -495,10 +485,7 @@ def integrate_with_coevolution(
             liminal_fitness = 0.0
 
         # Combine fitnesses
-        combined_fitness = (
-            original_fitness * (1 - fitness_weight) +
-            liminal_fitness * fitness_weight
-        )
+        combined_fitness = original_fitness * (1 - fitness_weight) + liminal_fitness * fitness_weight
 
         # Update agent fitness
         agent.fitness = combined_fitness
@@ -512,9 +499,9 @@ def integrate_with_coevolution(
 
 # Export
 __all__ = [
-    'LiminalFitnessConfig',
-    'LiminalAgentAdapter',
-    'LiminalFitnessEvaluator',
-    'LiminalDataGenerator',
-    'integrate_with_coevolution',
+    "LiminalFitnessConfig",
+    "LiminalAgentAdapter",
+    "LiminalFitnessEvaluator",
+    "LiminalDataGenerator",
+    "integrate_with_coevolution",
 ]

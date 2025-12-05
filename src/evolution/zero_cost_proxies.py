@@ -25,6 +25,7 @@ import time
 @dataclass
 class ProxyScore:
     """Container for proxy evaluation results."""
+
     synflow: float
     naswot: float
     gradnorm: float
@@ -46,8 +47,8 @@ class ZeroCostProxy:
         input_dim: int = 181,
         seq_len: int = 10,
         batch_size: int = 32,
-        device: str = 'cpu',
-        target_params: int = 500000
+        device: str = "cpu",
+        target_params: int = 500000,
     ):
         """
         Initialize the proxy evaluator.
@@ -72,19 +73,13 @@ class ZeroCostProxy:
     def _get_synthetic_input(self) -> torch.Tensor:
         """Get or create synthetic input for evaluation."""
         if self._synthetic_input is None:
-            self._synthetic_input = torch.randn(
-                self.batch_size, self.seq_len, self.input_dim,
-                device=self.device
-            )
+            self._synthetic_input = torch.randn(self.batch_size, self.seq_len, self.input_dim, device=self.device)
         return self._synthetic_input
 
     def _get_ones_input(self) -> torch.Tensor:
         """Get or create ones input for SynFlow."""
         if self._ones_input is None:
-            self._ones_input = torch.ones(
-                1, self.seq_len, self.input_dim,
-                device=self.device
-            )
+            self._ones_input = torch.ones(1, self.seq_len, self.input_dim, device=self.device)
         return self._ones_input
 
     def compute_synflow(self, model: nn.Module) -> float:
@@ -131,10 +126,10 @@ class ZeroCostProxy:
             # Handle different output formats
             if isinstance(output, dict):
                 # Use beliefs output for ToM architectures
-                if 'beliefs' in output:
-                    out_tensor = output['beliefs']
-                elif 'hidden_states' in output:
-                    out_tensor = output['hidden_states'][:, -1, :]
+                if "beliefs" in output:
+                    out_tensor = output["beliefs"]
+                elif "hidden_states" in output:
+                    out_tensor = output["hidden_states"][:, -1, :]
                 else:
                     out_tensor = list(output.values())[0]
             else:
@@ -186,10 +181,7 @@ class ZeroCostProxy:
         model.eval()
 
         # Generate random inputs
-        inputs = torch.randn(
-            num_samples, self.seq_len, self.input_dim,
-            device=self.device
-        )
+        inputs = torch.randn(num_samples, self.seq_len, self.input_dim, device=self.device)
 
         # Collect activations
         activations = []
@@ -241,7 +233,7 @@ class ZeroCostProxy:
                     return logdet.item()
                 else:
                     return -1000.0  # Degenerate case
-            except:
+            except (RuntimeError, torch.linalg.LinAlgError):
                 return -1000.0
 
         finally:
@@ -283,10 +275,10 @@ class ZeroCostProxy:
 
             # Handle different output formats
             if isinstance(output, dict):
-                if 'beliefs' in output:
-                    out_tensor = output['beliefs']
-                elif 'hidden_states' in output:
-                    out_tensor = output['hidden_states'][:, -1, :]
+                if "beliefs" in output:
+                    out_tensor = output["beliefs"]
+                elif "hidden_states" in output:
+                    out_tensor = output["hidden_states"][:, -1, :]
                 else:
                     out_tensor = list(output.values())[0]
             else:
@@ -347,16 +339,10 @@ class ZeroCostProxy:
             gradnorm=gradnorm,
             param_count=param_count,
             combined_score=combined,
-            evaluation_time_ms=evaluation_time_ms
+            evaluation_time_ms=evaluation_time_ms,
         )
 
-    def _compute_combined_score(
-        self,
-        synflow: float,
-        naswot: float,
-        gradnorm: float,
-        param_count: int
-    ) -> float:
+    def _compute_combined_score(self, synflow: float, naswot: float, gradnorm: float, param_count: int) -> float:
         """
         Compute combined proxy score.
 
@@ -405,10 +391,7 @@ class ArchitectureFilter:
     """
 
     def __init__(
-        self,
-        proxy_evaluator: Optional[ZeroCostProxy] = None,
-        param_budget: int = 500000,
-        top_k_ratio: float = 0.1
+        self, proxy_evaluator: Optional[ZeroCostProxy] = None, param_budget: int = 500000, top_k_ratio: float = 0.1
     ):
         """
         Initialize the architecture filter.
@@ -428,9 +411,7 @@ class ArchitectureFilter:
         self.evaluation_times: List[float] = []
 
     def filter_architectures(
-        self,
-        architectures: List[nn.Module],
-        top_k: Optional[int] = None
+        self, architectures: List[nn.Module], top_k: Optional[int] = None
     ) -> List[Tuple[int, nn.Module, ProxyScore]]:
         """
         Filter architectures using zero-cost proxies.
@@ -467,10 +448,10 @@ class ArchitectureFilter:
     def get_statistics(self) -> Dict[str, Any]:
         """Get filtering statistics."""
         return {
-            'total_evaluated': self.total_evaluated,
-            'total_filtered_by_params': self.total_filtered,
-            'avg_evaluation_time_ms': np.mean(self.evaluation_times) if self.evaluation_times else 0,
-            'total_evaluation_time_s': sum(self.evaluation_times) / 1000
+            "total_evaluated": self.total_evaluated,
+            "total_filtered_by_params": self.total_filtered,
+            "avg_evaluation_time_ms": np.mean(self.evaluation_times) if self.evaluation_times else 0,
+            "total_evaluation_time_s": sum(self.evaluation_times) / 1000,
         }
 
 
@@ -486,7 +467,7 @@ class ProxyValidation:
         self,
         proxy_evaluator: ZeroCostProxy,
         trainer_fn,  # Function that trains a model and returns accuracy
-        num_validation_samples: int = 10
+        num_validation_samples: int = 10,
     ):
         """
         Initialize proxy validation.
@@ -500,10 +481,7 @@ class ProxyValidation:
         self.trainer_fn = trainer_fn
         self.num_samples = num_validation_samples
 
-    def validate(
-        self,
-        architectures: List[nn.Module]
-    ) -> Dict[str, Any]:
+    def validate(self, architectures: List[nn.Module]) -> Dict[str, Any]:
         """
         Validate proxy effectiveness.
 
@@ -550,15 +528,15 @@ class ProxyValidation:
         correlation = np.corrcoef(all_proxy, all_trained)[0, 1]
 
         return {
-            'avg_top_accuracy': avg_top,
-            'avg_bottom_accuracy': avg_bottom,
-            'accuracy_gap': avg_top - avg_bottom,
-            'proxy_trained_correlation': correlation,
-            'proxies_effective': avg_top > avg_bottom and correlation > 0.5,
-            'top_proxy_scores': [s[1].combined_score for s in top_models],
-            'bottom_proxy_scores': [s[1].combined_score for s in bottom_models],
-            'top_trained_scores': top_trained_accuracies,
-            'bottom_trained_scores': bottom_trained_accuracies
+            "avg_top_accuracy": avg_top,
+            "avg_bottom_accuracy": avg_bottom,
+            "accuracy_gap": avg_top - avg_bottom,
+            "proxy_trained_correlation": correlation,
+            "proxies_effective": avg_top > avg_bottom and correlation > 0.5,
+            "top_proxy_scores": [s[1].combined_score for s in top_models],
+            "bottom_proxy_scores": [s[1].combined_score for s in bottom_models],
+            "top_trained_scores": top_trained_accuracies,
+            "bottom_trained_scores": bottom_trained_accuracies,
         }
 
 
@@ -574,9 +552,9 @@ def quick_proxy_test():
 
     # Test each architecture type
     architectures = {
-        'TRN': TransparentRNN(181, 128, 181, num_layers=2),
-        'RSAN': RecursiveSelfAttention(181, 128, 181, num_heads=4, max_recursion=3),
-        'Transformer': TransformerToMAgent(181, 128, 181, num_layers=2, num_heads=4)
+        "TRN": TransparentRNN(181, 128, 181, num_layers=2),
+        "RSAN": RecursiveSelfAttention(181, 128, 181, num_heads=4, max_recursion=3),
+        "Transformer": TransformerToMAgent(181, 128, 181, num_layers=2, num_heads=4),
     }
 
     for name, model in architectures.items():

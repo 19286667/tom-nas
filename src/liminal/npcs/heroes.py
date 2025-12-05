@@ -26,14 +26,15 @@ from ..soul_map import SoulMap
 from ..realms import RealmType
 from .base_npc import BaseNPC, NPCState, NPCBehavior
 
-
 # Complete Soul Map definitions for Hero NPCs (matching MDD JSON spec)
 HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     "arthur_peregrine": {
         "name": "Arthur Peregrine",
-        "description": "The patriarch of the Peregrine family. Constantly anxious, always "
-                      "predicting disaster. His high pattern recognition makes him see "
-                      "threats everywhere. Protector by nature, prisoner of his fears.",
+        "description": (
+            "The patriarch of the Peregrine family. Constantly anxious, always "
+            "predicting disaster. His high pattern recognition makes him see "
+            "threats everywhere. Protector by nature, prisoner of his fears."
+        ),
         "realm": RealmType.PEREGRINE,
         "tom_depth": 4,
         "soul_map": {
@@ -118,15 +119,18 @@ HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "active_goal": "check_locks",
         "emotional_state": "apprehensive",
         "quests": ["The Trolley Problem", "Protect the Family"],
-        "dialogue_intro": "Have you checked the locks? I've checked them three times but... "
-                         "you can never be too careful. The patterns, you see. They're everywhere.",
+        "dialogue_intro": (
+            "Have you checked the locks? I've checked them three times but... "
+            "you can never be too careful. The patterns, you see. They're everywhere."
+        ),
     },
-
     "agnes_peregrine": {
         "name": "Agnes Peregrine",
-        "description": "Arthur's wife. Possesses extraordinary Theory of Mind - she can "
-                      "read people with uncanny accuracy. Suspects the player is controlling "
-                      "her reality. Kind but unsettling in her perception.",
+        "description": (
+            "Arthur's wife. Possesses extraordinary Theory of Mind - she can "
+            "read people with uncanny accuracy. Suspects the player is controlling "
+            "her reality. Kind but unsettling in her perception."
+        ),
         "realm": RealmType.PEREGRINE,
         "tom_depth": 5,  # Maximum ToM depth
         "soul_map": {
@@ -211,15 +215,18 @@ HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "active_goal": "understand_player",
         "emotional_state": "knowing",
         "quests": ["The Mirror Test", "What Agnes Knows"],
-        "dialogue_intro": "I see you there. Behind the choices. Do you know what you're doing? "
-                         "Because I'm starting to understand what I am. What we all are.",
+        "dialogue_intro": (
+            "I see you there. Behind the choices. Do you know what you're doing? "
+            "Because I'm starting to understand what I am. What we all are."
+        ),
     },
-
     "victoria_peregrine": {
         "name": "Victoria Peregrine",
-        "description": "The daughter. High narcissism, low empathy. Uses others as tools "
-                      "to achieve her goals. Charismatic but dangerous. Represents the "
-                      "dark potential of intelligence without compassion.",
+        "description": (
+            "The daughter. High narcissism, low empathy. Uses others as tools "
+            "to achieve her goals. Charismatic but dangerous. Represents the "
+            "dark potential of intelligence without compassion."
+        ),
         "realm": RealmType.PEREGRINE,
         "tom_depth": 4,
         "soul_map": {
@@ -297,15 +304,18 @@ HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "active_goal": "gain_power",
         "emotional_state": "calculating",
         "quests": ["Victoria's Game", "The Manipulation"],
-        "dialogue_intro": "Ah, a new piece on the board. Tell me, what are you willing to do "
-                         "to get what you want? Everyone has a price. Even you.",
+        "dialogue_intro": (
+            "Ah, a new piece on the board. Tell me, what are you willing to do "
+            "to get what you want? Everyone has a price. Even you."
+        ),
     },
-
     "the_cottage": {
         "name": "THE COTTAGE",
-        "description": "A sentient Victorian house. Speaks in BLOCK CAPITALS. Fiercely "
-                      "protective of the Peregrine family. Low cognitive rigidity - "
-                      "accepts its unusual existence. Used for fast travel.",
+        "description": (
+            "A sentient Victorian house. Speaks in BLOCK CAPITALS. Fiercely "
+            "protective of the Peregrine family. Low cognitive rigidity - "
+            "accepts its unusual existence. Used for fast travel."
+        ),
         "realm": RealmType.PEREGRINE,
         "tom_depth": 2,
         "is_object": True,
@@ -384,15 +394,18 @@ HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "active_goal": "protect_family",
         "emotional_state": "vigilant",
         "quests": ["The Cottage's Favor"],
-        "dialogue_intro": "I AM THE COTTAGE. I HAVE STOOD HERE FOR TWO HUNDRED YEARS. "
-                         "I KNOW EVERY CREAK, EVERY WHISPER. THE FAMILY IS MINE TO PROTECT.",
+        "dialogue_intro": (
+            "I AM THE COTTAGE. I HAVE STOOD HERE FOR TWO HUNDRED YEARS. "
+            "I KNOW EVERY CREAK, EVERY WHISPER. THE FAMILY IS MINE TO PROTECT."
+        ),
     },
-
     "the_inspector": {
         "name": "The Inspector",
-        "description": "The primary antagonist from the Ministry. Obsessed with order, "
-                      "rules, and proper documentation. Will pursue anyone who breaks "
-                      "procedure with terrifying efficiency.",
+        "description": (
+            "The primary antagonist from the Ministry. Obsessed with order, "
+            "rules, and proper documentation. Will pursue anyone who breaks "
+            "procedure with terrifying efficiency."
+        ),
         "realm": RealmType.MINISTRY,
         "tom_depth": 3,
         "soul_map": {
@@ -473,15 +486,18 @@ HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "active_goal": "enforce_order",
         "emotional_state": "cold",
         "quests": ["Form 27B/6", "The Audit"],
-        "dialogue_intro": "Your papers. Now. Do not waste my time with explanations. "
-                         "The forms speak. Everything else is... irregular.",
+        "dialogue_intro": (
+            "Your papers. Now. Do not waste my time with explanations. "
+            "The forms speak. Everything else is... irregular."
+        ),
     },
-
     "mr_waverly": {
         "name": "Mr. Waverly",
-        "description": "A soul unstuck in time, living in the Spleen Towns. Confuses "
-                      "past and future. His temporal disorientation makes him a source "
-                      "of cryptic but valuable information.",
+        "description": (
+            "A soul unstuck in time, living in the Spleen Towns. Confuses "
+            "past and future. His temporal disorientation makes him a source "
+            "of cryptic but valuable information."
+        ),
         "realm": RealmType.SPLEEN_TOWNS,
         "tom_depth": 3,
         "soul_map": {
@@ -562,16 +578,19 @@ HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "active_goal": "remember_when",
         "emotional_state": "confused",
         "quests": ["When Is Now?", "The Memory"],
-        "dialogue_intro": "Ah, you've come! Or will you? I remember this conversation. "
-                         "We had it tomorrow. Or was that yesterday? Time is... "
-                         "such a strange place to live.",
+        "dialogue_intro": (
+            "Ah, you've come! Or will you? I remember this conversation. "
+            "We had it tomorrow. Or was that yesterday? Time is... "
+            "such a strange place to live."
+        ),
     },
-
     "livia": {
         "name": "Livia",
-        "description": "A ghost in the Spleen Towns trying to remember that she is dead. "
-                      "High metacognitive awareness - she knows something is wrong, but "
-                      "can't quite grasp what.",
+        "description": (
+            "A ghost in the Spleen Towns trying to remember that she is dead. "
+            "High metacognitive awareness - she knows something is wrong, but "
+            "can't quite grasp what."
+        ),
         "realm": RealmType.SPLEEN_TOWNS,
         "tom_depth": 4,
         "is_ghost": True,
@@ -650,15 +669,18 @@ HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "active_goal": "remember_death",
         "emotional_state": "searching",
         "quests": ["The Mirror", "What Livia Forgot"],
-        "dialogue_intro": "Something is wrong. I walk through doors without opening them. "
-                         "People look through me. Edmund won't look at me at all anymore. "
-                         "Tell me... am I...?",
+        "dialogue_intro": (
+            "Something is wrong. I walk through doors without opening them. "
+            "People look through me. Edmund won't look at me at all anymore. "
+            "Tell me... am I...?"
+        ),
     },
-
     "edmund": {
         "name": "Edmund",
-        "description": "Livia's husband. Refuses to accept that she is dead. His grief "
-                      "has trapped them both in an eternal loop. High attachment anxiety.",
+        "description": (
+            "Livia's husband. Refuses to accept that she is dead. His grief "
+            "has trapped them both in an eternal loop. High attachment anxiety."
+        ),
         "realm": RealmType.SPLEEN_TOWNS,
         "tom_depth": 2,
         "soul_map": {
@@ -736,16 +758,19 @@ HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "active_goal": "keep_livia",
         "emotional_state": "denial",
         "quests": ["Edmund's Grief", "Let Her Go"],
-        "dialogue_intro": "She's just... resting. She'll wake up. She always wakes up. "
-                         "Please don't tell her. Don't tell her what happened. "
-                         "She doesn't need to know.",
+        "dialogue_intro": (
+            "She's just... resting. She'll wake up. She always wakes up. "
+            "Please don't tell her. Don't tell her what happened. "
+            "She doesn't need to know."
+        ),
     },
-
     "director_thorne": {
         "name": "Director Thorne",
-        "description": "The supreme ruler of the City of Constants. Maximum parameter "
-                      "rigidity. Maximum control drive. The embodiment of order taken "
-                      "to its logical extreme.",
+        "description": (
+            "The supreme ruler of the City of Constants. Maximum parameter "
+            "rigidity. Maximum control drive. The embodiment of order taken "
+            "to its logical extreme."
+        ),
         "realm": RealmType.CITY_OF_CONSTANTS,
         "tom_depth": 3,
         "soul_map": {
@@ -826,16 +851,19 @@ HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "active_goal": "enforce_constants",
         "emotional_state": "controlled",
         "quests": ["The Parameter War", "Overthrow Thorne"],
-        "dialogue_intro": "Chaos is a disease. Adaptation is a symptom. I am the cure. "
-                         "Every constant I enforce brings us closer to perfection. "
-                         "Do not mistake mercy for weakness.",
+        "dialogue_intro": (
+            "Chaos is a disease. Adaptation is a symptom. I am the cure. "
+            "Every constant I enforce brings us closer to perfection. "
+            "Do not mistake mercy for weakness."
+        ),
     },
-
     "the_nothing": {
         "name": "The Nothing",
-        "description": "An entity that exists at the edge of reality. Its dimensions are "
-                      "probability distributions rather than fixed values. Curious about "
-                      "existence. Neither friendly nor hostile - simply observing.",
+        "description": (
+            "An entity that exists at the edge of reality. Its dimensions are "
+            "probability distributions rather than fixed values. Curious about "
+            "existence. Neither friendly nor hostile - simply observing."
+        ),
         "realm": RealmType.THE_NOTHING,
         "tom_depth": 5,  # Undefined - potentially infinite
         "is_entity": True,
@@ -915,9 +943,11 @@ HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "active_goal": "observe_understand",
         "emotional_state": "curious",
         "quests": ["The Edge of Reality", "What Is Nothing?"],
-        "dialogue_intro": "You are here. Or there. Or neither. "
-                         "I am the space between. What brings a solid thing to the edge? "
-                         "Curiosity? Fear? Or simply... a bug in the render distance?",
+        "dialogue_intro": (
+            "You are here. Or there. Or neither. "
+            "I am the space between. What brings a solid thing to the edge? "
+            "Curiosity? Fear? Or simply... a bug in the render distance?"
+        ),
     },
 }
 
@@ -994,18 +1024,15 @@ def list_heroes() -> List[Dict[str, Any]]:
 
 def get_heroes_by_realm(realm_type: RealmType) -> List[str]:
     """Get hero IDs for a specific realm."""
-    return [
-        hero_id for hero_id, definition in HERO_DEFINITIONS.items()
-        if definition.get("realm") == realm_type
-    ]
+    return [hero_id for hero_id, definition in HERO_DEFINITIONS.items() if definition.get("realm") == realm_type]
 
 
 # Export
 __all__ = [
-    'HERO_DEFINITIONS',
-    'HERO_NPCS',
-    'create_hero_npc',
-    'get_hero_info',
-    'list_heroes',
-    'get_heroes_by_realm',
+    "HERO_DEFINITIONS",
+    "HERO_NPCS",
+    "create_hero_npc",
+    "get_hero_info",
+    "list_heroes",
+    "get_heroes_by_realm",
 ]

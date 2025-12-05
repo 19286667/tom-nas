@@ -49,29 +49,27 @@ from .narrative_emergence import (
 
 __all__ = [
     # Core Systems
-    'SoulMap',
-    'SoulMapCluster',
-    'DIMENSION_RANGES',
-    'Realm',
-    'RealmType',
-    'REALMS',
-    'LiminalEnvironment',
-    'GameState',
-
+    "SoulMap",
+    "SoulMapCluster",
+    "DIMENSION_RANGES",
+    "Realm",
+    "RealmType",
+    "REALMS",
+    "LiminalEnvironment",
+    "GameState",
     # Psychosocial Co-Evolution
-    'PsychosocialCoevolutionEngine',
-    'EnvironmentEvolutionStrategy',
-    'SocialNetwork',
-    'SocialEdge',
-    'RelationshipType',
-    'BeliefPropagationEngine',
-    'TheoreticalConstants',
-
+    "PsychosocialCoevolutionEngine",
+    "EnvironmentEvolutionStrategy",
+    "SocialNetwork",
+    "SocialEdge",
+    "RelationshipType",
+    "BeliefPropagationEngine",
+    "TheoreticalConstants",
     # Narrative Emergence
-    'NarrativeEmergenceSystem',
-    'NarrativeArchetype',
-    'EmergentNarrative',
-    'NarrativeDetector',
+    "NarrativeEmergenceSystem",
+    "NarrativeArchetype",
+    "EmergentNarrative",
+    "NarrativeDetector",
 ]
 
-__version__ = '2.0.0'  # Major version bump for co-evolution addition
+__version__ = "2.0.0"  # Major version bump for co-evolution addition

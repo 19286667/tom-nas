@@ -38,16 +38,16 @@ from . import simulation
 
 __all__ = [
     # Original modules
-    'core',
-    'agents',
-    'world',
-    'evolution',
-    'evaluation',
+    "core",
+    "agents",
+    "world",
+    "evolution",
+    "evaluation",
     # Fractal Semiotic Engine modules
-    'knowledge_base',
-    'cognition',
-    'godot_bridge',
-    'simulation',
+    "knowledge_base",
+    "cognition",
+    "godot_bridge",
+    "simulation",
     # Metadata
-    '__version__',
+    "__version__",
 ]

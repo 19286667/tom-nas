@@ -20,7 +20,6 @@ from ..soul_map import SoulMap
 from ..realms import RealmType
 from .base_npc import BaseNPC, NPCState, NPCBehavior
 
-
 # Archetype definitions - base Soul Map values for each type
 ARCHETYPES: Dict[str, Dict[str, Any]] = {
     # === MINISTRY DISTRICT ===
@@ -101,10 +100,17 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "default_state": NPCState.FILING,
         "default_behavior": NPCBehavior.PATROL,
         "behaviors": ["Walking in straight lines", "Filing reports", "Calling inspectors if rules broken"],
-        "names": ["Form Processor", "Registry Clerk", "Document Handler", "Queue Manager",
-                  "Stamp Official", "Citation Issuer", "File Retriever", "Number Caller"],
+        "names": [
+            "Form Processor",
+            "Registry Clerk",
+            "Document Handler",
+            "Queue Manager",
+            "Stamp Official",
+            "Citation Issuer",
+            "File Retriever",
+            "Number Caller",
+        ],
     },
-
     "inspector": {
         "description": "Ministry enforcement officers",
         "realm": RealmType.MINISTRY,
@@ -136,7 +142,6 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "default_behavior": NPCBehavior.PATROL,
         "names": ["Inspector Gray", "Overseer Black", "Auditor Stern"],
     },
-
     # === SPLEEN TOWNS ===
     "mourner": {
         "description": "Souls lost in time, waiting for something that never comes",
@@ -180,10 +185,17 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "default_state": NPCState.LOOPING,
         "default_behavior": NPCBehavior.STATIONARY,
         "behaviors": ["Sitting on benches", "Staring at fog", "Weeping quietly", "Waiting for trains"],
-        "names": ["The Waiting One", "Gray Widow", "Silent Watcher", "Lost Soul",
-                  "The Rememberer", "Fog Walker", "Clock Gazer", "Platform Dweller"],
+        "names": [
+            "The Waiting One",
+            "Gray Widow",
+            "Silent Watcher",
+            "Lost Soul",
+            "The Rememberer",
+            "Fog Walker",
+            "Clock Gazer",
+            "Platform Dweller",
+        ],
     },
-
     "poet_ghost": {
         "description": "Ghosts of poets and philosophers, speaking in verse",
         "realm": RealmType.SPLEEN_TOWNS,
@@ -211,7 +223,6 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "default_behavior": NPCBehavior.WANDER,
         "names": ["Baudelaire's Echo", "The Verse Speaker", "Melancholy Muse", "Shadow Bard"],
     },
-
     # === CITY OF CONSTANTS ===
     "enforcer": {
         "description": "Parameter Enforcement officers who maintain rigid constants",
@@ -251,10 +262,16 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "default_state": NPCState.WALKING,
         "default_behavior": NPCBehavior.ENFORCE,
         "behaviors": ["Patrol routes", "Attack adaptive elements", "Enforce constants"],
-        "names": ["Constant Keeper", "Parameter Guard", "Rule Warden", "Order Sentinel",
-                  "Rigidity Officer", "Stability Enforcer", "Constant Blade"],
+        "names": [
+            "Constant Keeper",
+            "Parameter Guard",
+            "Rule Warden",
+            "Order Sentinel",
+            "Rigidity Officer",
+            "Stability Enforcer",
+            "Constant Blade",
+        ],
     },
-
     "adaptive": {
         "description": "Rebels who adapt and build organic structures",
         "realm": RealmType.CITY_OF_CONSTANTS,
@@ -293,10 +310,16 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "default_state": NPCState.WORKING,
         "default_behavior": NPCBehavior.ADAPT,
         "behaviors": ["Build organic structures", "Hide from Enforcers", "Share resources"],
-        "names": ["Vine Weaver", "Edge Walker", "Chaos Gardener", "Flow Dancer",
-                  "Pattern Breaker", "Organic Builder", "Freedom Cell"],
+        "names": [
+            "Vine Weaver",
+            "Edge Walker",
+            "Chaos Gardener",
+            "Flow Dancer",
+            "Pattern Breaker",
+            "Organic Builder",
+            "Freedom Cell",
+        ],
     },
-
     # === PEREGRINE ===
     "philosopher": {
         "description": "The Aware - those who know they're in a simulation",
@@ -335,10 +358,16 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "default_state": NPCState.OBSERVING,
         "default_behavior": NPCBehavior.WANDER,
         "behaviors": ["Debating with trees", "Analyzing player movement", "Questioning reality"],
-        "names": ["The Questioner", "Reality Doubter", "Pattern Seer", "Truth Seeker",
-                  "Ontological Observer", "The Aware One", "Meta Thinker"],
+        "names": [
+            "The Questioner",
+            "Reality Doubter",
+            "Pattern Seer",
+            "Truth Seeker",
+            "Ontological Observer",
+            "The Aware One",
+            "Meta Thinker",
+        ],
     },
-
     "sentient_object": {
         "description": "Objects that have achieved awareness",
         "realm": RealmType.PEREGRINE,
@@ -365,7 +394,6 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "default_behavior": NPCBehavior.STATIONARY,
         "names": ["The Knowing Lamp", "Conscious Chair", "Awake Teapot", "Thinking Mirror"],
     },
-
     # === HOLLOW REACHES ===
     "consumed": {
         "description": "Those partially absorbed by the hive-mind",
@@ -402,7 +430,6 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "behaviors": ["Move as collective", "Absorb others", "Speak in unison"],
         "names": ["We Who Were", "The Collective", "Assimilated One", "Hive Fragment"],
     },
-
     "survivor": {
         "description": "Those fighting against assimilation",
         "realm": RealmType.HOLLOW_REACHES,
@@ -430,7 +457,6 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
         "default_behavior": NPCBehavior.AVOID,
         "names": ["The Resistant", "Identity Keeper", "Lone Mind", "Uncorrupted"],
     },
-
     # === THE NOTHING ===
     "glitch": {
         "description": "The Unfinished - NPCs at the edge of reality",
@@ -461,8 +487,7 @@ ARCHETYPES: Dict[str, Dict[str, Any]] = {
 }
 
 
-def create_archetype_npc(archetype: str, name: Optional[str] = None,
-                         variance: float = 0.1) -> BaseNPC:
+def create_archetype_npc(archetype: str, name: Optional[str] = None, variance: float = 0.1) -> BaseNPC:
     """
     Create an NPC from an archetype template.
 
@@ -523,10 +548,7 @@ def populate_realm(realm_type: RealmType, count: Optional[int] = None) -> List[B
     npcs = []
 
     # Find archetypes for this realm
-    realm_archetypes = [
-        (key, template) for key, template in ARCHETYPES.items()
-        if template.get("realm") == realm_type
-    ]
+    realm_archetypes = [(key, template) for key, template in ARCHETYPES.items() if template.get("realm") == realm_type]
 
     if not realm_archetypes:
         return npcs
@@ -571,9 +593,9 @@ def list_archetypes() -> List[str]:
 
 # Export
 __all__ = [
-    'ARCHETYPES',
-    'create_archetype_npc',
-    'populate_realm',
-    'get_archetype_info',
-    'list_archetypes',
+    "ARCHETYPES",
+    "create_archetype_npc",
+    "populate_realm",
+    "get_archetype_info",
+    "list_archetypes",
 ]

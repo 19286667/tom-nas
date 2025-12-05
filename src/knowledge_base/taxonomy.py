@@ -23,9 +23,10 @@ from .schemas import TaxonomyDimension, ConceptualDomain
 
 class TaxonomyLayer(Enum):
     """The three main layers of the taxonomy."""
-    MUNDANE = auto()       # Layer 1: Everyday life activities
+
+    MUNDANE = auto()  # Layer 1: Everyday life activities
     INSTITUTIONAL = auto()  # Layer 2: Formal social structures
-    AESTHETIC = auto()     # Layer 3: Aesthetic and symbolic dimensions
+    AESTHETIC = auto()  # Layer 3: Aesthetic and symbolic dimensions
 
 
 @dataclass
@@ -60,78 +61,56 @@ class MundaneTaxonomy:
         """Build the 27 mundane life dimensions."""
         mundane_dims = [
             # 1.1 Sustenance (dims 1-3)
-            (1, "Nourishment", "Sustenance", "Hunger", "Satiation",
-             "Basic metabolic needs driving eating behavior"),
-            (2, "Gustatory_Pleasure", "Sustenance", "Aversive", "Pleasurable",
-             "Hedonic quality of food experience"),
-            (3, "Commensality", "Sustenance", "Solitary", "Communal",
-             "Social dimension of eating (alone vs. with others)"),
-
+            (1, "Nourishment", "Sustenance", "Hunger", "Satiation", "Basic metabolic needs driving eating behavior"),
+            (2, "Gustatory_Pleasure", "Sustenance", "Aversive", "Pleasurable", "Hedonic quality of food experience"),
+            (
+                3,
+                "Commensality",
+                "Sustenance",
+                "Solitary",
+                "Communal",
+                "Social dimension of eating (alone vs. with others)",
+            ),
             # 1.2 Bodily Care (dims 4-6)
-            (4, "Hygiene_State", "Bodily Care", "Unclean", "Pristine",
-             "Physical cleanliness and self-care"),
-            (5, "Health_Maintenance", "Bodily Care", "Neglected", "Optimized",
-             "Active health management behaviors"),
-            (6, "Appearance_Investment", "Bodily Care", "Minimal", "Elaborate",
-             "Effort invested in physical presentation"),
-
+            (4, "Hygiene_State", "Bodily Care", "Unclean", "Pristine", "Physical cleanliness and self-care"),
+            (5, "Health_Maintenance", "Bodily Care", "Neglected", "Optimized", "Active health management behaviors"),
+            (
+                6,
+                "Appearance_Investment",
+                "Bodily Care",
+                "Minimal",
+                "Elaborate",
+                "Effort invested in physical presentation",
+            ),
             # 1.3 Mobility (dims 7-9)
-            (7, "Locomotion_Mode", "Mobility", "Stationary", "Mobile",
-             "Current movement state"),
-            (8, "Spatial_Range", "Mobility", "Proximal", "Distal",
-             "Distance of typical movements"),
-            (9, "Transport_Autonomy", "Mobility", "Dependent", "Independent",
-             "Self-sufficiency in movement"),
-
+            (7, "Locomotion_Mode", "Mobility", "Stationary", "Mobile", "Current movement state"),
+            (8, "Spatial_Range", "Mobility", "Proximal", "Distal", "Distance of typical movements"),
+            (9, "Transport_Autonomy", "Mobility", "Dependent", "Independent", "Self-sufficiency in movement"),
             # 1.4 Domestic Labor (dims 10-12)
-            (10, "Space_Maintenance", "Domestic Labor", "Chaotic", "Orderly",
-             "State of living space organization"),
-            (11, "Object_Care", "Domestic Labor", "Neglected", "Maintained",
-             "Maintenance of possessions"),
-            (12, "Domestic_Burden", "Domestic Labor", "Light", "Heavy",
-             "Weight of household responsibilities"),
-
+            (10, "Space_Maintenance", "Domestic Labor", "Chaotic", "Orderly", "State of living space organization"),
+            (11, "Object_Care", "Domestic Labor", "Neglected", "Maintained", "Maintenance of possessions"),
+            (12, "Domestic_Burden", "Domestic Labor", "Light", "Heavy", "Weight of household responsibilities"),
             # 1.5 Work/Occupation (dims 13-16)
-            (13, "Productive_Engagement", "Work", "Idle", "Industrious",
-             "Level of productive activity"),
-            (14, "Skill_Application", "Work", "Unskilled", "Expert",
-             "Complexity of skills employed"),
-            (15, "Work_Autonomy", "Work", "Directed", "Self-directed",
-             "Control over work activities"),
-            (16, "Economic_Return", "Work", "Unrewarded", "Lucrative",
-             "Material compensation received"),
-
+            (13, "Productive_Engagement", "Work", "Idle", "Industrious", "Level of productive activity"),
+            (14, "Skill_Application", "Work", "Unskilled", "Expert", "Complexity of skills employed"),
+            (15, "Work_Autonomy", "Work", "Directed", "Self-directed", "Control over work activities"),
+            (16, "Economic_Return", "Work", "Unrewarded", "Lucrative", "Material compensation received"),
             # 1.6 Leisure (dims 17-19)
-            (17, "Leisure_Engagement", "Leisure", "Bored", "Absorbed",
-             "Quality of recreational experience"),
-            (18, "Activity_Type", "Leisure", "Passive", "Active",
-             "Physical engagement in leisure"),
-            (19, "Social_Dimension", "Leisure", "Solitary", "Collective",
-             "Social nature of leisure activities"),
-
+            (17, "Leisure_Engagement", "Leisure", "Bored", "Absorbed", "Quality of recreational experience"),
+            (18, "Activity_Type", "Leisure", "Passive", "Active", "Physical engagement in leisure"),
+            (19, "Social_Dimension", "Leisure", "Solitary", "Collective", "Social nature of leisure activities"),
             # 1.7 Social Interaction (dims 20-23)
-            (20, "Social_Frequency", "Social", "Isolated", "Connected",
-             "Frequency of social contact"),
-            (21, "Relationship_Depth", "Social", "Superficial", "Intimate",
-             "Depth of social bonds"),
-            (22, "Social_Status", "Social", "Marginal", "Central",
-             "Position in social network"),
-            (23, "Communication_Mode", "Social", "Tacit", "Explicit",
-             "Directness of communication"),
-
+            (20, "Social_Frequency", "Social", "Isolated", "Connected", "Frequency of social contact"),
+            (21, "Relationship_Depth", "Social", "Superficial", "Intimate", "Depth of social bonds"),
+            (22, "Social_Status", "Social", "Marginal", "Central", "Position in social network"),
+            (23, "Communication_Mode", "Social", "Tacit", "Explicit", "Directness of communication"),
             # 1.8 Commerce (dims 24-25)
-            (24, "Exchange_Activity", "Commerce", "Consumer", "Producer",
-             "Role in economic exchange"),
-            (25, "Transaction_Complexity", "Commerce", "Simple", "Complex",
-             "Complexity of commercial interactions"),
-
+            (24, "Exchange_Activity", "Commerce", "Consumer", "Producer", "Role in economic exchange"),
+            (25, "Transaction_Complexity", "Commerce", "Simple", "Complex", "Complexity of commercial interactions"),
             # 1.9 Learning (dim 26)
-            (26, "Learning_Mode", "Learning", "Receiving", "Discovering",
-             "Approach to knowledge acquisition"),
-
+            (26, "Learning_Mode", "Learning", "Receiving", "Discovering", "Approach to knowledge acquisition"),
             # 1.10 Rest (dim 27)
-            (27, "Restoration_State", "Rest", "Depleted", "Restored",
-             "Energy restoration through rest"),
+            (27, "Restoration_State", "Rest", "Depleted", "Restored", "Energy restoration through rest"),
         ]
 
         for dim_tuple in mundane_dims:
@@ -243,72 +222,60 @@ class InstitutionalTaxonomy:
         """Build the 27 institutional dimensions."""
         institutional_dims = [
             # 2.1 Governance (dims 28-31)
-            (28, "Authority_Structure", "Governance", "Decentralized", "Centralized",
-             "Distribution of political authority"),
-            (29, "Legitimacy_Basis", "Governance", "Traditional", "Rational-Legal",
-             "Source of institutional legitimacy (Weber)"),
-            (30, "Participation_Level", "Governance", "Excluded", "Participant",
-             "Degree of civic participation"),
-            (31, "Transparency", "Governance", "Opaque", "Transparent",
-             "Visibility of decision-making processes"),
-
+            (
+                28,
+                "Authority_Structure",
+                "Governance",
+                "Decentralized",
+                "Centralized",
+                "Distribution of political authority",
+            ),
+            (
+                29,
+                "Legitimacy_Basis",
+                "Governance",
+                "Traditional",
+                "Rational-Legal",
+                "Source of institutional legitimacy (Weber)",
+            ),
+            (30, "Participation_Level", "Governance", "Excluded", "Participant", "Degree of civic participation"),
+            (31, "Transparency", "Governance", "Opaque", "Transparent", "Visibility of decision-making processes"),
             # 2.2 Economy (dims 32-35)
-            (32, "Market_Integration", "Economy", "Subsistence", "Market-embedded",
-             "Degree of market participation"),
-            (33, "Property_Rights", "Economy", "Communal", "Private",
-             "Nature of property ownership"),
-            (34, "Economic_Hierarchy", "Economy", "Egalitarian", "Stratified",
-             "Degree of economic inequality"),
-            (35, "Exchange_Mode", "Economy", "Reciprocal", "Transactional",
-             "Nature of economic exchange"),
-
+            (32, "Market_Integration", "Economy", "Subsistence", "Market-embedded", "Degree of market participation"),
+            (33, "Property_Rights", "Economy", "Communal", "Private", "Nature of property ownership"),
+            (34, "Economic_Hierarchy", "Economy", "Egalitarian", "Stratified", "Degree of economic inequality"),
+            (35, "Exchange_Mode", "Economy", "Reciprocal", "Transactional", "Nature of economic exchange"),
             # 2.3 Law (dims 36-39)
-            (36, "Legal_Formality", "Law", "Customary", "Codified",
-             "Degree of legal formalization"),
-            (37, "Enforcement_Intensity", "Law", "Lax", "Strict",
-             "Rigor of rule enforcement"),
-            (38, "Justice_Orientation", "Law", "Retributive", "Restorative",
-             "Approach to justice"),
-            (39, "Rights_Recognition", "Law", "Limited", "Expansive",
-             "Scope of recognized rights"),
-
+            (36, "Legal_Formality", "Law", "Customary", "Codified", "Degree of legal formalization"),
+            (37, "Enforcement_Intensity", "Law", "Lax", "Strict", "Rigor of rule enforcement"),
+            (38, "Justice_Orientation", "Law", "Retributive", "Restorative", "Approach to justice"),
+            (39, "Rights_Recognition", "Law", "Limited", "Expansive", "Scope of recognized rights"),
             # 2.4 Religion (dims 40-43)
-            (40, "Sacred_Presence", "Religion", "Secular", "Sacral",
-             "Presence of religious framing"),
-            (41, "Ritual_Density", "Religion", "Minimal", "Elaborate",
-             "Richness of ritual practice"),
-            (42, "Orthodoxy", "Religion", "Heterodox", "Orthodox",
-             "Strictness of doctrinal adherence"),
-            (43, "Transcendence_Orientation", "Religion", "Immanent", "Transcendent",
-             "Focus on worldly vs. otherworldly"),
-
+            (40, "Sacred_Presence", "Religion", "Secular", "Sacral", "Presence of religious framing"),
+            (41, "Ritual_Density", "Religion", "Minimal", "Elaborate", "Richness of ritual practice"),
+            (42, "Orthodoxy", "Religion", "Heterodox", "Orthodox", "Strictness of doctrinal adherence"),
+            (
+                43,
+                "Transcendence_Orientation",
+                "Religion",
+                "Immanent",
+                "Transcendent",
+                "Focus on worldly vs. otherworldly",
+            ),
             # 2.5 Education (dims 44-47)
-            (44, "Knowledge_Access", "Education", "Restricted", "Universal",
-             "Accessibility of education"),
-            (45, "Pedagogy_Mode", "Education", "Rote", "Critical",
-             "Approach to teaching"),
-            (46, "Credential_Importance", "Education", "Informal", "Credentialed",
-             "Role of formal qualifications"),
-            (47, "Canon_Rigidity", "Education", "Fluid", "Fixed",
-             "Flexibility of curriculum"),
-
+            (44, "Knowledge_Access", "Education", "Restricted", "Universal", "Accessibility of education"),
+            (45, "Pedagogy_Mode", "Education", "Rote", "Critical", "Approach to teaching"),
+            (46, "Credential_Importance", "Education", "Informal", "Credentialed", "Role of formal qualifications"),
+            (47, "Canon_Rigidity", "Education", "Fluid", "Fixed", "Flexibility of curriculum"),
             # 2.6 Family (dims 48-51)
-            (48, "Kinship_Structure", "Family", "Nuclear", "Extended",
-             "Scope of family unit"),
-            (49, "Authority_Pattern", "Family", "Egalitarian", "Patriarchal",
-             "Distribution of family authority"),
-            (50, "Marital_Norms", "Family", "Flexible", "Rigid",
-             "Strictness of marital expectations"),
-            (51, "Intergenerational_Obligation", "Family", "Weak", "Strong",
-             "Strength of generational bonds"),
-
+            (48, "Kinship_Structure", "Family", "Nuclear", "Extended", "Scope of family unit"),
+            (49, "Authority_Pattern", "Family", "Egalitarian", "Patriarchal", "Distribution of family authority"),
+            (50, "Marital_Norms", "Family", "Flexible", "Rigid", "Strictness of marital expectations"),
+            (51, "Intergenerational_Obligation", "Family", "Weak", "Strong", "Strength of generational bonds"),
             # 2.7 Healthcare (dims 52-54)
-            (52, "Care_Access", "Healthcare", "Exclusive", "Universal",
-             "Accessibility of healthcare"),
-            (53, "Medical_Authority", "Healthcare", "Pluralistic", "Monopolistic",
-             "Control over medical practice"),
-            (54, "Body_Autonomy", "Healthcare", "Paternalistic", "Autonomous",
-             "Patient control over treatment"),
+            (52, "Care_Access", "Healthcare", "Exclusive", "Universal", "Accessibility of healthcare"),
+            (53, "Medical_Authority", "Healthcare", "Pluralistic", "Monopolistic", "Control over medical practice"),
+            (54, "Body_Autonomy", "Healthcare", "Paternalistic", "Autonomous", "Patient control over treatment"),
         ]
 
         for dim_tuple in institutional_dims:
@@ -402,72 +369,39 @@ class AestheticTaxonomy:
         """Build the 26 aesthetic dimensions."""
         aesthetic_dims = [
             # 3.1 Visual Aesthetics (dims 55-58)
-            (55, "Chromatic_Intensity", "Visual", "Muted", "Vibrant",
-             "Saturation and intensity of colors"),
-            (56, "Formal_Complexity", "Visual", "Simple", "Ornate",
-             "Complexity of visual forms"),
-            (57, "Scale", "Visual", "Intimate", "Monumental",
-             "Size and grandeur"),
-            (58, "Light_Quality", "Visual", "Dim", "Radiant",
-             "Luminosity and light treatment"),
-
+            (55, "Chromatic_Intensity", "Visual", "Muted", "Vibrant", "Saturation and intensity of colors"),
+            (56, "Formal_Complexity", "Visual", "Simple", "Ornate", "Complexity of visual forms"),
+            (57, "Scale", "Visual", "Intimate", "Monumental", "Size and grandeur"),
+            (58, "Light_Quality", "Visual", "Dim", "Radiant", "Luminosity and light treatment"),
             # 3.2 Temporal Aesthetics (dims 59-61)
-            (59, "Temporal_Pace", "Temporal", "Languid", "Frenetic",
-             "Speed of events and changes"),
-            (60, "Rhythmic_Pattern", "Temporal", "Arrhythmic", "Patterned",
-             "Regularity of temporal structure"),
-            (61, "Duration_Sense", "Temporal", "Fleeting", "Enduring",
-             "Perceived duration"),
-
+            (59, "Temporal_Pace", "Temporal", "Languid", "Frenetic", "Speed of events and changes"),
+            (60, "Rhythmic_Pattern", "Temporal", "Arrhythmic", "Patterned", "Regularity of temporal structure"),
+            (61, "Duration_Sense", "Temporal", "Fleeting", "Enduring", "Perceived duration"),
             # 3.3 Symbolic Density (dims 62-65)
-            (62, "Meaning_Saturation", "Symbolic", "Literal", "Symbolic",
-             "Density of symbolic meaning"),
-            (63, "Reference_Density", "Symbolic", "Self-contained", "Allusive",
-             "Degree of external reference"),
-            (64, "Ambiguity", "Symbolic", "Determinate", "Polysemous",
-             "Openness to interpretation"),
-            (65, "Irony_Level", "Symbolic", "Sincere", "Ironic",
-             "Presence of ironic distance"),
-
+            (62, "Meaning_Saturation", "Symbolic", "Literal", "Symbolic", "Density of symbolic meaning"),
+            (63, "Reference_Density", "Symbolic", "Self-contained", "Allusive", "Degree of external reference"),
+            (64, "Ambiguity", "Symbolic", "Determinate", "Polysemous", "Openness to interpretation"),
+            (65, "Irony_Level", "Symbolic", "Sincere", "Ironic", "Presence of ironic distance"),
             # 3.4 Emotional Register (dims 66-69)
-            (66, "Affective_Intensity", "Emotional", "Subdued", "Intense",
-             "Strength of emotional evocation"),
-            (67, "Valence_Tone", "Emotional", "Dark", "Light",
-             "Overall emotional coloring"),
-            (68, "Tension_Level", "Emotional", "Relaxed", "Tense",
-             "Degree of psychological tension"),
-            (69, "Wonder_Evocation", "Emotional", "Mundane", "Wondrous",
-             "Capacity to evoke awe"),
-
+            (66, "Affective_Intensity", "Emotional", "Subdued", "Intense", "Strength of emotional evocation"),
+            (67, "Valence_Tone", "Emotional", "Dark", "Light", "Overall emotional coloring"),
+            (68, "Tension_Level", "Emotional", "Relaxed", "Tense", "Degree of psychological tension"),
+            (69, "Wonder_Evocation", "Emotional", "Mundane", "Wondrous", "Capacity to evoke awe"),
             # 3.5 Cultural Reference (dims 70-72)
-            (70, "Temporal_Orientation", "Cultural", "Traditional", "Contemporary",
-             "Reference to past vs. present"),
-            (71, "Cultural_Specificity", "Cultural", "Universal", "Particular",
-             "Degree of cultural specificity"),
-            (72, "Innovation_Degree", "Cultural", "Conventional", "Avant-garde",
-             "Novelty and experimentation"),
-
+            (70, "Temporal_Orientation", "Cultural", "Traditional", "Contemporary", "Reference to past vs. present"),
+            (71, "Cultural_Specificity", "Cultural", "Universal", "Particular", "Degree of cultural specificity"),
+            (72, "Innovation_Degree", "Cultural", "Conventional", "Avant-garde", "Novelty and experimentation"),
             # 3.6 Authenticity (dims 73-75)
-            (73, "Authenticity", "Authenticity", "Artificial", "Genuine",
-             "Perceived genuineness"),
-            (74, "Craft_Evidence", "Authenticity", "Mass-produced", "Handcrafted",
-             "Visible evidence of making"),
-            (75, "Patina", "Authenticity", "Pristine", "Weathered",
-             "Signs of age and use"),
-
+            (73, "Authenticity", "Authenticity", "Artificial", "Genuine", "Perceived genuineness"),
+            (74, "Craft_Evidence", "Authenticity", "Mass-produced", "Handcrafted", "Visible evidence of making"),
+            (75, "Patina", "Authenticity", "Pristine", "Weathered", "Signs of age and use"),
             # 3.7 Status Signaling (dims 76-78)
-            (76, "Status_Signal", "Status", "Humble", "Prestigious",
-             "Social status indication"),
-            (77, "Exclusivity", "Status", "Common", "Rare",
-             "Scarcity and exclusivity"),
-            (78, "Taste_Marker", "Status", "Lowbrow", "Highbrow",
-             "Cultural capital indication"),
-
+            (76, "Status_Signal", "Status", "Humble", "Prestigious", "Social status indication"),
+            (77, "Exclusivity", "Status", "Common", "Rare", "Scarcity and exclusivity"),
+            (78, "Taste_Marker", "Status", "Lowbrow", "Highbrow", "Cultural capital indication"),
             # 3.8 Narrative Quality (dims 79-80)
-            (79, "Narrative_Coherence", "Narrative", "Fragmented", "Unified",
-             "Story coherence and completeness"),
-            (80, "Genre_Adherence", "Narrative", "Transgressive", "Conventional",
-             "Conformity to genre expectations"),
+            (79, "Narrative_Coherence", "Narrative", "Fragmented", "Unified", "Story coherence and completeness"),
+            (80, "Genre_Adherence", "Narrative", "Transgressive", "Conventional", "Conformity to genre expectations"),
         ]
 
         for dim_tuple in aesthetic_dims:
@@ -582,19 +516,11 @@ class FullTaxonomy:
 
     def get_all_dimensions(self) -> List[TaxonomyDimension]:
         """Get all 80 dimensions across all layers."""
-        return (
-            self.mundane.dimensions +
-            self.institutional.dimensions +
-            self.aesthetic.dimensions
-        )
+        return self.mundane.dimensions + self.institutional.dimensions + self.aesthetic.dimensions
 
     def get_all_domains(self) -> List[ConceptualDomain]:
         """Get all conceptual domains across all layers."""
-        return (
-            self.mundane.domains +
-            self.institutional.domains +
-            self.aesthetic.domains
-        )
+        return self.mundane.domains + self.institutional.domains + self.aesthetic.domains
 
     def get_dimension_by_id(self, dim_id: int) -> Optional[TaxonomyDimension]:
         """Look up a dimension by its ID."""
@@ -666,10 +592,7 @@ class FullTaxonomy:
         return description
 
     def compute_semantic_distance(
-        self,
-        vec1: np.ndarray,
-        vec2: np.ndarray,
-        weights: Optional[np.ndarray] = None
+        self, vec1: np.ndarray, vec2: np.ndarray, weights: Optional[np.ndarray] = None
     ) -> float:
         """
         Compute semantic distance between two taxonomy positions.
@@ -686,7 +609,7 @@ class FullTaxonomy:
             weights = np.ones(80)
 
         diff = (vec1 - vec2) * weights
-        return float(np.sqrt(np.sum(diff ** 2)))
+        return float(np.sqrt(np.sum(diff**2)))
 
     def get_layer_for_dimension(self, dim_id: int) -> Optional[TaxonomyLayer]:
         """Determine which layer a dimension belongs to."""
@@ -740,7 +663,7 @@ ARCHETYPE_TAXONOMY_POSITIONS = {
     },
     "Trickster": {
         # Mundane: Mobile, socially fluid, exchange-focused
-        8: 0.9,   # Spatial_Range: Wide
+        8: 0.9,  # Spatial_Range: Wide
         24: 0.8,  # Exchange_Activity: Active trader
         # Institutional: Liminal, challenges norms
         36: 0.3,  # Legal_Formality: Informal preference
@@ -752,7 +675,7 @@ ARCHETYPE_TAXONOMY_POSITIONS = {
     },
     "Caregiver": {
         # Mundane: Nurturing, domestically engaged, social
-        3: 0.9,   # Commensality: Communal
+        3: 0.9,  # Commensality: Communal
         12: 0.7,  # Domestic_Burden: Carries burden
         21: 0.9,  # Relationship_Depth: Intimate
         # Institutional: Family-focused, strong obligations
@@ -775,7 +698,7 @@ INSTITUTION_TAXONOMY_POSITIONS = {
         # Institutional dimensions
         28: 0.9,  # Authority_Structure: Highly centralized (judge)
         29: 0.9,  # Legitimacy_Basis: Rational-legal
-        36: 0.95, # Legal_Formality: Highly codified
+        36: 0.95,  # Legal_Formality: Highly codified
         37: 0.9,  # Enforcement_Intensity: Strict
         # Aesthetic dimensions
         56: 0.7,  # Formal_Complexity: Ornate (ceremony)
@@ -799,7 +722,7 @@ INSTITUTION_TAXONOMY_POSITIONS = {
         19: 0.8,  # Social_Dimension: Collective
         17: 0.7,  # Leisure_Engagement: Absorbed (contemplation)
         # Institutional dimensions
-        40: 0.95, # Sacred_Presence: Highly sacral
+        40: 0.95,  # Sacred_Presence: Highly sacral
         41: 0.9,  # Ritual_Density: Elaborate
         42: 0.8,  # Orthodoxy: Orthodox
         43: 0.9,  # Transcendence_Orientation: Transcendent
@@ -810,7 +733,7 @@ INSTITUTION_TAXONOMY_POSITIONS = {
     },
     "Hospital": {
         # Mundane dimensions
-        5: 0.9,   # Health_Maintenance: Central focus
+        5: 0.9,  # Health_Maintenance: Central focus
         # Institutional dimensions
         52: 0.7,  # Care_Access: Aspires to universal
         53: 0.8,  # Medical_Authority: Professional monopoly

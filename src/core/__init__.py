@@ -21,16 +21,16 @@ from .events import (
 )
 
 __all__ = [
-    'SoulMapOntology',
-    'OntologyDimension',
-    'Belief',
-    'RecursiveBeliefState',
-    'BeliefNetwork',
-    'Event',
-    'EventType',
-    'AgentBeliefState',
-    'WorldState',
-    'InformationAsymmetryTracker',
-    'create_sally_anne_scenario',
-    'verify_information_asymmetry',
+    "SoulMapOntology",
+    "OntologyDimension",
+    "Belief",
+    "RecursiveBeliefState",
+    "BeliefNetwork",
+    "Event",
+    "EventType",
+    "AgentBeliefState",
+    "WorldState",
+    "InformationAsymmetryTracker",
+    "create_sally_anne_scenario",
+    "verify_information_asymmetry",
 ]

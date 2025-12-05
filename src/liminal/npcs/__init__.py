@@ -12,12 +12,12 @@ from .heroes import HERO_NPCS, create_hero_npc
 from .archetypes import ARCHETYPES, create_archetype_npc, populate_realm
 
 __all__ = [
-    'BaseNPC',
-    'NPCState',
-    'NPCBehavior',
-    'HERO_NPCS',
-    'create_hero_npc',
-    'ARCHETYPES',
-    'create_archetype_npc',
-    'populate_realm',
+    "BaseNPC",
+    "NPCState",
+    "NPCBehavior",
+    "HERO_NPCS",
+    "create_hero_npc",
+    "ARCHETYPES",
+    "create_archetype_npc",
+    "populate_realm",
 ]

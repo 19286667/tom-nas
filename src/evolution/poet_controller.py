@@ -43,14 +43,15 @@ from .fitness import CompositeFitnessFunction
 
 class EnvironmentType(Enum):
     """Types of sociological environments."""
-    THE_HOLLOW = auto()      # Minimal institutional structure
-    THE_MARKET = auto()      # Economic competition, deception
-    THE_MINISTRY = auto()    # Bureaucratic complexity, hierarchy
-    THE_COURT = auto()       # Adversarial, high stakes
-    THE_TEMPLE = auto()      # Ritual, orthodoxy, sacred norms
-    THE_ACADEMY = auto()     # Knowledge asymmetry, credentialism
-    THE_FAMILY = auto()      # Kinship obligations, loyalty
-    CUSTOM = auto()          # Custom taxonomy position
+
+    THE_HOLLOW = auto()  # Minimal institutional structure
+    THE_MARKET = auto()  # Economic competition, deception
+    THE_MINISTRY = auto()  # Bureaucratic complexity, hierarchy
+    THE_COURT = auto()  # Adversarial, high stakes
+    THE_TEMPLE = auto()  # Ritual, orthodoxy, sacred norms
+    THE_ACADEMY = auto()  # Knowledge asymmetry, credentialism
+    THE_FAMILY = auto()  # Kinship obligations, loyalty
+    CUSTOM = auto()  # Custom taxonomy position
 
 
 @dataclass
@@ -61,23 +62,22 @@ class EnvironmentGenotype:
     The environment is positioned in the 80-Dimension Taxonomy space,
     defining its institutional, mundane, and aesthetic qualities.
     """
+
     env_id: str
     env_type: EnvironmentType
 
     # 80-dimensional taxonomy position
-    taxonomy_position: np.ndarray = field(
-        default_factory=lambda: np.random.uniform(0, 1, 80)
-    )
+    taxonomy_position: np.ndarray = field(default_factory=lambda: np.random.uniform(0, 1, 80))
 
     # Institutional parameters (derived from taxonomy or set directly)
-    institutional_friction: float = 0.5    # How complex the norms are
-    power_differential: float = 0.5        # Inequality between agents
-    deception_pressure: float = 0.5        # Incentive to deceive
-    norm_rigidity: float = 0.5             # How strict norm enforcement is
-    information_asymmetry: float = 0.5     # Knowledge gaps between agents
-    coalition_dynamics: float = 0.5        # Importance of alliances
-    temporal_pressure: float = 0.5         # Time constraints on decisions
-    stakes_level: float = 0.5              # Consequences of failure
+    institutional_friction: float = 0.5  # How complex the norms are
+    power_differential: float = 0.5  # Inequality between agents
+    deception_pressure: float = 0.5  # Incentive to deceive
+    norm_rigidity: float = 0.5  # How strict norm enforcement is
+    information_asymmetry: float = 0.5  # Knowledge gaps between agents
+    coalition_dynamics: float = 0.5  # Importance of alliances
+    temporal_pressure: float = 0.5  # Time constraints on decisions
+    stakes_level: float = 0.5  # Consequences of failure
 
     # Aesthetic qualities (affect perception and signaling)
     aesthetic_complexity: float = 0.5
@@ -108,7 +108,7 @@ class EnvironmentGenotype:
         self.deception_pressure = float(1.0 - inst_dims[3])  # Inverse of Transparency
         self.information_asymmetry = float(1.0 - inst_dims[16])  # Inverse of Knowledge_Access
 
-    def mutate(self, mutation_rate: float = 0.1) -> 'EnvironmentGenotype':
+    def mutate(self, mutation_rate: float = 0.1) -> "EnvironmentGenotype":
         """Create mutated copy of environment genotype."""
         child = deepcopy(self)
         child.env_id = f"env_{datetime.now().timestamp():.0f}"
@@ -129,7 +129,7 @@ class EnvironmentGenotype:
 
         return child
 
-    def crossover(self, other: 'EnvironmentGenotype') -> 'EnvironmentGenotype':
+    def crossover(self, other: "EnvironmentGenotype") -> "EnvironmentGenotype":
         """Create child environment from two parents."""
         child = EnvironmentGenotype(
             env_id=f"env_{datetime.now().timestamp():.0f}",
@@ -151,15 +151,15 @@ class EnvironmentGenotype:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
         return {
-            'env_id': self.env_id,
-            'env_type': self.env_type.name,
-            'taxonomy_position': self.taxonomy_position.tolist(),
-            'institutional_friction': self.institutional_friction,
-            'power_differential': self.power_differential,
-            'deception_pressure': self.deception_pressure,
-            'norm_rigidity': self.norm_rigidity,
-            'generation': self.generation,
-            'solved_by': self.solved_by,
+            "env_id": self.env_id,
+            "env_type": self.env_type.name,
+            "taxonomy_position": self.taxonomy_position.tolist(),
+            "institutional_friction": self.institutional_friction,
+            "power_differential": self.power_differential,
+            "deception_pressure": self.deception_pressure,
+            "norm_rigidity": self.norm_rigidity,
+            "generation": self.generation,
+            "solved_by": self.solved_by,
         }
 
 
@@ -192,14 +192,14 @@ PRESET_ENVIRONMENTS = {
     EnvironmentType.THE_COURT: {
         # Adversarial, high stakes
         28: 0.9,  # Authority_Structure: Centralized (Judge)
-        36: 0.95, # Legal_Formality: Highly codified
+        36: 0.95,  # Legal_Formality: Highly codified
         37: 0.9,  # Enforcement_Intensity: Strict
         38: 0.5,  # Justice_Orientation: Mixed
         68: 0.9,  # Tension_Level: High
     },
     EnvironmentType.THE_TEMPLE: {
         # Sacred, orthodox, ritual-dense
-        40: 0.95, # Sacred_Presence: High
+        40: 0.95,  # Sacred_Presence: High
         41: 0.9,  # Ritual_Density: Elaborate
         42: 0.9,  # Orthodoxy: Strict
         43: 0.9,  # Transcendence_Orientation: High
@@ -243,6 +243,7 @@ def create_preset_environment(env_type: EnvironmentType) -> EnvironmentGenotype:
 @dataclass
 class AgentEnvironmentPair:
     """A paired agent-environment for POET."""
+
     agent: Individual
     environment: EnvironmentGenotype
     fitness: float = 0.0
@@ -253,6 +254,7 @@ class AgentEnvironmentPair:
 @dataclass
 class POETConfig:
     """Configuration for POET evolution."""
+
     # Population sizes
     num_environments: int = 5
     num_agents_per_env: int = 4
@@ -261,16 +263,16 @@ class POETConfig:
     generations: int = 100
     env_mutation_rate: float = 0.2
     agent_mutation_rate: float = 0.1
-    transfer_threshold: float = 0.7        # Min fitness for transfer
-    novelty_threshold: float = 0.3         # Min novelty for new env
+    transfer_threshold: float = 0.7  # Min fitness for transfer
+    novelty_threshold: float = 0.3  # Min novelty for new env
 
     # POET specific
-    enable_transfer: bool = True           # Cross-environment transfer
-    enable_env_evolution: bool = True      # Environment evolution
+    enable_transfer: bool = True  # Cross-environment transfer
+    enable_env_evolution: bool = True  # Environment evolution
 
     # Evaluation
     eval_episodes: int = 10
-    tom_depth_bonus: float = 0.1           # Bonus per ToM level
+    tom_depth_bonus: float = 0.1  # Bonus per ToM level
 
     # Computational limits
     max_parallel_evals: int = 4
@@ -286,13 +288,7 @@ class POETController:
     3. Transfer allows agents to jump between compatible environments
     """
 
-    def __init__(
-        self,
-        config: POETConfig,
-        nas_engine: NASEngine,
-        world,
-        belief_network
-    ):
+    def __init__(self, config: POETConfig, nas_engine: NASEngine, world, belief_network):
         """
         Initialize POET controller.
 
@@ -319,11 +315,11 @@ class POETController:
         # Evolution history
         self.generation = 0
         self.history = {
-            'best_fitness_per_env': [],
-            'env_complexity_progression': [],
-            'tom_depth_progression': [],
-            'transfer_events': [],
-            'novelty_scores': [],
+            "best_fitness_per_env": [],
+            "env_complexity_progression": [],
+            "tom_depth_progression": [],
+            "transfer_events": [],
+            "novelty_scores": [],
         }
 
         # Fitness evaluator (will be adapted per environment)
@@ -331,9 +327,9 @@ class POETController:
 
     def initialize(self):
         """Initialize POET with bootstrap environments and agents."""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("POET Initialization")
-        print("="*60)
+        print("=" * 60)
 
         # Create initial environments from presets
         print(f"Creating {self.config.num_environments} initial environments...")
@@ -352,10 +348,7 @@ class POETController:
 
         # Create initial agent-environment pairs
         print(f"\nPairing agents with environments...")
-        agents_per_env = min(
-            self.config.num_agents_per_env,
-            len(self.nas_engine.population) // len(self.environments)
-        )
+        agents_per_env = min(self.config.num_agents_per_env, len(self.nas_engine.population) // len(self.environments))
 
         agent_idx = 0
         for env in self.environments:
@@ -368,12 +361,9 @@ class POETController:
                     agent_idx += 1
 
         print(f"  Created {len(self.pairs)} agent-environment pairs")
-        print("="*60)
+        print("=" * 60)
 
-    def evaluate_pair(
-        self,
-        pair: AgentEnvironmentPair
-    ) -> Tuple[float, int]:
+    def evaluate_pair(self, pair: AgentEnvironmentPair) -> Tuple[float, int]:
         """
         Evaluate an agent-environment pair.
 
@@ -388,24 +378,21 @@ class POETController:
         fitness_weights = self._compute_env_fitness_weights(env)
 
         # Run evaluation
-        results = self.base_fitness_fn.evaluate(
-            agent.model,
-            num_episodes=self.config.eval_episodes
-        )
+        results = self.base_fitness_fn.evaluate(agent.model, num_episodes=self.config.eval_episodes)
 
-        base_fitness = results['total_fitness']
+        base_fitness = results["total_fitness"]
 
         # Apply environment modifiers
         modified_fitness = base_fitness
 
         # Penalty for low ToM in high-friction environments
         if env.institutional_friction > 0.7:
-            tom_penalty = max(0, 0.7 - results.get('belief_accuracy', 0.5))
+            tom_penalty = max(0, 0.7 - results.get("belief_accuracy", 0.5))
             modified_fitness -= tom_penalty * 0.2
 
         # Bonus for handling power differentials
         if env.power_differential > 0.6:
-            power_bonus = results.get('cooperation_score', 0.5) * 0.1
+            power_bonus = results.get("cooperation_score", 0.5) * 0.1
             modified_fitness += power_bonus
 
         # Estimate ToM depth achieved
@@ -416,37 +403,30 @@ class POETController:
 
         return modified_fitness, tom_depth
 
-    def _compute_env_fitness_weights(
-        self,
-        env: EnvironmentGenotype
-    ) -> Dict[str, float]:
+    def _compute_env_fitness_weights(self, env: EnvironmentGenotype) -> Dict[str, float]:
         """Compute fitness component weights based on environment."""
         weights = {
-            'cooperation_score': 0.2,
-            'belief_accuracy': 0.3,
-            'zombie_detection': 0.2,
-            'communication_quality': 0.15,
-            'resource_efficiency': 0.1,
-            'behavioral_consistency': 0.05,
+            "cooperation_score": 0.2,
+            "belief_accuracy": 0.3,
+            "zombie_detection": 0.2,
+            "communication_quality": 0.15,
+            "resource_efficiency": 0.1,
+            "behavioral_consistency": 0.05,
         }
 
         # High deception pressure -> emphasize belief accuracy
         if env.deception_pressure > 0.6:
-            weights['belief_accuracy'] += 0.1
-            weights['cooperation_score'] -= 0.1
+            weights["belief_accuracy"] += 0.1
+            weights["cooperation_score"] -= 0.1
 
         # High norm rigidity -> emphasize consistency
         if env.norm_rigidity > 0.7:
-            weights['behavioral_consistency'] += 0.1
-            weights['resource_efficiency'] -= 0.1
+            weights["behavioral_consistency"] += 0.1
+            weights["resource_efficiency"] -= 0.1
 
         return weights
 
-    def _estimate_tom_depth(
-        self,
-        model: nn.Module,
-        env: EnvironmentGenotype
-    ) -> int:
+    def _estimate_tom_depth(self, model: nn.Module, env: EnvironmentGenotype) -> int:
         """Estimate the ToM depth an agent achieves in an environment."""
         # In full implementation, would analyze belief recursion traces
         # For now, use heuristic based on environment complexity and model architecture
@@ -491,10 +471,7 @@ class POETController:
                 child_env = parent_env.mutate(self.config.env_mutation_rate)
 
                 # Increase difficulty slightly
-                child_env.institutional_friction = min(
-                    1.0,
-                    parent_env.institutional_friction + 0.1
-                )
+                child_env.institutional_friction = min(1.0, parent_env.institutional_friction + 0.1)
 
                 # Check novelty
                 novelty = self._compute_env_novelty(child_env)
@@ -509,11 +486,9 @@ class POETController:
         if not self.environments:
             return 1.0
 
-        min_distance = float('inf')
+        min_distance = float("inf")
         for existing in self.environments:
-            distance = np.linalg.norm(
-                env.taxonomy_position - existing.taxonomy_position
-            )
+            distance = np.linalg.norm(env.taxonomy_position - existing.taxonomy_position)
             min_distance = min(min_distance, distance)
 
         # Normalize by maximum possible distance
@@ -532,8 +507,7 @@ class POETController:
 
         # Find high-performing agents
         successful_pairs = [
-            (pair_id, pair) for pair_id, pair in self.pairs.items()
-            if pair.fitness > self.config.transfer_threshold
+            (pair_id, pair) for pair_id, pair in self.pairs.items() if pair.fitness > self.config.transfer_threshold
         ]
 
         for pair_id, source_pair in successful_pairs:
@@ -543,33 +517,31 @@ class POETController:
                     continue
 
                 # Evaluate agent in target environment
-                transfer_pair = AgentEnvironmentPair(
-                    agent=source_pair.agent,
-                    environment=target_env
-                )
+                transfer_pair = AgentEnvironmentPair(agent=source_pair.agent, environment=target_env)
                 transfer_fitness, tom_depth = self.evaluate_pair(transfer_pair)
 
                 # Check if transfer is beneficial
                 if transfer_fitness > source_pair.fitness * 0.9:
-                    transfers.append({
-                        'agent': pair_id,
-                        'from_env': source_pair.environment.env_id,
-                        'to_env': target_env.env_id,
-                        'original_fitness': source_pair.fitness,
-                        'transfer_fitness': transfer_fitness,
-                    })
+                    transfers.append(
+                        {
+                            "agent": pair_id,
+                            "from_env": source_pair.environment.env_id,
+                            "to_env": target_env.env_id,
+                            "original_fitness": source_pair.fitness,
+                            "transfer_fitness": transfer_fitness,
+                        }
+                    )
 
-                    print(f"    Transfer: {pair_id} -> {target_env.env_id} "
-                          f"(fitness: {transfer_fitness:.3f})")
+                    print(f"    Transfer: {pair_id} -> {target_env.env_id} " f"(fitness: {transfer_fitness:.3f})")
 
-        self.history['transfer_events'].append(transfers)
+        self.history["transfer_events"].append(transfers)
         return transfers
 
     def run_generation(self):
         """Run one generation of POET evolution."""
         print(f"\n{'='*60}")
         print(f"POET Generation {self.generation}")
-        print("="*60)
+        print("=" * 60)
 
         # 1. Evaluate all pairs
         print("\n  Evaluating pairs...")
@@ -590,8 +562,8 @@ class POETController:
         print(f"    Average ToM depth: {np.mean(all_tom_depths):.2f}")
 
         # Record history
-        self.history['best_fitness_per_env'].append(max(all_fitnesses))
-        self.history['tom_depth_progression'].append(np.mean(all_tom_depths))
+        self.history["best_fitness_per_env"].append(max(all_fitnesses))
+        self.history["tom_depth_progression"].append(np.mean(all_tom_depths))
 
         # 2. Evolve agents (using NAS engine)
         print("\n  Evolving agents...")
@@ -619,7 +591,7 @@ class POETController:
 
         # Record environment complexity
         avg_friction = np.mean([e.institutional_friction for e in self.environments])
-        self.history['env_complexity_progression'].append(avg_friction)
+        self.history["env_complexity_progression"].append(avg_friction)
 
         self.generation += 1
 
@@ -628,14 +600,14 @@ class POETController:
         if num_generations is None:
             num_generations = self.config.generations
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("POET Evolution Starting")
-        print("="*60)
+        print("=" * 60)
         print(f"Environments:     {self.config.num_environments}")
         print(f"Agents per env:   {self.config.num_agents_per_env}")
         print(f"Generations:      {num_generations}")
         print(f"Transfer enabled: {self.config.enable_transfer}")
-        print("="*60)
+        print("=" * 60)
 
         # Initialize if needed
         if not self.environments:
@@ -649,9 +621,9 @@ class POETController:
             if (gen + 1) % 10 == 0:
                 self._print_progress_report()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("POET Evolution Complete!")
-        print("="*60)
+        print("=" * 60)
         self._print_final_report()
 
     def _print_progress_report(self):
@@ -694,43 +666,43 @@ class POETController:
     def save_state(self, filepath: str):
         """Save POET state to file."""
         state = {
-            'generation': self.generation,
-            'environments': [e.to_dict() for e in self.environments],
-            'solved_environments': [e.to_dict() for e in self.solved_environments],
-            'history': self.history,
-            'config': {
-                'num_environments': self.config.num_environments,
-                'num_agents_per_env': self.config.num_agents_per_env,
-                'generations': self.config.generations,
-            }
+            "generation": self.generation,
+            "environments": [e.to_dict() for e in self.environments],
+            "solved_environments": [e.to_dict() for e in self.solved_environments],
+            "history": self.history,
+            "config": {
+                "num_environments": self.config.num_environments,
+                "num_agents_per_env": self.config.num_agents_per_env,
+                "generations": self.config.generations,
+            },
         }
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(state, f, indent=2)
 
         print(f"POET state saved to {filepath}")
 
     def load_state(self, filepath: str):
         """Load POET state from file."""
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             state = json.load(f)
 
-        self.generation = state['generation']
-        self.history = state['history']
+        self.generation = state["generation"]
+        self.history = state["history"]
 
         # Reconstruct environments
         self.environments = []
-        for env_dict in state['environments']:
+        for env_dict in state["environments"]:
             env = EnvironmentGenotype(
-                env_id=env_dict['env_id'],
-                env_type=EnvironmentType[env_dict['env_type']],
-                taxonomy_position=np.array(env_dict['taxonomy_position']),
-                generation=env_dict['generation'],
+                env_id=env_dict["env_id"],
+                env_type=EnvironmentType[env_dict["env_type"]],
+                taxonomy_position=np.array(env_dict["taxonomy_position"]),
+                generation=env_dict["generation"],
             )
-            env.institutional_friction = env_dict['institutional_friction']
-            env.power_differential = env_dict['power_differential']
-            env.deception_pressure = env_dict['deception_pressure']
-            env.norm_rigidity = env_dict['norm_rigidity']
+            env.institutional_friction = env_dict["institutional_friction"]
+            env.power_differential = env_dict["power_differential"]
+            env.deception_pressure = env_dict["deception_pressure"]
+            env.norm_rigidity = env_dict["norm_rigidity"]
             self.environments.append(env)
 
         print(f"POET state loaded from {filepath}")
