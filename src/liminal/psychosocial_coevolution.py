@@ -91,6 +91,10 @@ class TheoreticalConstants:
     COALITION_FORMATION_THRESHOLD = 0.6  # Mutual reputation required
     COALITION_DISSOLUTION_THRESHOLD = 0.3  # Below this, coalition breaks
 
+    # ALLY RELATIONSHIP: Threshold for positive reciprocal relationship
+    # Allies share high trust but may not have the deep emotional bond of coalitions
+    ALLY_TRUST_THRESHOLD = 0.6  # Trust level required for ally classification
+
     # STATUS HIERARCHY: Rate of dominance relationship crystallization
     # Source: Sapolsky (2005). The Influence of Social Hierarchy on Primate Health
     HIERARCHY_CRYSTALLIZATION_RATE = 0.02  # Per conflict resolution
@@ -150,7 +154,7 @@ class SocialEdge:
             return RelationshipType.ACQUAINTANCE
         elif self.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and self.affect > TheoreticalConstants.COALITION_FORMATION_THRESHOLD:
             return RelationshipType.COALITION
-        elif self.trust > 0.6 and self.affect > 0:
+        elif self.trust > TheoreticalConstants.ALLY_TRUST_THRESHOLD and self.affect > 0:
             return RelationshipType.ALLY
         elif self.trust < 0.4 and self.affect < -0.3:
             return RelationshipType.ENEMY
