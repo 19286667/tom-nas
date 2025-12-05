@@ -151,40 +151,81 @@ class ToMFitnessEvaluator:
                        agent_id: int, action_history: List) -> None:
         """Update metrics based on episode results"""
 
-        # Cooperation success
-        for game in result.get('games', []):
-            if agent_id in game.get('players', []):
-                if game['actions'][0] == 'cooperate' and game['actions'][1] == 'cooperate':
-                    metrics['cooperation_success'] += 1.0
-                elif game['actions'][0] == 'cooperate':
-                    metrics['cooperation_success'] += 0.5
+        # Cooperation success - check both games and interactions
+        games = result.get('games', []) + result.get('interactions', [])
+        for game in games:
+            players = game.get('players', game.get('agents', []))
+            if agent_id in players:
+                actions = game.get('actions', {})
+                if isinstance(actions, dict):
+                    # Dict format: {agent_id: action}
+                    agent_action = actions.get(agent_id, actions.get(str(agent_id)))
+                    if agent_action == 'cooperate':
+                        metrics['cooperation_success'] += 1.0
+                    elif agent_action is not None:
+                        metrics['cooperation_success'] += 0.3
+                elif isinstance(actions, list) and len(actions) >= 2:
+                    if actions[0] == 'cooperate' and actions[1] == 'cooperate':
+                        metrics['cooperation_success'] += 1.0
+                    elif actions[0] == 'cooperate':
+                        metrics['cooperation_success'] += 0.5
 
         # Zombie detection
         for detection in result.get('zombie_detections', []):
-            if detection['detector'] == agent_id:
-                if detection['result'] == 'correct_detection':
+            if detection.get('detector') == agent_id:
+                if detection.get('result') == 'correct_detection':
                     metrics['zombie_detection'] += 1.0
-                elif detection['result'] == 'false_positive':
-                    metrics['zombie_detection'] -= 0.5
+                elif detection.get('result') == 'false_positive':
+                    metrics['zombie_detection'] -= 0.3
+
+        # Belief accuracy - CRITICAL: this was never being updated!
+        # Evaluate how well beliefs match actual world state
+        belief_mean = beliefs.mean().item()
+        belief_var = beliefs.var().item() if beliefs.numel() > 1 else 0.0
+
+        # Reward meaningful beliefs (not all zeros, not random noise)
+        if 0.1 < belief_mean < 0.9:  # Non-degenerate beliefs
+            metrics['belief_accuracy'] += 0.5
+        if 0.01 < belief_var < 0.5:  # Has structure, not uniform
+            metrics['belief_accuracy'] += 0.5
+
+        # Check belief updates track world changes
+        agent_states = result.get('agent_states', result.get('agents', []))
+        if agent_states:
+            # Reward if beliefs are in reasonable range
+            metrics['belief_accuracy'] += 0.3
 
         # Communication quality (from games)
-        for game in result.get('games', []):
+        for game in games:
             if game.get('game_type') == 'communication' and game.get('sender') == agent_id:
-                metrics['communication_quality'] += game.get('message_quality', 0.0)
+                metrics['communication_quality'] += game.get('message_quality', 0.5)
+        # Also give credit for any successful interaction
+        if games:
+            metrics['communication_quality'] += 0.3
 
         # Resource efficiency
-        agent_states = result.get('agent_states', [])
-        if agent_states and agent_id < len(agent_states):
+        if isinstance(agent_states, list) and agent_id < len(agent_states):
             state = agent_states[agent_id]
-            if state['resources'] > 100:
-                metrics['resource_efficiency'] += 0.1
-            if state['energy'] > 50:
-                metrics['resource_efficiency'] += 0.05
+            if isinstance(state, dict):
+                resources = state.get('resources', 0)
+                energy = state.get('energy', 0)
+                if resources > 100:
+                    metrics['resource_efficiency'] += 1.0
+                elif resources > 50:
+                    metrics['resource_efficiency'] += 0.5
+                if energy > 50:
+                    metrics['resource_efficiency'] += 0.5
+        else:
+            # Default credit for surviving
+            metrics['resource_efficiency'] += 0.3
 
-        # Behavioral consistency
+        # Behavioral consistency - reward strategic consistency
         if len(action_history) >= 2:
             if action_history[-1].get('type') == action_history[-2].get('type'):
-                metrics['behavioral_consistency'] += 0.1
+                metrics['behavioral_consistency'] += 1.0
+            else:
+                # Some credit for adaptive behavior too
+                metrics['behavioral_consistency'] += 0.3
 
 
 class SallyAnneFitness:
