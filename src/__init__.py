@@ -16,6 +16,9 @@ high-order, transparent Theory of Mind reasoning through:
 
 4. GODOT PHYSICAL BRIDGE - Symbol grounding connecting physics to meaning.
 
+5. FRACTAL SIMULATION ENGINE - Recursive simulation tree where agents
+   can spawn nested simulations to predict futures.
+
 The physical is cognitive. The cognitive is physical.
 In Indra's Net, each pearl reflects all others.
 """
@@ -31,6 +34,7 @@ from . import evaluation
 from . import knowledge_base
 from . import cognition
 from . import godot_bridge
+from . import simulation
 
 __all__ = [
     # Original modules
@@ -43,6 +47,7 @@ __all__ = [
     'knowledge_base',
     'cognition',
     'godot_bridge',
+    'simulation',
     # Metadata
     '__version__',
 ]
