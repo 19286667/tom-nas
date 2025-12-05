@@ -119,20 +119,22 @@ class NASEngine:
         return gene
 
     def _gene_to_model(self, gene: ArchitectureGene) -> nn.Module:
-        """Convert gene to actual neural network"""
+        """Convert gene to actual neural network with full gene parameter application"""
         arch_type = gene.gene_dict['arch_type']
         hidden_dim = gene.gene_dict['hidden_dim']
         num_layers = gene.gene_dict['num_layers']
+        dropout_rate = gene.gene_dict.get('dropout_rate', 0.1)
+        use_dropout = gene.gene_dict.get('use_dropout', True)
 
         if arch_type == 'TRN':
-            return TransparentRNN(
+            model = TransparentRNN(
                 self.config.input_dim,
                 hidden_dim,
                 self.config.output_dim,
                 num_layers=num_layers
             )
         elif arch_type == 'RSAN':
-            return RecursiveSelfAttention(
+            model = RecursiveSelfAttention(
                 self.config.input_dim,
                 hidden_dim,
                 self.config.output_dim,
@@ -140,7 +142,7 @@ class NASEngine:
                 max_recursion=gene.gene_dict['max_recursion']
             )
         elif arch_type == 'Transformer':
-            return TransformerToMAgent(
+            model = TransformerToMAgent(
                 self.config.input_dim,
                 hidden_dim,
                 self.config.output_dim,
@@ -148,17 +150,53 @@ class NASEngine:
                 num_heads=gene.gene_dict['num_heads']
             )
         elif arch_type == 'Hybrid':
+            # Hybrid architecture already uses full gene dict
             return HybridArchitecture(
                 self.config.input_dim,
                 hidden_dim,
                 self.config.output_dim,
                 architecture_genes=gene.gene_dict
             )
+        else:
+            # Default to TRN
+            model = TransparentRNN(
+                self.config.input_dim, hidden_dim, self.config.output_dim
+            )
 
-        # Default to TRN
-        return TransparentRNN(
-            self.config.input_dim, hidden_dim, self.config.output_dim
-        )
+        # Apply dropout wrapper if needed for non-Hybrid architectures
+        if use_dropout and dropout_rate > 0:
+            model = self._add_dropout_to_model(model, dropout_rate)
+
+        return model
+
+    def _add_dropout_to_model(self, model: nn.Module, dropout_rate: float) -> nn.Module:
+        """Add dropout to model outputs via wrapper"""
+        class DropoutWrapper(nn.Module):
+            def __init__(self, base_model, dropout_rate):
+                super().__init__()
+                self.base_model = base_model
+                self.dropout = nn.Dropout(dropout_rate)
+
+            def forward(self, x, *args, **kwargs):
+                output = self.base_model(x, *args, **kwargs)
+                # Apply dropout to hidden states during training
+                if self.training and 'hidden_states' in output:
+                    output['hidden_states'] = self.dropout(output['hidden_states'])
+                return output
+
+            def parameters(self, recurse=True):
+                return self.base_model.parameters(recurse)
+
+            def named_parameters(self, prefix='', recurse=True):
+                return self.base_model.named_parameters(prefix, recurse)
+
+            def state_dict(self, *args, **kwargs):
+                return self.base_model.state_dict(*args, **kwargs)
+
+            def load_state_dict(self, *args, **kwargs):
+                return self.base_model.load_state_dict(*args, **kwargs)
+
+        return DropoutWrapper(model, dropout_rate)
 
     def evaluate_population(self):
         """Evaluate fitness of all individuals"""

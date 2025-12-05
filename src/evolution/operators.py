@@ -8,6 +8,7 @@ import copy
 import random
 import numpy as np
 from typing import Dict, List, Tuple, Optional
+from collections import defaultdict
 
 
 class ArchitectureGene:
@@ -280,30 +281,161 @@ class SpeciesManager:
 
 
 class CoevolutionOperator:
-    """Manages coevolution between architectures, tasks, and evaluation"""
+    """Manages coevolution between architectures, tasks, and evaluation.
+
+    Implements curriculum learning for ToM tasks:
+    - Starts with simple 1st-order ToM tasks
+    - Gradually introduces higher-order reasoning
+    - Adapts zombie detection difficulty
+    - Manages task diversity for robust learning
+    """
 
     def __init__(self):
         self.task_difficulty = 1.0
         self.evaluation_strictness = 1.0
+        self.generation = 0
+
+        # Task curriculum state
+        self.current_tom_order = 1  # Start with 1st-order ToM
+        self.max_tom_order = 5
+        self.zombie_detection_active = False
+        self.multi_agent_active = False
+
+        # Task weights (evolve over time)
+        self.task_weights = {
+            'sally_anne_basic': 1.0,
+            'sally_anne_advanced': 0.0,
+            'higher_order_tom': 0.0,
+            'zombie_detection': 0.0,
+            'cooperation': 0.5,
+            'communication': 0.3,
+            'resource_sharing': 0.2,
+        }
+
+        # Performance history for adaptive curriculum
+        self.performance_history = []
+        self.task_mastery = defaultdict(list)
+
+        # Evaluation parameters
+        self.episode_length_base = 20
+        self.num_episodes_base = 3
 
     def adapt_tasks(self, population_performance: List[float]):
-        """Make tasks harder if population is doing well"""
+        """Adapt task curriculum based on population performance"""
         avg_performance = np.mean(population_performance)
+        self.performance_history.append(avg_performance)
+        self.generation += 1
 
+        # Determine if population has mastered current tasks
+        if len(self.performance_history) >= 3:
+            recent_avg = np.mean(self.performance_history[-3:])
+
+            # Curriculum progression logic
+            if recent_avg > 0.75:
+                self._advance_curriculum()
+            elif recent_avg < 0.3:
+                self._simplify_curriculum()
+
+        # Adjust task difficulty multiplier
         if avg_performance > 0.8:
             self.task_difficulty = min(2.0, self.task_difficulty * 1.1)
         elif avg_performance < 0.4:
             self.task_difficulty = max(0.5, self.task_difficulty * 0.9)
 
+    def _advance_curriculum(self):
+        """Progress to more challenging tasks"""
+        # Increase ToM order if not at max
+        if self.current_tom_order < self.max_tom_order:
+            self.current_tom_order += 1
+            self.task_weights['higher_order_tom'] = min(1.0,
+                self.task_weights['higher_order_tom'] + 0.2)
+
+        # Activate zombie detection after basic ToM mastery
+        if self.current_tom_order >= 2 and not self.zombie_detection_active:
+            self.zombie_detection_active = True
+            self.task_weights['zombie_detection'] = 0.3
+
+        # Activate advanced Sally-Anne tests
+        if self.current_tom_order >= 3:
+            self.task_weights['sally_anne_advanced'] = min(1.0,
+                self.task_weights['sally_anne_advanced'] + 0.2)
+
+        # Activate multi-agent scenarios
+        if self.current_tom_order >= 4 and not self.multi_agent_active:
+            self.multi_agent_active = True
+            self.task_weights['cooperation'] = 1.0
+            self.task_weights['communication'] = 0.8
+
+    def _simplify_curriculum(self):
+        """Reduce task difficulty if population is struggling"""
+        # Don't reduce below baseline
+        if self.current_tom_order > 1:
+            self.current_tom_order -= 1
+
+        # Reduce advanced task weights
+        self.task_weights['higher_order_tom'] = max(0.0,
+            self.task_weights['higher_order_tom'] - 0.1)
+        self.task_weights['sally_anne_advanced'] = max(0.0,
+            self.task_weights['sally_anne_advanced'] - 0.1)
+
     def adapt_evaluation(self, population_variance: float):
-        """Adjust evaluation strictness based on population variance"""
+        """Adjust evaluation parameters based on population diversity"""
         if population_variance < 0.1:
-            # Population converging, be more strict
+            # Population converging - increase strictness to differentiate
             self.evaluation_strictness = min(2.0, self.evaluation_strictness * 1.1)
+            # Also increase evaluation thoroughness
+            self.num_episodes_base = min(10, self.num_episodes_base + 1)
         elif population_variance > 0.3:
-            # Population diverse, be more lenient
+            # Population diverse - be more lenient for exploration
             self.evaluation_strictness = max(0.5, self.evaluation_strictness * 0.9)
+        else:
+            # Gradually return to baseline
+            self.evaluation_strictness = 0.9 * self.evaluation_strictness + 0.1 * 1.0
 
     def get_adjusted_fitness(self, raw_fitness: float) -> float:
         """Apply coevolutionary adjustments to fitness"""
         return raw_fitness * self.evaluation_strictness / self.task_difficulty
+
+    def get_task_config(self) -> Dict:
+        """Get current task configuration for fitness evaluation"""
+        return {
+            'tom_order': self.current_tom_order,
+            'task_weights': self.task_weights.copy(),
+            'zombie_detection_active': self.zombie_detection_active,
+            'multi_agent_active': self.multi_agent_active,
+            'episode_length': int(self.episode_length_base * self.task_difficulty),
+            'num_episodes': self.num_episodes_base,
+            'difficulty': self.task_difficulty,
+            'strictness': self.evaluation_strictness,
+        }
+
+    def generate_proxy_task(self) -> Dict:
+        """Generate a proxy task for fast evaluation (subset of full evaluation)"""
+        # Proxy tasks are simplified versions for quick fitness approximation
+        return {
+            'type': 'proxy',
+            'tom_order': min(self.current_tom_order, 2),  # Max 2nd order for speed
+            'episode_length': max(5, self.episode_length_base // 2),
+            'num_episodes': 1,
+            'tasks': ['sally_anne_basic', 'cooperation'],
+        }
+
+    def record_task_performance(self, task_name: str, scores: List[float]):
+        """Record performance on specific tasks for curriculum tracking"""
+        self.task_mastery[task_name].extend(scores)
+        # Keep only recent history
+        if len(self.task_mastery[task_name]) > 100:
+            self.task_mastery[task_name] = self.task_mastery[task_name][-100:]
+
+    def get_curriculum_summary(self) -> Dict:
+        """Get summary of current curriculum state"""
+        return {
+            'generation': self.generation,
+            'tom_order': self.current_tom_order,
+            'task_difficulty': self.task_difficulty,
+            'evaluation_strictness': self.evaluation_strictness,
+            'zombie_detection_active': self.zombie_detection_active,
+            'multi_agent_active': self.multi_agent_active,
+            'task_weights': self.task_weights.copy(),
+            'recent_performance': np.mean(self.performance_history[-5:]) if self.performance_history else 0.0,
+        }

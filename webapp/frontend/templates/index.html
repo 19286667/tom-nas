@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToM-NAS: Evolving Mind-Reading AI</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🧠</span>
+                <h1>ToM-NAS</h1>
+            </div>
+            <p class="tagline">Evolving AI that understands minds</p>
+            <div id="status-indicator" class="status-badge">
+                <span class="status-dot"></span>
+                <span class="status-text">Checking...</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Welcome Section -->
+            <section id="welcome-section" class="section welcome-section">
+                <div class="hero">
+                    <h2>Discover How AI Can Learn to Read Minds</h2>
+                    <p class="hero-subtitle">
+                        Theory of Mind is what lets you know that your friend still thinks the cookies are in the jar,
+                        even though you watched them get moved. Now we can evolve AI that does the same.
+                    </p>
+                </div>
+
+                <!-- Quick Start -->
+                <div class="quick-start-panel">
+                    <h3>Start an Experiment</h3>
+                    <p>Choose your pace:</p>
+                    <div class="mode-buttons">
+                        <button class="mode-btn" data-mode="quick" onclick="quickStart('quick')">
+                            <span class="mode-icon">⚡</span>
+                            <span class="mode-name">Quick</span>
+                            <span class="mode-desc">~2 minutes</span>
+                        </button>
+                        <button class="mode-btn recommended" data-mode="balanced" onclick="quickStart('balanced')">
+                            <span class="mode-icon">⚖️</span>
+                            <span class="mode-name">Balanced</span>
+                            <span class="mode-desc">~10 minutes</span>
+                            <span class="recommended-badge">Recommended</span>
+                        </button>
+                        <button class="mode-btn" data-mode="thorough" onclick="quickStart('thorough')">
+                            <span class="mode-icon">🔬</span>
+                            <span class="mode-name">Thorough</span>
+                            <span class="mode-desc">~30 minutes</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Concept Cards -->
+                <div class="concepts-grid">
+                    <div class="concept-card" onclick="showConceptDetail('theory_of_mind')">
+                        <div class="concept-icon">🎭</div>
+                        <h4>Theory of Mind</h4>
+                        <p>Understanding that others have thoughts and beliefs</p>
+                    </div>
+                    <div class="concept-card" onclick="showConceptDetail('sally_anne_test')">
+                        <div class="concept-icon">🧪</div>
+                        <h4>Sally-Anne Test</h4>
+                        <p>The classic test for false belief understanding</p>
+                    </div>
+                    <div class="concept-card" onclick="showConceptDetail('zombie_detection')">
+                        <div class="concept-icon">🧟</div>
+                        <h4>Zombie Detection</h4>
+                        <p>Distinguishing real understanding from mimicry</p>
+                    </div>
+                    <div class="concept-card" onclick="showConceptDetail('neural_architecture_search')">
+                        <div class="concept-icon">🧬</div>
+                        <h4>Neural Evolution</h4>
+                        <p>AI designing its own brain through evolution</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Evolution Progress Section -->
+            <section id="evolution-section" class="section evolution-section hidden">
+                <div class="section-header">
+                    <h2>Evolution in Progress</h2>
+                    <span id="experiment-name" class="experiment-badge"></span>
+                </div>
+
+                <!-- Progress Overview -->
+                <div class="progress-overview">
+                    <div class="progress-ring-container">
+                        <svg class="progress-ring" viewBox="0 0 120 120">
+                            <circle class="progress-ring-bg" cx="60" cy="60" r="54"/>
+                            <circle id="progress-ring-fill" class="progress-ring-fill" cx="60" cy="60" r="54"/>
+                        </svg>
+                        <div class="progress-text">
+                            <span id="progress-percent">0</span>%
+                        </div>
+                    </div>
+                    <div class="progress-stats">
+                        <div class="stat">
+                            <span class="stat-value" id="current-generation">0</span>
+                            <span class="stat-label">Generation</span>
+                        </div>
+                        <div class="stat highlight">
+                            <span class="stat-value" id="best-fitness">0.00</span>
+                            <span class="stat-label">Best Fitness</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value" id="experiment-status">Starting</span>
+                            <span class="stat-label">Status</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Charts -->
+                <div class="charts-container">
+                    <div class="chart-panel">
+                        <h4>Fitness Over Generations</h4>
+                        <canvas id="fitness-chart"></canvas>
+                    </div>
+                    <div class="chart-panel">
+                        <h4>Population Diversity</h4>
+                        <canvas id="diversity-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Evolution Log -->
+                <div class="log-panel">
+                    <h4>Evolution Log</h4>
+                    <div id="evolution-log" class="log-content"></div>
+                </div>
+
+                <!-- What's Happening Explainer -->
+                <div class="explainer-panel">
+                    <h4>What's Happening?</h4>
+                    <div id="explainer-content" class="explainer-content">
+                        <p><strong>Generation 1:</strong> Creating diverse neural architectures - some focus on memory, others on attention...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="results-section" class="section results-section hidden">
+                <div class="section-header">
+                    <h2>Evolution Complete!</h2>
+                    <button class="btn-secondary" onclick="showSection('welcome')">Start New Experiment</button>
+                </div>
+
+                <!-- Winner Architecture -->
+                <div class="winner-panel">
+                    <div class="winner-badge">🏆 Best Architecture</div>
+                    <div class="winner-details">
+                        <h3 id="winner-type">Hybrid Architecture</h3>
+                        <div class="winner-stats">
+                            <div class="winner-stat">
+                                <span class="label">Fitness Score</span>
+                                <span class="value" id="winner-fitness">0.85</span>
+                            </div>
+                            <div class="winner-stat">
+                                <span class="label">Hidden Dimensions</span>
+                                <span class="value" id="winner-hidden">256</span>
+                            </div>
+                            <div class="winner-stat">
+                                <span class="label">Layers</span>
+                                <span class="value" id="winner-layers">3</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Benchmark Results -->
+                <div class="benchmarks-panel">
+                    <h3>Theory of Mind Benchmarks</h3>
+                    <div class="benchmark-grid" id="benchmark-results">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Interpretability -->
+                <div class="interpretability-panel">
+                    <h3>Understanding the Model</h3>
+                    <div class="insight-cards" id="insight-cards">
+                        <div class="insight-card">
+                            <h4>🎯 What It Learned</h4>
+                            <p>This architecture developed strong attention patterns for tracking agent beliefs across time.</p>
+                        </div>
+                        <div class="insight-card">
+                            <h4>💡 Key Insight</h4>
+                            <p>The model shows appropriate uncertainty in higher-order beliefs - it knows it's harder to know what others think others think.</p>
+                        </div>
+                        <div class="insight-card">
+                            <h4>🔍 Interpretability</h4>
+                            <p>Gate activations show the model integrates new information selectively, similar to human attention.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Concept Modal -->
+        <div id="concept-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+                <h2 id="modal-title"></h2>
+                <div id="modal-body"></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>ToM-NAS: Theory of Mind Neural Architecture Search</p>
+            <p class="footer-note">Evolving AI that truly understands minds</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

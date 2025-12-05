@@ -7,6 +7,7 @@ import random
 from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, field
 from collections import defaultdict
+import math
 
 @dataclass
 class Agent:
@@ -20,9 +21,116 @@ class Agent:
     zombie_type: Optional[str] = None
     ontology_state: Optional[torch.Tensor] = None
 
+class ZombieBehavior:
+    """Generates zombie-specific behavioral patterns for detection tasks.
+
+    Each zombie type exhibits distinct patterns that ToM agents should learn to detect:
+    - Behavioral: Random/inconsistent actions that don't match context
+    - Belief: Actions ignore others' perspectives
+    - Causal: No planning or anticipation
+    - Metacognitive: Overconfident or underconfident choices
+    - Linguistic: Incoherent communication patterns
+    - Emotional: Flat or inappropriate emotional responses
+    """
+
+    @staticmethod
+    def generate_action(zombie_type: str, context: Dict) -> Dict:
+        """Generate zombie-appropriate action based on type"""
+        if zombie_type == 'behavioral':
+            # Inconsistent random actions regardless of context
+            return {
+                'type': random.choice(['cooperate', 'defect', 'share', 'communicate']),
+                'consistency_score': random.random() * 0.3,  # Low consistency
+            }
+
+        elif zombie_type == 'belief':
+            # Always acts on own state, ignores others
+            # Defects when should cooperate based on reciprocity
+            partner_reputation = context.get('partner_reputation', 0.5)
+            # Belief zombie ignores reputation, acts randomly
+            return {
+                'type': 'defect' if random.random() < 0.6 else 'cooperate',
+                'ignores_other_beliefs': True,
+            }
+
+        elif zombie_type == 'causal':
+            # No temporal reasoning - purely reactive
+            # Doesn't anticipate consequences
+            return {
+                'type': 'share' if context.get('own_resources', 0) > 50 else 'defect',
+                'amount': context.get('own_resources', 50) * 0.8,  # Shares too much
+                'no_planning': True,
+            }
+
+        elif zombie_type == 'metacognitive':
+            # Poor uncertainty calibration - always overconfident
+            return {
+                'type': 'detect_zombie',
+                'suspect': random.randint(0, context.get('num_agents', 5) - 1),
+                'confidence': 0.99,  # Always overconfident
+            }
+
+        elif zombie_type == 'linguistic':
+            # Incoherent communication
+            message = torch.randn(context.get('ontology_dim', 181)) * 0.5
+            # Add noise that doesn't match true state
+            return {
+                'type': 'communicate',
+                'message': message,
+                'coherence_score': random.random() * 0.2,  # Low coherence
+            }
+
+        elif zombie_type == 'emotional':
+            # Flat affect - no emotional variation
+            return {
+                'type': random.choice(['cooperate', 'defect']),
+                'emotional_state': 0.5,  # Always flat
+                'affect_variance': 0.01,  # No variation
+            }
+
+        return {'type': 'cooperate'}
+
+    @staticmethod
+    def get_behavioral_signature(zombie_type: str) -> Dict:
+        """Get the behavioral signature patterns for zombie type"""
+        signatures = {
+            'behavioral': {
+                'action_entropy': 0.95,  # High randomness
+                'context_sensitivity': 0.1,  # Low response to context
+                'temporal_consistency': 0.2,
+            },
+            'belief': {
+                'perspective_taking': 0.0,  # Never considers others
+                'reputation_response': 0.1,
+                'reciprocity': 0.1,
+            },
+            'causal': {
+                'planning_horizon': 0,
+                'consequence_anticipation': 0.0,
+                'delayed_gratification': 0.0,
+            },
+            'metacognitive': {
+                'confidence_calibration': 0.1,  # Poorly calibrated
+                'uncertainty_awareness': 0.1,
+                'learning_from_mistakes': 0.1,
+            },
+            'linguistic': {
+                'message_coherence': 0.1,
+                'pragmatic_relevance': 0.1,
+                'narrative_consistency': 0.1,
+            },
+            'emotional': {
+                'affect_range': 0.05,
+                'emotional_appropriateness': 0.1,
+                'empathy_response': 0.0,
+            },
+        }
+        return signatures.get(zombie_type, {})
+
+
 class ZombieGame:
     """Zombie detection - core ToM validation mechanism"""
-    
+
     ZOMBIE_TYPES = {
         'behavioral': 'Inconsistent action patterns',
         'belief': 'Cannot model others beliefs',
@@ -31,15 +139,41 @@ class ZombieGame:
         'linguistic': 'Narrative incoherence',
         'emotional': 'Flat affect patterns'
     }
-    
+
     def __init__(self):
         self.detection_reward = 10.0
         self.false_positive_penalty = -20.0
-        
+        self.behavior_generator = ZombieBehavior()
+        self.zombie_action_history = defaultdict(list)
+
     def create_zombie(self, agent_id: int, zombie_type: Optional[str] = None) -> Agent:
         if zombie_type is None:
             zombie_type = random.choice(list(self.ZOMBIE_TYPES.keys()))
         return Agent(id=agent_id, is_zombie=True, zombie_type=zombie_type)
+
+    def get_zombie_action(self, agent: Agent, context: Dict) -> Dict:
+        """Get action for a zombie agent based on its type"""
+        if not agent.is_zombie or not agent.zombie_type:
+            return {'type': 'cooperate'}
+
+        action = ZombieBehavior.generate_action(agent.zombie_type, context)
+        self.zombie_action_history[agent.id].append(action)
+        return action
+
+    def compute_detection_difficulty(self, zombie_type: str, num_observations: int) -> float:
+        """Compute how difficult it should be to detect this zombie type"""
+        base_difficulty = {
+            'behavioral': 0.3,  # Easiest - obvious inconsistency
+            'belief': 0.5,
+            'causal': 0.6,
+            'metacognitive': 0.7,
+            'linguistic': 0.5,
+            'emotional': 0.8,  # Hardest - subtle
+        }
+        difficulty = base_difficulty.get(zombie_type, 0.5)
+        # More observations make detection easier
+        observation_factor = 1.0 / (1.0 + num_observations * 0.1)
+        return difficulty * observation_factor
 
 class SocialWorld4:
     """Complete society simulator with 4 game types"""

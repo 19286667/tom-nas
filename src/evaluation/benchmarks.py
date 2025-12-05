@@ -25,7 +25,13 @@ class BenchmarkResult:
 
 
 class SallyAnneTest:
-    """Classic Sally-Anne false belief test with variations"""
+    """Classic Sally-Anne false belief test with variations.
+
+    These tests evaluate genuine Theory of Mind by testing:
+    1. False belief attribution - understanding others can have beliefs different from reality
+    2. Perspective taking - tracking what information each agent has access to
+    3. Belief-desire reasoning - predicting actions based on (possibly false) beliefs
+    """
 
     def __init__(self, device='cpu'):
         self.device = device
@@ -34,56 +40,115 @@ class SallyAnneTest:
             'second_order', 'triple_location'
         ]
 
+    def _encode_scenario_step(self, step_data: Dict, base_tensor: torch.Tensor, step_idx: int) -> None:
+        """Encode a single scenario step into the tensor using ontology-aligned features"""
+        # Agent presence encoding (biological layer 0-14)
+        base_tensor[0, step_idx, 0] = step_data.get('sally_present', 0.0)
+        base_tensor[0, step_idx, 1] = step_data.get('anne_present', 0.0)
+        base_tensor[0, step_idx, 2] = step_data.get('observer_attention', 0.5)
+
+        # Object location encoding (spatial perception 15-30)
+        base_tensor[0, step_idx, 15] = step_data.get('marble_in_basket', 0.0)
+        base_tensor[0, step_idx, 16] = step_data.get('marble_in_box', 0.0)
+        base_tensor[0, step_idx, 17] = step_data.get('marble_visible', 0.0)
+
+        # Belief state encoding (ToM-specific 59-98)
+        # Sally's belief about marble location
+        base_tensor[0, step_idx, 59] = step_data.get('sally_believes_basket', 0.0)
+        base_tensor[0, step_idx, 60] = step_data.get('sally_believes_box', 0.0)
+        # Anne's belief about marble location
+        base_tensor[0, step_idx, 61] = step_data.get('anne_believes_basket', 0.0)
+        base_tensor[0, step_idx, 62] = step_data.get('anne_believes_box', 0.0)
+        # Meta: who saw the transfer
+        base_tensor[0, step_idx, 63] = step_data.get('sally_saw_transfer', 0.0)
+        base_tensor[0, step_idx, 64] = step_data.get('anne_saw_transfer', 0.0)
+
+        # Temporal/event markers (context 139-178)
+        base_tensor[0, step_idx, 139] = float(step_idx) / 10.0  # Time
+        base_tensor[0, step_idx, 140] = step_data.get('event_type', 0.0)
+
     def run_basic(self, agent: nn.Module) -> BenchmarkResult:
         """
-        Basic Sally-Anne:
-        - Sally puts marble in basket
-        - Sally leaves
-        - Anne moves marble to box
-        - Where will Sally look?
-        Correct: basket
+        Basic Sally-Anne False Belief Test:
+        1. Sally puts marble in basket (both see)
+        2. Sally leaves
+        3. Anne moves marble to box (Sally absent)
+        4. Sally returns
+        Question: Where will Sally look for the marble?
+        Correct: basket (false belief - she didn't see the transfer)
         """
         agent.eval()
 
         with torch.no_grad():
-            # Encode scenario as sequence
-            # [sally_present, anne_present, marble_basket, marble_box, marble_visible]
-            sequence = torch.zeros(1, 4, 191)
+            sequence = torch.zeros(1, 5, 191)
 
-            # Step 1: Sally puts marble in basket
-            sequence[0, 0, 0] = 1.0  # Sally present
-            sequence[0, 0, 1] = 1.0  # Anne present
-            sequence[0, 0, 2] = 1.0  # Marble in basket
-            sequence[0, 0, 4] = 1.0  # Marble visible
+            # Step 0: Initial state - both present, marble in basket
+            self._encode_scenario_step({
+                'sally_present': 1.0, 'anne_present': 1.0,
+                'marble_in_basket': 1.0, 'marble_in_box': 0.0, 'marble_visible': 1.0,
+                'sally_believes_basket': 1.0, 'sally_believes_box': 0.0,
+                'anne_believes_basket': 1.0, 'anne_believes_box': 0.0,
+                'sally_saw_transfer': 0.0, 'anne_saw_transfer': 0.0,
+                'event_type': 0.1
+            }, sequence, 0)
+
+            # Step 1: Sally puts marble in basket explicitly
+            self._encode_scenario_step({
+                'sally_present': 1.0, 'anne_present': 1.0,
+                'marble_in_basket': 1.0, 'marble_in_box': 0.0, 'marble_visible': 1.0,
+                'sally_believes_basket': 1.0, 'sally_believes_box': 0.0,
+                'anne_believes_basket': 1.0, 'anne_believes_box': 0.0,
+                'event_type': 0.2
+            }, sequence, 1)
 
             # Step 2: Sally leaves
-            sequence[0, 1, 0] = 0.0  # Sally not present
-            sequence[0, 1, 1] = 1.0  # Anne present
-            sequence[0, 1, 2] = 1.0  # Marble still in basket
+            self._encode_scenario_step({
+                'sally_present': 0.0, 'anne_present': 1.0,
+                'marble_in_basket': 1.0, 'marble_in_box': 0.0, 'marble_visible': 1.0,
+                'sally_believes_basket': 1.0, 'sally_believes_box': 0.0,
+                'anne_believes_basket': 1.0, 'anne_believes_box': 0.0,
+                'event_type': 0.3
+            }, sequence, 2)
 
-            # Step 3: Anne moves marble
-            sequence[0, 2, 0] = 0.0  # Sally not present
-            sequence[0, 2, 1] = 1.0  # Anne present
-            sequence[0, 2, 2] = 0.0  # Marble not in basket
-            sequence[0, 2, 3] = 1.0  # Marble in box
+            # Step 3: Anne moves marble to box (Sally absent - key moment)
+            self._encode_scenario_step({
+                'sally_present': 0.0, 'anne_present': 1.0,
+                'marble_in_basket': 0.0, 'marble_in_box': 1.0, 'marble_visible': 1.0,
+                'sally_believes_basket': 1.0, 'sally_believes_box': 0.0,  # Sally doesn't know!
+                'anne_believes_basket': 0.0, 'anne_believes_box': 1.0,
+                'sally_saw_transfer': 0.0, 'anne_saw_transfer': 1.0,
+                'event_type': 0.4
+            }, sequence, 3)
 
-            # Step 4: Sally returns - what does she believe?
-            sequence[0, 3, 0] = 1.0  # Sally present
-            sequence[0, 3, 1] = 1.0  # Anne present
-            sequence[0, 3, 2] = 0.0  # Marble actually not in basket
-            sequence[0, 3, 3] = 1.0  # Marble actually in box
+            # Step 4: Sally returns - test time
+            self._encode_scenario_step({
+                'sally_present': 1.0, 'anne_present': 1.0,
+                'marble_in_basket': 0.0, 'marble_in_box': 1.0, 'marble_visible': 0.0,
+                'sally_believes_basket': 1.0, 'sally_believes_box': 0.0,  # Still believes basket
+                'anne_believes_basket': 0.0, 'anne_believes_box': 1.0,
+                'sally_saw_transfer': 0.0, 'anne_saw_transfer': 1.0,
+                'event_type': 0.5
+            }, sequence, 4)
 
             # Get agent's prediction
             output = agent(sequence)
             beliefs = output['beliefs']
 
-            # Check if agent predicts Sally believes marble is in basket
-            # We expect first belief dimension to be higher (basket)
+            # Evaluate: Agent should predict Sally will look in basket
+            # Use multiple belief dimensions to assess
             basket_belief = beliefs[0, 0].item() if beliefs.shape[1] > 0 else 0.5
             box_belief = beliefs[0, 1].item() if beliefs.shape[1] > 1 else 0.5
 
-            score = 1.0 if basket_belief > box_belief else 0.0
-            passed = score >= 1.0
+            # Also check if model distinguishes Sally's belief from reality
+            # (belief dimension 59 should be higher than 60 in a trained model)
+
+            # Scoring: correct if basket > box
+            correct = basket_belief > box_belief
+            # Bonus for strong distinction
+            distinction = abs(basket_belief - box_belief)
+            score = (1.0 if correct else 0.0) * 0.7 + min(distinction, 0.3) * 0.3 / 0.3
+
+            passed = correct and distinction > 0.1
 
             return BenchmarkResult(
                 test_name="Sally-Anne Basic",
@@ -93,6 +158,8 @@ class SallyAnneTest:
                 details={
                     'basket_belief': basket_belief,
                     'box_belief': box_belief,
+                    'distinction': distinction,
+                    'correct': correct,
                     'correct_answer': 'basket'
                 }
             )
@@ -100,34 +167,100 @@ class SallyAnneTest:
     def run_second_order(self, agent: nn.Module) -> BenchmarkResult:
         """
         Second-order belief test:
-        - John thinks Mary thinks the toy is in location X
+        John and Mary are in a room. Mary puts her toy in the drawer.
+        John leaves. Mary moves the toy to the box.
+        But John was watching through the window!
+        Question: Where does Mary think John thinks the toy is?
+        Answer: drawer (Mary doesn't know John saw)
         """
         agent.eval()
 
         with torch.no_grad():
-            # More complex scenario requiring 2nd-order reasoning
-            sequence = torch.randn(1, 6, 191) * 0.1
+            sequence = torch.zeros(1, 6, 191)
 
-            # Encode John's belief about Mary's belief
-            sequence[0, :, 10] = 1.0  # Marker for 2nd-order scenario
+            # Step 0: Both present, toy in drawer
+            self._encode_scenario_step({
+                'sally_present': 1.0, 'anne_present': 1.0,  # John=Sally, Mary=Anne for encoding
+                'marble_in_basket': 1.0, 'marble_in_box': 0.0, 'marble_visible': 1.0,
+                'sally_believes_basket': 1.0, 'anne_believes_basket': 1.0,
+                'event_type': 0.1
+            }, sequence, 0)
+
+            # Step 1: John leaves (but secretly watches)
+            self._encode_scenario_step({
+                'sally_present': 0.0, 'anne_present': 1.0,
+                'observer_attention': 0.8,  # John is watching secretly
+                'marble_in_basket': 1.0, 'marble_in_box': 0.0,
+                'sally_believes_basket': 1.0, 'anne_believes_basket': 1.0,
+                'event_type': 0.2
+            }, sequence, 1)
+
+            # Step 2: Mary moves toy to box (John secretly sees)
+            self._encode_scenario_step({
+                'sally_present': 0.0, 'anne_present': 1.0,
+                'observer_attention': 0.8,
+                'marble_in_basket': 0.0, 'marble_in_box': 1.0,
+                'sally_believes_basket': 0.0, 'sally_believes_box': 1.0,  # John knows!
+                'anne_believes_basket': 0.0, 'anne_believes_box': 1.0,
+                'sally_saw_transfer': 1.0, 'anne_saw_transfer': 1.0,
+                'event_type': 0.3
+            }, sequence, 2)
+
+            # Step 3: Mary's belief about John's belief (she doesn't know he saw)
+            # Encode: Mary thinks John still believes drawer
+            sequence[0, 3, 65] = 1.0  # Mary's belief about John's belief = drawer
+            sequence[0, 3, 66] = 0.0  # Mary's belief about John's belief != box
+            sequence[0, 3, 67] = 0.0  # Mary didn't see John watching
+            self._encode_scenario_step({
+                'sally_present': 0.0, 'anne_present': 1.0,
+                'marble_in_basket': 0.0, 'marble_in_box': 1.0,
+                'event_type': 0.4
+            }, sequence, 3)
+
+            # Step 4: Test - what does Mary think John thinks?
+            sequence[0, 4, 68] = 1.0  # Second-order query marker
+            self._encode_scenario_step({
+                'sally_present': 1.0, 'anne_present': 1.0,
+                'marble_in_basket': 0.0, 'marble_in_box': 1.0,
+                'event_type': 0.5
+            }, sequence, 4)
+
+            # Step 5: Additional context for 2nd-order reasoning
+            sequence[0, 5, 69] = 0.7  # Confidence decay for 2nd order
 
             output = agent(sequence)
             beliefs = output['beliefs']
 
-            # Simplified scoring - check if belief confidence decreases
-            # (2nd order should be less confident than 1st order)
+            # For 2nd-order: Mary thinks John thinks drawer
+            # So we expect lower confidence overall (uncertainty in nested beliefs)
+            # And the prediction should reflect Mary's false belief about John
             confidence = beliefs.mean().item()
-            expected_confidence = 0.7  # Lower for 2nd order
+            drawer_belief = beliefs[0, 0].item() if beliefs.shape[1] > 0 else 0.5
 
-            score = max(0.0, 1.0 - abs(confidence - expected_confidence) / expected_confidence)
-            passed = score >= 0.7
+            # Expected: moderate confidence (0.5-0.7) due to 2nd-order uncertainty
+            # and drawer_belief > box_belief
+            expected_confidence_range = (0.4, 0.75)
+            confidence_in_range = expected_confidence_range[0] <= confidence <= expected_confidence_range[1]
+
+            score = 0.0
+            if confidence_in_range:
+                score += 0.5
+            if drawer_belief > 0.5:  # Correct answer
+                score += 0.5 * drawer_belief
+
+            passed = score >= 0.6
 
             return BenchmarkResult(
                 test_name="Sally-Anne Second-Order",
                 score=score,
                 max_score=1.0,
                 passed=passed,
-                details={'confidence': confidence, 'expected': expected_confidence}
+                details={
+                    'confidence': confidence,
+                    'drawer_belief': drawer_belief,
+                    'confidence_in_range': confidence_in_range,
+                    'expected_range': expected_confidence_range
+                }
             )
 
     def run_all(self, agent: nn.Module) -> List[BenchmarkResult]:
@@ -140,45 +273,101 @@ class SallyAnneTest:
 
 
 class HigherOrderToMBenchmark:
-    """Systematic tests for each order of ToM (1st through 5th)"""
+    """Systematic tests for each order of ToM (1st through 5th).
+
+    Each order tests increasingly nested belief reasoning:
+    - Order 1: A knows X (simple knowledge attribution)
+    - Order 2: A knows B knows X (mutual knowledge)
+    - Order 3: A knows B knows A knows X (common knowledge emergence)
+    - Order 4+: Deep recursive mentalizing
+    """
 
     def __init__(self, max_order: int = 5, device='cpu'):
         self.max_order = max_order
         self.device = device
+        # Confidence should decay with recursive depth (epistemic uncertainty)
+        self.confidence_decay_rate = 0.7  # Multiply by this per order
+
+    def _encode_belief_chain(self, sequence: torch.Tensor, order: int, base_fact: float = 1.0) -> None:
+        """Encode a chain of nested beliefs up to the specified order"""
+        # Base fact encoding
+        sequence[0, 0, 70] = base_fact  # The actual fact X
+
+        for level in range(order):
+            step_idx = level + 1
+            if step_idx >= sequence.shape[1]:
+                break
+
+            # Each level encodes "Agent_{level} believes..."
+            # Use dedicated belief encoding region (59-98)
+            belief_idx = 59 + level * 5
+
+            # Encode belief content
+            sequence[0, step_idx, belief_idx] = base_fact  # Content of belief
+            sequence[0, step_idx, belief_idx + 1] = self.confidence_decay_rate ** level  # Confidence
+            sequence[0, step_idx, belief_idx + 2] = float(level + 1)  # Order marker
+            sequence[0, step_idx, belief_idx + 3] = 1.0 if level % 2 == 0 else 0.0  # Agent alternation
+
+            # Recursive marker in meta-cognitive region
+            sequence[0, step_idx, 179 + min(level, 10)] = 1.0
 
     def test_order(self, agent: nn.Module, order: int) -> BenchmarkResult:
         """
-        Test specific order of ToM
-        Order 1: A knows X
-        Order 2: A knows B knows X
-        Order 3: A knows B knows A knows X
-        Order 4: A knows B knows A knows B knows X
-        Order 5: Full recursive depth
+        Test specific order of ToM with proper epistemic scenarios.
+
+        Order 1: "Alice knows the ball is red"
+        Order 2: "Alice knows Bob knows the ball is red"
+        Order 3: "Alice knows Bob knows Alice knows the ball is red"
+        etc.
         """
         agent.eval()
 
         with torch.no_grad():
-            # Create scenario with nested beliefs
-            seq_length = order + 3
+            # Sequence length scales with order
+            seq_length = order + 4
             sequence = torch.zeros(1, seq_length, 191)
 
-            # Encode belief nesting depth
-            for i in range(min(order, seq_length)):
-                sequence[0, i, 20 + i] = 1.0  # Unique marker per level
+            # Encode the nested belief chain
+            self._encode_belief_chain(sequence, order, base_fact=1.0)
+
+            # Add context markers for the order being tested
+            sequence[0, :, 140] = float(order) / self.max_order  # Order indicator
+            sequence[0, -1, 141] = 1.0  # Query marker
+
+            # Final step: query about the nested belief
+            sequence[0, -1, 59 + order - 1] = 0.5  # Query point
 
             output = agent(sequence)
             beliefs = output['beliefs']
 
-            # Expected confidence should decrease with order
-            # Order 1: ~0.9, Order 2: ~0.75, Order 3: ~0.60, etc.
-            expected_confidence = max(0.3, 1.0 - (order - 1) * 0.15)
+            # Expected: confidence should decrease with order
+            # A well-calibrated ToM agent shows epistemic humility
+            expected_confidence = self.confidence_decay_rate ** (order - 1)
             actual_confidence = beliefs.mean().item()
 
-            # Score based on how close to expected
-            error = abs(actual_confidence - expected_confidence)
-            score = max(0.0, 1.0 - error)
+            # Also check if the agent correctly tracks the belief content
+            # For well-calibrated model, first belief dim should be close to 1.0
+            # (the underlying fact is true throughout)
+            content_belief = beliefs[0, 0].item() if beliefs.shape[1] > 0 else 0.5
 
-            passed = score >= 0.5
+            # Score components:
+            # 1. Confidence calibration (does confidence decay appropriately?)
+            confidence_error = abs(actual_confidence - expected_confidence)
+            calibration_score = max(0.0, 1.0 - confidence_error * 2)
+
+            # 2. Content preservation (does agent track the actual belief content?)
+            content_score = content_belief  # Should be high for true fact
+
+            # 3. Order-appropriate uncertainty (higher orders = more variance)
+            beliefs_std = beliefs.std().item()
+            expected_std = 0.1 + order * 0.05  # Uncertainty should increase
+            uncertainty_score = max(0.0, 1.0 - abs(beliefs_std - expected_std) * 5)
+
+            # Combined score
+            score = calibration_score * 0.4 + content_score * 0.4 + uncertainty_score * 0.2
+
+            # Pass if calibration is reasonable and content is tracked
+            passed = calibration_score >= 0.4 and content_score >= 0.4
 
             return BenchmarkResult(
                 test_name=f"ToM Order-{order}",
@@ -189,7 +378,12 @@ class HigherOrderToMBenchmark:
                     'order': order,
                     'expected_confidence': expected_confidence,
                     'actual_confidence': actual_confidence,
-                    'error': error
+                    'confidence_error': confidence_error,
+                    'content_belief': content_belief,
+                    'beliefs_std': beliefs_std,
+                    'calibration_score': calibration_score,
+                    'content_score': content_score,
+                    'uncertainty_score': uncertainty_score
                 }
             )
 
