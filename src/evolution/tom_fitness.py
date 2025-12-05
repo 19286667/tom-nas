@@ -23,6 +23,11 @@ from dataclasses import dataclass
 from ..benchmarks.tomi_loader import ToMiDataset, ToMiEvaluator
 
 
+# Default number of synthetic examples to generate for training/evaluation
+DEFAULT_SYNTHETIC_EXAMPLES = 500
+DEFAULT_COMBINED_EXAMPLES = 1000
+
+
 @dataclass
 class ToMFitnessResult:
     """Results from ToM fitness evaluation."""
@@ -92,8 +97,11 @@ class ToMSpecificFitness:
         # Create or use provided dataset
         if dataset is None:
             self.dataset = ToMiDataset()
-            self.dataset.generate_synthetic(num_examples=500)
-            self.dataset.split()
+            # Note: ToMiDataset constructor already generates 100 synthetic examples by default
+            # If we need more, call generate_synthetic_examples to add more
+            if len(self.dataset.examples) < DEFAULT_SYNTHETIC_EXAMPLES:
+                additional_needed = DEFAULT_SYNTHETIC_EXAMPLES - len(self.dataset.examples)
+                self.dataset.generate_synthetic_examples(num_examples=additional_needed)
         else:
             self.dataset = dataset
 
@@ -119,7 +127,7 @@ class ToMSpecificFitness:
         Args:
             model: Neural network model to evaluate
             num_examples: Optional limit on examples
-            split: Dataset split to use ('train', 'val', 'test')
+            split: Dataset split to use (currently unused, reserved for future dataset splits)
 
         Returns:
             ToMFitnessResult with all fitness components
@@ -127,7 +135,8 @@ class ToMSpecificFitness:
         model = model.to(self.device)
 
         # Get ToMi accuracies
-        accuracies = self.evaluator.evaluate(model, split=split, num_examples=num_examples)
+        eval_samples = num_examples if num_examples is not None else 100
+        accuracies = self.evaluator.evaluate(model, num_samples=eval_samples)
 
         # Extract components
         first_order = accuracies.get('first_order_accuracy', 0.0)
@@ -236,30 +245,50 @@ class AdversarialToMFitness:
         correct = 0
         total = 0
 
+        # Limit to actual dataset size
+        num_to_evaluate = min(num_examples, len(self.base_fitness.dataset.examples))
+
         with torch.no_grad():
-            for _ in range(min(num_examples, len(self.base_fitness.dataset.examples))):
-                # Get random example
-                example = np.random.choice(self.base_fitness.dataset.examples)
+            # Iterate through dataset sequentially for deterministic evaluation
+            for idx in range(num_to_evaluate):
+                example = self.base_fitness.dataset.examples[idx]
 
-                for q_idx, question in enumerate(example.questions):
-                    if question.question_type not in ['first_order', 'second_order']:
+                # Encode the example's events
+                inp = self.base_fitness.dataset.encoder.encode_sequence(example.events)
+                inp = inp.unsqueeze(0)  # Add batch dimension
+
+                if inp is None or inp.numel() == 0:
+                    continue
+
+                # Add noise as simple adversarial perturbation
+                inp = inp + 0.1 * torch.randn_like(inp)
+
+                output = model(inp.to(self.base_fitness.device))
+
+                # Handle dict output from ToM models
+                if isinstance(output, dict):
+                    beliefs = output.get('beliefs')
+                    if beliefs is None:
                         continue
+                    output = beliefs
 
-                    inp, tgt, correct_idx = self.base_fitness.dataset.encode_example(example, q_idx)
+                # Get prediction
+                if output.dim() > 1:
+                    pred_tensor = output[0] if output.dim() == 2 else output[0, -1]
+                else:
+                    pred_tensor = output
+                pred_idx = pred_tensor.argmax(dim=-1).item()
 
-                    # Add noise as simple adversarial perturbation
-                    inp = inp + 0.1 * torch.randn_like(inp)
+                # Check against first question's correct answer
+                if example.questions:
+                    correct_answer = example.questions[0].correct_answer
+                    target_idx = self.base_fitness.dataset.encoder.locations_vocab.get(
+                        correct_answer, 0
+                    )
+                    if pred_idx == target_idx:
+                        correct += 1
 
-                    output = model(inp.unsqueeze(0).to(self.base_fitness.device))
-
-                    if isinstance(output, dict):
-                        beliefs = output.get('beliefs')
-                        if beliefs is not None:
-                            pred_idx = beliefs.argmax(dim=-1).item()
-                            if pred_idx == correct_idx:
-                                correct += 1
-
-                    total += 1
+                total += 1
 
         return correct / total if total > 0 else 0.0
 
@@ -387,8 +416,7 @@ class CombinedToMFitness:
     ):
         # Initialize components
         self.dataset = ToMiDataset()
-        self.dataset.generate_synthetic(num_examples=1000)
-        self.dataset.split()
+        self.dataset.generate_synthetic_examples(num_examples=DEFAULT_COMBINED_EXAMPLES)
 
         self.base_fitness = ToMSpecificFitness(
             dataset=self.dataset,

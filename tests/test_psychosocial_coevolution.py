@@ -202,7 +202,7 @@ class TestSocialNetwork:
         for pair in [("a", "b"), ("b", "a"), ("b", "c"), ("c", "b"), ("a", "c"), ("c", "a")]:
             edge = network.get_or_create_edge(pair[0], pair[1])
             edge.trust = TheoreticalConstants.COALITION_FORMATION_THRESHOLD + 0.1
-            edge.affect = 0.3
+            edge.affect = TheoreticalConstants.COALITION_AFFECT_THRESHOLD + 0.1
 
         coalitions = network.detect_coalitions()
 
