@@ -24,7 +24,7 @@ Author: ToM-NAS Project
 import torch
 import numpy as np
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
 from datetime import datetime
 import logging
 
@@ -34,7 +34,10 @@ from ..simulation_config import (
     InstitutionGenotype,
 )
 from ..core.beliefs import BeliefNetwork, Belief
-from ..evolution.poet_manager import AgentGenotype
+
+# Use TYPE_CHECKING to avoid circular import
+if TYPE_CHECKING:
+    from ..evolution.poet_manager import AgentGenotype
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +233,7 @@ class SituatedEvaluator:
 
     def evaluate(
         self,
-        agent: AgentGenotype,
+        agent: "AgentGenotype",
         environment: InstitutionGenotype,
         belief_network: BeliefNetwork = None,
         simulation_state: SimulationState = None,
@@ -461,7 +464,7 @@ class SituatedEvaluator:
 
     def _synthetic_belief_score(
         self,
-        agent: AgentGenotype,
+        agent: "AgentGenotype",
         environment: InstitutionGenotype
     ) -> float:
         """
@@ -521,7 +524,7 @@ class SituatedEvaluator:
 
     def _evaluate_efficiency(
         self,
-        agent: AgentGenotype,
+        agent: "AgentGenotype",
         state: Optional[SimulationState]
     ) -> float:
         """Evaluate computational efficiency."""

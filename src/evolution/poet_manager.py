@@ -34,6 +34,15 @@ from ..simulation_config import (
     NASConfig,
 )
 from ..core.beliefs import BeliefNetwork
+from ..core.metamind import (
+    MetaMindPipeline,
+    BeliefNest,
+    Observation,
+    InstitutionalContext,
+    ActionCandidate,
+    create_metamind_pipeline,
+)
+from ..evaluation.situated_evaluator import SimulationState, AgentGroundTruth
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +339,16 @@ class POETManager:
         # Statistics
         self.stats_history: List[Dict[str, Any]] = []
 
+        # Initialize shared belief network for simulations
+        self.belief_network = BeliefNetwork(
+            num_agents=config.poet.agent_population_size,
+            ontology_dim=64,
+            max_order=config.belief_nest.max_nesting_depth,
+        )
+
+        # Context manager for norms (lazy import to avoid circular)
+        self._context_manager = None
+
         # Initialize populations
         self._initialize_populations()
 
@@ -440,17 +459,185 @@ class POETManager:
 
         return stats
 
+    def _get_context_manager(self):
+        """Lazy load context manager to avoid circular imports."""
+        if self._context_manager is None:
+            from ..core.context_manager import ContextManager
+            self._context_manager = ContextManager()
+        return self._context_manager
+
+    def _run_episode(
+        self,
+        agent: AgentGenotype,
+        environment: InstitutionGenotype,
+        num_steps: int = 20
+    ) -> SimulationState:
+        """
+        Run a simulation episode for fitness evaluation.
+
+        Args:
+            agent: Agent genotype to evaluate
+            environment: Environment to evaluate in
+            num_steps: Number of simulation steps
+
+        Returns:
+            SimulationState with ground truth for evaluation
+        """
+        episode_id = str(uuid.uuid4())[:8]
+        state = SimulationState(
+            episode_id=episode_id,
+            institution=environment.institution_type.value,
+            timestamp=0.0,
+        )
+
+        # Create a MetaMind pipeline for this agent
+        agent_idx = 0  # Use first slot for evaluation
+        pipeline = create_metamind_pipeline(
+            self.belief_network,
+            agent_idx,
+            max_hypotheses=5,
+            norm_weight=self.config.metamind.norm_weight,
+            social_cost_weight=self.config.metamind.social_cost_weight,
+        )
+
+        # Create ground truth for target agents (simulated other agents)
+        num_other_agents = 3
+        for i in range(1, num_other_agents + 1):
+            state.agent_states[i] = AgentGroundTruth(
+                agent_id=i,
+                timestamp=0.0,
+                beliefs={"environment": "accurate"},
+                goals=["social_goal", "task_goal"],
+                emotional_state={"valence": 0.5, "arousal": 0.3},
+            )
+
+        context_manager = self._get_context_manager()
+
+        # Run simulation steps
+        for step in range(num_steps):
+            state.timestamp = float(step)
+
+            # Create observation of another agent
+            target_agent = (step % num_other_agents) + 1
+            obs = Observation(
+                observer_id=agent_idx,
+                timestamp=float(step),
+                observed_entity_id=target_agent,
+                observed_entity_type="agent",
+                observed_entity_name=f"Agent_{target_agent}",
+                position=(np.random.randn() * 5, 0, np.random.randn() * 5),
+                velocity=(np.random.randn() * 0.5, 0, np.random.randn() * 0.5),
+                location_type=self._get_location_for_institution(environment.institution_type),
+                institution_context=environment.institution_type.value,
+            )
+
+            # Get institutional context
+            norms = context_manager.get_norms(
+                location=obs.location_type,
+                institution=environment.institution_type.value,
+            )
+
+            context = InstitutionalContext(
+                institution_type=environment.institution_type.value,
+                location=obs.location_type,
+                agent_role="member",
+                explicit_norms=[n.name for n in norms],
+                information_asymmetry=environment.information_asymmetry,
+                power_differential=environment.role_power_differential,
+            )
+
+            # Create available actions
+            actions = [
+                ActionCandidate(
+                    action_id="observe",
+                    action_type="observe",
+                    expected_goal_progress=0.2,
+                    expected_social_cost=0.0,
+                ),
+                ActionCandidate(
+                    action_id="interact",
+                    action_type="interact",
+                    target_entity_id=target_agent,
+                    expected_goal_progress=0.5,
+                    expected_social_cost=0.2,
+                ),
+                ActionCandidate(
+                    action_id="communicate",
+                    action_type="speak",
+                    target_entity_id=target_agent,
+                    expected_goal_progress=0.3,
+                    expected_social_cost=0.1,
+                ),
+                ActionCandidate(
+                    action_id="wait",
+                    action_type="wait",
+                    expected_goal_progress=0.1,
+                    expected_social_cost=0.0,
+                ),
+            ]
+
+            # Agent makes decision
+            decision = pipeline.reason(obs, "achieve_social_goal", context, actions)
+
+            # Record event
+            state.events.append({
+                "step": step,
+                "agent": agent_idx,
+                "action": decision.selected_action.action_type,
+                "tom_depth": decision.tom_depth_used,
+                "confidence": decision.confidence,
+                "hypotheses_count": len(decision.hypotheses_considered),
+            })
+
+            # Simulate action outcome with some stochasticity based on environment
+            action_success = np.random.random() > environment.complexity_level * 0.3
+
+            # Update ground truth based on action
+            if action_success and decision.selected_action.action_type == "interact":
+                # Successful interaction reveals information
+                gt = state.agent_states[target_agent]
+                gt.known_facts.append(f"interacted_step_{step}")
+
+        return state
+
+    def _get_location_for_institution(self, institution: InstitutionType) -> str:
+        """Get appropriate location type for an institution."""
+        location_map = {
+            InstitutionType.FAMILY: "home",
+            InstitutionType.FRIENDSHIP: "public",
+            InstitutionType.EDUCATION: "classroom",
+            InstitutionType.WORKPLACE: "office",
+            InstitutionType.HEALTHCARE: "clinic",
+            InstitutionType.RELIGIOUS: "church",
+            InstitutionType.LEGAL: "court",
+            InstitutionType.POLITICAL: "parliament",
+            InstitutionType.ECONOMIC_MARKET: "store",
+            InstitutionType.MILITARY: "base",
+            InstitutionType.SPORTS: "field",
+            InstitutionType.MEDIA: "studio",
+        }
+        return location_map.get(institution, "public")
+
     def _evaluate_all_pairs(self) -> List[float]:
         """Evaluate all agent-environment pairs."""
         fitness_scores = []
 
         for pair in self.pairs:
-            # Compute fitness (this would call the actual evaluator)
+            # Run actual episode simulation
+            simulation_state = self._run_episode(pair.agent, pair.environment)
+
+            # Compute fitness using evaluator or fallback
             if self.evaluator:
-                fitness = self.evaluator.evaluate(pair.agent, pair.environment)
+                fitness = self.evaluator.evaluate(
+                    agent=pair.agent,
+                    environment=pair.environment,
+                    belief_network=self.belief_network,
+                    simulation_state=simulation_state,
+                    agent_idx=0,
+                )
             else:
-                # Placeholder: random fitness based on complexity matching
-                fitness = self._placeholder_fitness(pair)
+                # Fallback: compute fitness from simulation state directly
+                fitness = self._compute_fitness_from_state(pair, simulation_state)
 
             pair.update_fitness(fitness, self.current_generation)
             fitness_scores.append(fitness)
@@ -461,27 +648,51 @@ class POETManager:
 
         return fitness_scores
 
-    def _placeholder_fitness(self, pair: AgentEnvironmentPair) -> float:
-        """Placeholder fitness function for testing."""
-        # Simple heuristic: fitness based on architecture-environment match
+    def _compute_fitness_from_state(
+        self,
+        pair: AgentEnvironmentPair,
+        state: SimulationState
+    ) -> float:
+        """
+        Compute fitness from simulation state when no evaluator is provided.
+
+        Uses the same composite weights as SituatedEvaluator.
+        """
         agent = pair.agent
         env = pair.environment
 
-        # Larger belief modules help with complex environments
-        belief_match = min(agent.belief_module_size / 128, 1.0)
+        # Extract metrics from simulation events
+        events = state.events
+        if not events:
+            return 0.3 + np.random.randn() * 0.05
 
-        # More ToM layers help with deception
-        deception_handling = min(agent.num_tom_layers / 4, 1.0) * env.deception_prevalence
+        # Belief accuracy proxy: higher ToM depth usage suggests active modeling
+        tom_depths = [e.get("tom_depth", 0) for e in events]
+        mean_tom_depth = np.mean(tom_depths) if tom_depths else 0
+        belief_score = min(mean_tom_depth / agent.max_tom_depth, 1.0)
 
-        # Attention heads help with information asymmetry
-        info_handling = min(agent.num_attention_heads / 8, 1.0) * env.information_asymmetry
+        # Action success proxy: variety and confidence
+        confidences = [e.get("confidence", 0.5) for e in events]
+        action_score = np.mean(confidences) if confidences else 0.5
 
-        # Base fitness with noise
-        fitness = 0.3 + 0.2 * belief_match + 0.2 * deception_handling + 0.2 * info_handling
-        fitness += np.random.randn() * 0.05  # Noise
-        fitness = np.clip(fitness, 0, 1)
+        # Social cost proxy: based on environment friction
+        social_score = 1.0 - (env.friction_coefficient * 0.3)
 
-        return fitness
+        # Efficiency: appropriate architecture size
+        param_count = agent.get_parameter_count()
+        efficiency_score = 1.0 - min(param_count / 1_000_000, 0.5)
+
+        # Composite (matching EvaluationConfig defaults)
+        fitness = (
+            0.4 * belief_score +
+            0.3 * action_score +
+            0.2 * social_score +
+            0.1 * efficiency_score
+        )
+
+        # Add small noise
+        fitness += np.random.randn() * 0.02
+        return np.clip(fitness, 0, 1)
 
     def _attempt_transfers(self) -> int:
         """

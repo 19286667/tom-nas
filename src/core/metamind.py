@@ -359,12 +359,26 @@ class ToMAgent:
     Stage 1: Theory of Mind Agent (Hypothesis Generation)
 
     Generates hypotheses about other agents' mental states from observations.
+    Uses contextual cues, physical observations, and institutional knowledge.
     """
 
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         self.max_hypotheses = self.config.get("max_hypotheses", 5)
         self.diversity_pressure = self.config.get("diversity_pressure", 0.3)
+
+        # Context manager for prototype-based inference (lazy loaded)
+        self._context_manager = None
+
+    def _get_context_manager(self):
+        """Lazy load context manager for norm and prototype lookup."""
+        if self._context_manager is None:
+            try:
+                from .context_manager import ContextManager
+                self._context_manager = ContextManager()
+            except ImportError:
+                logger.warning("ContextManager not available for hypothesis generation")
+        return self._context_manager
 
     def generate_hypotheses(
         self,
@@ -469,10 +483,54 @@ class ToMAgent:
                 content=f"Agent {target_id} is moving toward a destination",
                 probability=0.7,
                 tom_order=1,
-                evidence=[f"velocity: {velocity_magnitude}"],
+                evidence=[f"velocity: {velocity_magnitude:.2f}"],
             ))
 
-        # Context-based goal inference
+        # Context-based goal inference from mundane expectations
+        ctx = self._get_context_manager()
+        if ctx:
+            # Get expected activities for this time/location
+            mundane = ctx.get_mundane_constraints(
+                time_of_day=obs.timestamp % 24,  # Convert to hour of day
+                location_type=obs.location_type,
+            )
+
+            expected_activity = mundane.get("expected_activity")
+            if expected_activity:
+                hyps.append(MentalStateHypothesis(
+                    target_agent_id=target_id,
+                    hypothesis_id=f"goal_mundane_{target_id}",
+                    state_type="goal",
+                    content=f"Agent {target_id} wants to complete {expected_activity}",
+                    probability=0.6,
+                    tom_order=1,
+                    evidence=[f"expected_activity: {expected_activity}", f"location: {obs.location_type}"],
+                ))
+
+        # Institution-specific goal inference
+        institution_goals = {
+            "family": ["maintain_relationships", "provide_support", "share_resources"],
+            "workplace": ["complete_tasks", "advance_career", "maintain_reputation"],
+            "education": ["learn_material", "demonstrate_competence", "social_belonging"],
+            "political": ["build_coalition", "maintain_power", "advance_agenda"],
+            "economic_market": ["complete_transaction", "maximize_value", "build_trust"],
+        }
+
+        if obs.institution_context in institution_goals:
+            goals = institution_goals[obs.institution_context]
+            # Pick most likely goal based on context
+            primary_goal = goals[0]
+            hyps.append(MentalStateHypothesis(
+                target_agent_id=target_id,
+                hypothesis_id=f"goal_institutional_{target_id}",
+                state_type="goal",
+                content=f"Agent {target_id} wants to {primary_goal}",
+                probability=0.65,
+                tom_order=1,
+                evidence=[f"institution: {obs.institution_context}"],
+            ))
+
+        # Mundane context-based goal
         if obs.mundane_context == "morning_routine":
             hyps.append(MentalStateHypothesis(
                 target_agent_id=target_id,
@@ -495,19 +553,73 @@ class ToMAgent:
         """Generate hypotheses about what the target is feeling."""
         hyps = []
 
-        # Default: neutral emotional state
-        hyps.append(MentalStateHypothesis(
-            target_agent_id=target_id,
-            hypothesis_id=f"emotion_neutral_{target_id}",
-            state_type="emotion",
-            content=f"Agent {target_id} is in a neutral emotional state",
-            probability=0.5,
-            tom_order=1,
-            evidence=["default prior"],
-        ))
+        # Infer emotional state from physical cues
+        velocity_magnitude = np.linalg.norm(obs.velocity)
 
-        # Context-based emotion inference
-        if "dropped" in str(obs.features):
+        # High velocity might indicate urgency/stress
+        if velocity_magnitude > 2.0:
+            hyps.append(MentalStateHypothesis(
+                target_agent_id=target_id,
+                hypothesis_id=f"emotion_rushed_{target_id}",
+                state_type="emotion",
+                content=f"Agent {target_id} appears rushed or stressed",
+                probability=0.6,
+                tom_order=1,
+                evidence=[f"high_velocity: {velocity_magnitude:.2f}"],
+            ))
+        elif velocity_magnitude < 0.1:
+            # Very low velocity might indicate rest, contemplation, or waiting
+            hyps.append(MentalStateHypothesis(
+                target_agent_id=target_id,
+                hypothesis_id=f"emotion_calm_{target_id}",
+                state_type="emotion",
+                content=f"Agent {target_id} appears calm or at rest",
+                probability=0.55,
+                tom_order=1,
+                evidence=["stationary_position"],
+            ))
+        else:
+            # Default: neutral emotional state
+            hyps.append(MentalStateHypothesis(
+                target_agent_id=target_id,
+                hypothesis_id=f"emotion_neutral_{target_id}",
+                state_type="emotion",
+                content=f"Agent {target_id} is in a neutral emotional state",
+                probability=0.5,
+                tom_order=1,
+                evidence=["default prior"],
+            ))
+
+        # Use prototypes from context manager for stereotype-based inference
+        ctx = self._get_context_manager()
+        if ctx and obs.semantic_tags:
+            prototypes = ctx.get_prototypes(obs.semantic_tags, obs.institution_context)
+            for proto in prototypes[:2]:  # Consider top 2 matching prototypes
+                # High warmth prototypes suggest positive emotions
+                if proto.warmth_prior > 0.7:
+                    hyps.append(MentalStateHypothesis(
+                        target_agent_id=target_id,
+                        hypothesis_id=f"emotion_positive_{target_id}_{proto.name}",
+                        state_type="emotion",
+                        content=f"Agent {target_id} likely has positive affect (matches {proto.name} prototype)",
+                        probability=proto.confidence * 0.6,
+                        tom_order=1,
+                        evidence=[f"prototype: {proto.name}", f"warmth: {proto.warmth_prior:.2f}"],
+                    ))
+                elif proto.warmth_prior < 0.3:
+                    hyps.append(MentalStateHypothesis(
+                        target_agent_id=target_id,
+                        hypothesis_id=f"emotion_negative_{target_id}_{proto.name}",
+                        state_type="emotion",
+                        content=f"Agent {target_id} may have negative or guarded affect (matches {proto.name} prototype)",
+                        probability=proto.confidence * 0.5,
+                        tom_order=1,
+                        evidence=[f"prototype: {proto.name}", f"warmth: {proto.warmth_prior:.2f}"],
+                    ))
+
+        # Context-based emotion inference from features
+        features_str = str(obs.features).lower()
+        if "dropped" in features_str:
             hyps.append(MentalStateHypothesis(
                 target_agent_id=target_id,
                 hypothesis_id=f"emotion_embarrassed_{target_id}",
@@ -516,6 +628,28 @@ class ToMAgent:
                 probability=0.6,
                 tom_order=1,
                 evidence=["observed dropping object"],
+            ))
+
+        if "laughing" in features_str or "smiling" in features_str:
+            hyps.append(MentalStateHypothesis(
+                target_agent_id=target_id,
+                hypothesis_id=f"emotion_happy_{target_id}",
+                state_type="emotion",
+                content=f"Agent {target_id} appears happy or amused",
+                probability=0.75,
+                tom_order=1,
+                evidence=["positive facial expression"],
+            ))
+
+        if "frowning" in features_str or "crossed_arms" in features_str:
+            hyps.append(MentalStateHypothesis(
+                target_agent_id=target_id,
+                hypothesis_id=f"emotion_negative_{target_id}",
+                state_type="emotion",
+                content=f"Agent {target_id} may be displeased or defensive",
+                probability=0.6,
+                tom_order=1,
+                evidence=["negative body language"],
             ))
 
         return hyps
@@ -529,7 +663,71 @@ class ToMAgent:
         """Generate hypotheses about what the target intends to do."""
         hyps = []
 
-        # Infer from observed action
+        velocity_magnitude = np.linalg.norm(obs.velocity)
+
+        # Infer from movement patterns
+        if velocity_magnitude > 0.5:
+            # Moving - infer destination-oriented intention
+            hyps.append(MentalStateHypothesis(
+                target_agent_id=target_id,
+                hypothesis_id=f"intention_destination_{target_id}",
+                state_type="intention",
+                content=f"Agent {target_id} intends to reach a specific location",
+                probability=0.7,
+                tom_order=1,
+                evidence=[f"moving: {velocity_magnitude:.2f}"],
+            ))
+        else:
+            # Stationary - infer waiting or observing intention
+            hyps.append(MentalStateHypothesis(
+                target_agent_id=target_id,
+                hypothesis_id=f"intention_waiting_{target_id}",
+                state_type="intention",
+                content=f"Agent {target_id} intends to wait or observe",
+                probability=0.55,
+                tom_order=1,
+                evidence=["stationary"],
+            ))
+
+        # Institution-specific intentions
+        intention_by_institution = {
+            "family": [
+                ("communicate", "Agent intends to communicate with family members"),
+                ("help", "Agent intends to help or support family members"),
+            ],
+            "workplace": [
+                ("complete_task", "Agent intends to complete a work task"),
+                ("collaborate", "Agent intends to collaborate with colleagues"),
+                ("report", "Agent intends to report or communicate status"),
+            ],
+            "education": [
+                ("learn", "Agent intends to learn or acquire information"),
+                ("demonstrate", "Agent intends to demonstrate knowledge"),
+            ],
+            "political": [
+                ("negotiate", "Agent intends to negotiate or persuade"),
+                ("build_alliance", "Agent intends to build or maintain alliances"),
+            ],
+            "economic_market": [
+                ("transact", "Agent intends to complete a transaction"),
+                ("evaluate", "Agent intends to evaluate options"),
+            ],
+        }
+
+        if obs.institution_context in intention_by_institution:
+            intentions = intention_by_institution[obs.institution_context]
+            for intent_type, description in intentions[:2]:  # Top 2
+                hyps.append(MentalStateHypothesis(
+                    target_agent_id=target_id,
+                    hypothesis_id=f"intention_{intent_type}_{target_id}",
+                    state_type="intention",
+                    content=f"{description.replace('Agent', f'Agent {target_id}')}",
+                    probability=0.55,
+                    tom_order=1,
+                    evidence=[f"institution: {obs.institution_context}"],
+                ))
+
+        # Default: continue current activity
         hyps.append(MentalStateHypothesis(
             target_agent_id=target_id,
             hypothesis_id=f"intention_continue_{target_id}",
@@ -539,6 +737,19 @@ class ToMAgent:
             tom_order=1,
             evidence=["behavior continuation prior"],
         ))
+
+        # Social intention based on proximity
+        position_magnitude = np.linalg.norm(obs.position)
+        if position_magnitude < 3.0:  # Close proximity
+            hyps.append(MentalStateHypothesis(
+                target_agent_id=target_id,
+                hypothesis_id=f"intention_interact_{target_id}",
+                state_type="intention",
+                content=f"Agent {target_id} intends to interact (close proximity)",
+                probability=0.6,
+                tom_order=1,
+                evidence=[f"proximity: {position_magnitude:.2f}"],
+            ))
 
         return hyps
 

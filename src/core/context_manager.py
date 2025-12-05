@@ -237,8 +237,166 @@ class SociologicalDatabase:
             ),
         ]
 
+        # Education norms
+        education_norms = [
+            NormEntry(
+                norm_id="education_respect_teacher",
+                institution="education",
+                name="Respect instructors",
+                description="Students defer to teacher authority in classroom",
+                violation_cost=0.5,
+                detection_probability=0.9,
+                applies_to_roles=["student"],
+            ),
+            NormEntry(
+                norm_id="education_academic_honesty",
+                institution="education",
+                name="Academic integrity",
+                description="Do not plagiarize or cheat on assessments",
+                violation_cost=0.9,
+                detection_probability=0.4,
+                applies_to_roles=["student", "researcher"],
+            ),
+            NormEntry(
+                norm_id="education_participation",
+                institution="education",
+                name="Active participation",
+                description="Contribute to class discussions and activities",
+                violation_cost=0.3,
+                detection_probability=0.7,
+                applies_to_roles=["student"],
+            ),
+        ]
+
+        # Healthcare norms
+        healthcare_norms = [
+            NormEntry(
+                norm_id="healthcare_confidentiality",
+                institution="healthcare",
+                name="Patient confidentiality",
+                description="Do not disclose patient medical information",
+                violation_cost=1.0,
+                detection_probability=0.3,
+                applies_to_roles=["doctor", "nurse", "admin"],
+            ),
+            NormEntry(
+                norm_id="healthcare_informed_consent",
+                institution="healthcare",
+                name="Informed consent",
+                description="Patients must understand and agree to treatments",
+                violation_cost=0.9,
+                detection_probability=0.5,
+                applies_to_roles=["doctor", "nurse"],
+            ),
+            NormEntry(
+                norm_id="healthcare_do_no_harm",
+                institution="healthcare",
+                name="Do no harm",
+                description="Prioritize patient wellbeing above all",
+                violation_cost=1.0,
+                detection_probability=0.6,
+                applies_to_roles=["all"],
+            ),
+        ]
+
+        # Religious norms
+        religious_norms = [
+            NormEntry(
+                norm_id="religious_reverence",
+                institution="religious",
+                name="Show reverence",
+                description="Maintain respectful demeanor in sacred spaces",
+                violation_cost=0.6,
+                detection_probability=0.9,
+                applies_to_roles=["all"],
+            ),
+            NormEntry(
+                norm_id="religious_observance",
+                institution="religious",
+                name="Observe rituals",
+                description="Participate in prescribed religious practices",
+                violation_cost=0.5,
+                detection_probability=0.7,
+                applies_to_roles=["member", "leader"],
+            ),
+            NormEntry(
+                norm_id="religious_community",
+                institution="religious",
+                name="Support community",
+                description="Help fellow members of the religious community",
+                violation_cost=0.4,
+                detection_probability=0.6,
+                applies_to_roles=["all"],
+            ),
+        ]
+
+        # Legal norms
+        legal_norms = [
+            NormEntry(
+                norm_id="legal_truthfulness",
+                institution="legal",
+                name="Testify truthfully",
+                description="Provide honest testimony under oath",
+                violation_cost=1.0,
+                detection_probability=0.4,
+                applies_to_roles=["witness", "defendant", "plaintiff"],
+            ),
+            NormEntry(
+                norm_id="legal_procedure",
+                institution="legal",
+                name="Follow legal procedure",
+                description="Adhere to established court protocols",
+                violation_cost=0.7,
+                detection_probability=0.9,
+                applies_to_roles=["all"],
+            ),
+            NormEntry(
+                norm_id="legal_respect_court",
+                institution="legal",
+                name="Respect the court",
+                description="Show deference to judge and legal process",
+                violation_cost=0.6,
+                detection_probability=0.95,
+                applies_to_roles=["all"],
+            ),
+        ]
+
+        # Economic/Market norms
+        economic_norms = [
+            NormEntry(
+                norm_id="economic_fair_dealing",
+                institution="economic_market",
+                name="Fair dealing",
+                description="Conduct transactions honestly without deception",
+                violation_cost=0.7,
+                detection_probability=0.5,
+                applies_to_roles=["buyer", "seller", "broker"],
+            ),
+            NormEntry(
+                norm_id="economic_contract_honor",
+                institution="economic_market",
+                name="Honor contracts",
+                description="Fulfill agreed-upon obligations",
+                violation_cost=0.9,
+                detection_probability=0.7,
+                applies_to_roles=["all"],
+            ),
+            NormEntry(
+                norm_id="economic_reciprocity",
+                institution="economic_market",
+                name="Reciprocity expected",
+                description="Value received should match value given",
+                violation_cost=0.5,
+                detection_probability=0.6,
+                applies_to_roles=["all"],
+            ),
+        ]
+
         # Add all norms
-        for norm in family_norms + workplace_norms + political_norms:
+        all_norms = (family_norms + workplace_norms + political_norms +
+                     education_norms + healthcare_norms + religious_norms +
+                     legal_norms + economic_norms)
+        for norm in all_norms:
             self.norms[norm.norm_id] = norm
             if norm.institution not in self.norms_by_institution:
                 self.norms_by_institution[norm.institution] = []
@@ -286,6 +444,123 @@ class SociologicalDatabase:
                 competence_prior=0.5,
                 feature_triggers=["rushed_movement", "checking_phone", "tense_posture"],
                 institution_context="workplace",
+            ),
+            # Education prototypes
+            PrototypeEntry(
+                prototype_id="dedicated_student",
+                name="Dedicated student",
+                warmth_prior=0.5,
+                competence_prior=0.7,
+                feature_triggers=["taking_notes", "asking_questions", "focused_attention"],
+                institution_context="education",
+            ),
+            PrototypeEntry(
+                prototype_id="disengaged_student",
+                name="Disengaged student",
+                warmth_prior=0.4,
+                competence_prior=0.3,
+                feature_triggers=["distracted", "phone_use", "looking_away"],
+                institution_context="education",
+            ),
+            PrototypeEntry(
+                prototype_id="wise_teacher",
+                name="Wise teacher",
+                warmth_prior=0.7,
+                competence_prior=0.9,
+                feature_triggers=["explaining", "patient_demeanor", "encouraging"],
+                institution_context="education",
+            ),
+            # Healthcare prototypes
+            PrototypeEntry(
+                prototype_id="concerned_doctor",
+                name="Concerned doctor",
+                warmth_prior=0.6,
+                competence_prior=0.9,
+                feature_triggers=["white_coat", "stethoscope", "serious_expression"],
+                institution_context="healthcare",
+            ),
+            PrototypeEntry(
+                prototype_id="anxious_patient",
+                name="Anxious patient",
+                warmth_prior=0.5,
+                competence_prior=0.2,
+                feature_triggers=["nervous_fidgeting", "frequent_questions", "tense_posture"],
+                institution_context="healthcare",
+            ),
+            PrototypeEntry(
+                prototype_id="compassionate_nurse",
+                name="Compassionate nurse",
+                warmth_prior=0.9,
+                competence_prior=0.7,
+                feature_triggers=["scrubs", "gentle_touch", "reassuring_voice"],
+                institution_context="healthcare",
+            ),
+            # Economic/Market prototypes
+            PrototypeEntry(
+                prototype_id="shrewd_negotiator",
+                name="Shrewd negotiator",
+                warmth_prior=0.2,
+                competence_prior=0.8,
+                feature_triggers=["calculating_expression", "strategic_questions", "poker_face"],
+                institution_context="economic_market",
+            ),
+            PrototypeEntry(
+                prototype_id="eager_buyer",
+                name="Eager buyer",
+                warmth_prior=0.6,
+                competence_prior=0.4,
+                feature_triggers=["examining_products", "comparing_options", "asking_prices"],
+                institution_context="economic_market",
+            ),
+            PrototypeEntry(
+                prototype_id="trustworthy_seller",
+                name="Trustworthy seller",
+                warmth_prior=0.7,
+                competence_prior=0.6,
+                feature_triggers=["transparent_information", "honest_answers", "open_demeanor"],
+                institution_context="economic_market",
+            ),
+            # Social/Emotional prototypes
+            PrototypeEntry(
+                prototype_id="grieving_person",
+                name="Grieving person",
+                warmth_prior=0.6,
+                competence_prior=0.3,
+                feature_triggers=["sad_expression", "slow_movement", "withdrawn_posture"],
+                institution_context=None,
+            ),
+            PrototypeEntry(
+                prototype_id="celebratory_person",
+                name="Celebratory person",
+                warmth_prior=0.9,
+                competence_prior=0.5,
+                feature_triggers=["smiling", "animated_gestures", "upbeat_voice"],
+                institution_context=None,
+            ),
+            PrototypeEntry(
+                prototype_id="suspicious_stranger",
+                name="Suspicious stranger",
+                warmth_prior=0.1,
+                competence_prior=0.5,
+                feature_triggers=["avoiding_eye_contact", "nervous_behavior", "secretive_actions"],
+                institution_context=None,
+            ),
+            # Political prototypes
+            PrototypeEntry(
+                prototype_id="charismatic_leader",
+                name="Charismatic leader",
+                warmth_prior=0.7,
+                competence_prior=0.8,
+                feature_triggers=["confident_speech", "engaging_crowd", "decisive_gestures"],
+                institution_context="political",
+            ),
+            PrototypeEntry(
+                prototype_id="scheming_advisor",
+                name="Scheming advisor",
+                warmth_prior=0.2,
+                competence_prior=0.9,
+                feature_triggers=["whispering", "strategic_positioning", "calculating_expression"],
+                institution_context="political",
             ),
         ]
 
@@ -412,6 +687,160 @@ class SociologicalDatabase:
                 typical_goals=["maintain_power", "advance_agenda", "build_coalition"],
                 normative_behaviors=["public_speaking", "negotiation", "alliance_building"],
                 taboo_behaviors=["public_weakness", "betraying_allies_openly"],
+            ),
+            RoleEntry(
+                role_id="political_advisor",
+                institution="political",
+                name="Political advisor",
+                description="Strategic counsel to political leader",
+                power_level=0.5,
+                expected_competence=0.9,
+                expected_warmth=0.2,
+                typical_goals=["influence_decisions", "protect_leader", "advance_strategy"],
+                normative_behaviors=["analysis", "private_counsel", "loyalty"],
+                taboo_behaviors=["public_disagreement", "leaking_information"],
+            ),
+
+            # Education roles
+            RoleEntry(
+                role_id="education_teacher",
+                institution="education",
+                name="Teacher",
+                description="Instructor responsible for student learning",
+                power_level=0.7,
+                expected_competence=0.8,
+                expected_warmth=0.6,
+                typical_goals=["teach_effectively", "assess_learning", "maintain_order"],
+                normative_behaviors=["explaining", "evaluating", "encouraging"],
+                taboo_behaviors=["favoritism", "abuse_of_authority", "neglecting_students"],
+            ),
+            RoleEntry(
+                role_id="education_student",
+                institution="education",
+                name="Student",
+                description="Learner in educational setting",
+                power_level=0.2,
+                expected_competence=0.4,
+                expected_warmth=0.5,
+                typical_goals=["learn_material", "pass_assessments", "social_belonging"],
+                normative_behaviors=["attending", "studying", "participating"],
+                taboo_behaviors=["cheating", "disruption", "disrespect"],
+            ),
+
+            # Healthcare roles
+            RoleEntry(
+                role_id="healthcare_doctor",
+                institution="healthcare",
+                name="Doctor",
+                description="Medical professional responsible for diagnosis and treatment",
+                power_level=0.8,
+                expected_competence=0.95,
+                expected_warmth=0.5,
+                typical_goals=["diagnose_accurately", "treat_effectively", "patient_wellbeing"],
+                normative_behaviors=["examining", "prescribing", "explaining"],
+                taboo_behaviors=["negligence", "breach_confidentiality", "malpractice"],
+            ),
+            RoleEntry(
+                role_id="healthcare_nurse",
+                institution="healthcare",
+                name="Nurse",
+                description="Healthcare provider focused on patient care",
+                power_level=0.5,
+                expected_competence=0.7,
+                expected_warmth=0.8,
+                typical_goals=["patient_comfort", "care_administration", "monitoring"],
+                normative_behaviors=["caring", "monitoring", "administering"],
+                taboo_behaviors=["negligence", "breach_confidentiality", "abandonment"],
+            ),
+            RoleEntry(
+                role_id="healthcare_patient",
+                institution="healthcare",
+                name="Patient",
+                description="Person receiving medical care",
+                power_level=0.2,
+                expected_competence=0.2,
+                expected_warmth=0.6,
+                typical_goals=["get_well", "understand_condition", "minimize_pain"],
+                normative_behaviors=["reporting_symptoms", "following_treatment", "asking_questions"],
+                taboo_behaviors=["non_compliance", "deception_about_symptoms"],
+            ),
+
+            # Economic/Market roles
+            RoleEntry(
+                role_id="economic_buyer",
+                institution="economic_market",
+                name="Buyer",
+                description="Party seeking to purchase goods or services",
+                power_level=0.4,
+                expected_competence=0.5,
+                expected_warmth=0.5,
+                typical_goals=["get_best_value", "meet_needs", "minimize_risk"],
+                normative_behaviors=["evaluating", "negotiating", "paying_agreed"],
+                taboo_behaviors=["fraud", "defaulting", "bad_faith_negotiation"],
+            ),
+            RoleEntry(
+                role_id="economic_seller",
+                institution="economic_market",
+                name="Seller",
+                description="Party offering goods or services for sale",
+                power_level=0.4,
+                expected_competence=0.6,
+                expected_warmth=0.5,
+                typical_goals=["make_profit", "satisfy_customer", "build_reputation"],
+                normative_behaviors=["presenting", "negotiating", "delivering"],
+                taboo_behaviors=["fraud", "misrepresentation", "non_delivery"],
+            ),
+
+            # Legal roles
+            RoleEntry(
+                role_id="legal_judge",
+                institution="legal",
+                name="Judge",
+                description="Judicial authority presiding over legal proceedings",
+                power_level=0.95,
+                expected_competence=0.9,
+                expected_warmth=0.2,
+                typical_goals=["apply_law_fairly", "maintain_order", "ensure_justice"],
+                normative_behaviors=["listening", "ruling", "explaining_decisions"],
+                taboo_behaviors=["bias", "corruption", "procedural_violations"],
+            ),
+            RoleEntry(
+                role_id="legal_lawyer",
+                institution="legal",
+                name="Lawyer",
+                description="Legal representative advocating for client",
+                power_level=0.6,
+                expected_competence=0.8,
+                expected_warmth=0.3,
+                typical_goals=["win_case", "protect_client", "uphold_ethics"],
+                normative_behaviors=["arguing", "advising", "representing"],
+                taboo_behaviors=["perjury", "conflict_of_interest", "malpractice"],
+            ),
+
+            # Religious roles
+            RoleEntry(
+                role_id="religious_leader",
+                institution="religious",
+                name="Religious leader",
+                description="Spiritual authority in religious community",
+                power_level=0.8,
+                expected_competence=0.7,
+                expected_warmth=0.8,
+                typical_goals=["guide_spiritually", "maintain_community", "uphold_doctrine"],
+                normative_behaviors=["preaching", "counseling", "officiating"],
+                taboo_behaviors=["hypocrisy", "exploitation", "doctrinal_deviation"],
+            ),
+            RoleEntry(
+                role_id="religious_member",
+                institution="religious",
+                name="Religious member",
+                description="Member of religious community",
+                power_level=0.3,
+                expected_competence=0.4,
+                expected_warmth=0.7,
+                typical_goals=["spiritual_growth", "community_belonging", "follow_teachings"],
+                normative_behaviors=["observing", "participating", "supporting"],
+                taboo_behaviors=["blasphemy", "abandonment", "scandal"],
             ),
         ]
 
