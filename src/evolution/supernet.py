@@ -11,18 +11,19 @@ configured during NAS. Key components:
 The supernet architecture allows efficient weight sharing during search.
 """
 
+import math
+from dataclasses import dataclass
+from typing import Dict, Optional, Tuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
-import math
 
 
 @dataclass
 class ElasticConfig:
     """Configuration for elastic architecture."""
+
     min_hidden_dim: int = 64
     max_hidden_dim: int = 256
     min_layers: int = 1
@@ -66,8 +67,9 @@ class ElasticLSTMCell(nn.Module):
         for weight in [self.weight_ih, self.weight_hh]:
             nn.init.uniform_(weight, -stdv, stdv)
 
-    def forward(self, x: torch.Tensor, state: Tuple[torch.Tensor, torch.Tensor],
-                active_hidden_dim: Optional[int] = None) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+    def forward(
+        self, x: torch.Tensor, state: Tuple[torch.Tensor, torch.Tensor], active_hidden_dim: Optional[int] = None
+    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Forward pass with optional elastic hidden dimension.
 
@@ -84,10 +86,10 @@ class ElasticLSTMCell(nn.Module):
         active_dim = active_hidden_dim or self.max_hidden_dim
 
         # Slice weights for active dimensions
-        weight_ih = self.weight_ih[:4 * active_dim, :self.input_dim]
-        weight_hh = self.weight_hh[:4 * active_dim, :active_dim]
-        bias_ih = self.bias_ih[:4 * active_dim]
-        bias_hh = self.bias_hh[:4 * active_dim]
+        weight_ih = self.weight_ih[: 4 * active_dim, : self.input_dim]
+        weight_hh = self.weight_hh[: 4 * active_dim, :active_dim]
+        bias_ih = self.bias_ih[: 4 * active_dim]
+        bias_hh = self.bias_hh[: 4 * active_dim]
 
         # Slice states
         h = h[:, :active_dim]
@@ -98,9 +100,9 @@ class ElasticLSTMCell(nn.Module):
 
         # Split gates
         i_gate = torch.sigmoid(gates[:, :active_dim])
-        f_gate = torch.sigmoid(gates[:, active_dim:2*active_dim])
-        g_gate = torch.tanh(gates[:, 2*active_dim:3*active_dim])
-        o_gate = torch.sigmoid(gates[:, 3*active_dim:4*active_dim])
+        f_gate = torch.sigmoid(gates[:, active_dim : 2 * active_dim])
+        g_gate = torch.tanh(gates[:, 2 * active_dim : 3 * active_dim])
+        o_gate = torch.sigmoid(gates[:, 3 * active_dim : 4 * active_dim])
 
         # Cell and hidden state update
         c_new = f_gate * c + i_gate * g_gate
@@ -109,16 +111,14 @@ class ElasticLSTMCell(nn.Module):
         # Apply LayerNorm with correct dimensions
         # FIX: Use F.layer_norm with sliced parameters instead of self.layer_norm
         h_new = F.layer_norm(
-            h_new,
-            [h_new.shape[-1]],
-            self.layer_norm.weight[:h_new.shape[-1]],
-            self.layer_norm.bias[:h_new.shape[-1]]
+            h_new, [h_new.shape[-1]], self.layer_norm.weight[: h_new.shape[-1]], self.layer_norm.bias[: h_new.shape[-1]]
         )
 
         # Pad back to max dim if needed
         if active_dim < self.max_hidden_dim:
-            padding = torch.zeros(h_new.shape[0], self.max_hidden_dim - active_dim,
-                                  device=h_new.device, dtype=h_new.dtype)
+            padding = torch.zeros(
+                h_new.shape[0], self.max_hidden_dim - active_dim, device=h_new.device, dtype=h_new.dtype
+            )
             h_new = torch.cat([h_new, padding], dim=1)
             c_new = torch.cat([c_new, padding], dim=1)
 
@@ -132,8 +132,7 @@ class ElasticTransparentRNN(nn.Module):
     TRN uses explicit symbolic computation paths for interpretability.
     """
 
-    def __init__(self, input_dim: int, max_hidden_dim: int = 256,
-                 output_dim: int = 181, max_layers: int = 4):
+    def __init__(self, input_dim: int, max_hidden_dim: int = 256, output_dim: int = 181, max_layers: int = 4):
         super().__init__()
         self.input_dim = input_dim
         self.max_hidden_dim = max_hidden_dim
@@ -144,10 +143,7 @@ class ElasticTransparentRNN(nn.Module):
         self.input_proj = nn.Linear(input_dim, max_hidden_dim)
 
         # Elastic LSTM layers
-        self.lstm_layers = nn.ModuleList([
-            ElasticLSTMCell(max_hidden_dim, max_hidden_dim)
-            for _ in range(max_layers)
-        ])
+        self.lstm_layers = nn.ModuleList([ElasticLSTMCell(max_hidden_dim, max_hidden_dim) for _ in range(max_layers)])
 
         # Output projection
         self.output_proj = nn.Linear(max_hidden_dim, output_dim)
@@ -170,8 +166,8 @@ class ElasticTransparentRNN(nn.Module):
         batch_size, seq_len, _ = x.shape
 
         # Get active configuration
-        active_hidden = active_config.get('hidden_dim', self.max_hidden_dim) if active_config else self.max_hidden_dim
-        active_layers = active_config.get('num_layers', self.max_layers) if active_config else self.max_layers
+        active_hidden = active_config.get("hidden_dim", self.max_hidden_dim) if active_config else self.max_hidden_dim
+        active_layers = active_config.get("num_layers", self.max_layers) if active_config else self.max_layers
 
         # Input projection
         x = self.input_proj(x)
@@ -186,9 +182,7 @@ class ElasticTransparentRNN(nn.Module):
             layer_input = x[:, t, :]
 
             for layer_idx in range(active_layers):
-                layer_input, (h, c) = self.lstm_layers[layer_idx](
-                    layer_input, (h, c), active_hidden_dim=active_hidden
-                )
+                layer_input, (h, c) = self.lstm_layers[layer_idx](layer_input, (h, c), active_hidden_dim=active_hidden)
 
             outputs.append(h)
 
@@ -208,8 +202,8 @@ class ElasticTransparentRNN(nn.Module):
         Returns output and interpretability information.
         """
         batch_size, seq_len, _ = x.shape
-        active_hidden = active_config.get('hidden_dim', self.max_hidden_dim) if active_config else self.max_hidden_dim
-        active_layers = active_config.get('num_layers', self.max_layers) if active_config else self.max_layers
+        active_hidden = active_config.get("hidden_dim", self.max_hidden_dim) if active_config else self.max_hidden_dim
+        active_layers = active_config.get("num_layers", self.max_layers) if active_config else self.max_layers
 
         x = self.input_proj(x)
 
@@ -224,9 +218,7 @@ class ElasticTransparentRNN(nn.Module):
             layer_input = x[:, t, :]
 
             for layer_idx in range(active_layers):
-                layer_input, (h, c) = self.lstm_layers[layer_idx](
-                    layer_input, (h, c), active_hidden_dim=active_hidden
-                )
+                layer_input, (h, c) = self.lstm_layers[layer_idx](layer_input, (h, c), active_hidden_dim=active_hidden)
                 layer_outputs.append(h.clone())
 
         final_h = layer_outputs[-1][:, :active_hidden] if layer_outputs else h[:, :active_hidden]
@@ -239,10 +231,10 @@ class ElasticTransparentRNN(nn.Module):
         output = F.linear(final_h, output_weight, self.output_proj.bias)
 
         interpretation = {
-            'layer_activations': layer_outputs,
-            'belief_predictions': belief_output,
-            'num_active_layers': active_layers,
-            'active_hidden_dim': active_hidden,
+            "layer_activations": layer_outputs,
+            "belief_predictions": belief_output,
+            "num_active_layers": active_layers,
+            "active_hidden_dim": active_hidden,
         }
 
         return output, interpretation
@@ -253,8 +245,9 @@ class ElasticTransformer(nn.Module):
     Transformer with elastic width and depth for NAS.
     """
 
-    def __init__(self, input_dim: int, max_hidden_dim: int = 256,
-                 output_dim: int = 181, max_layers: int = 6, max_heads: int = 8):
+    def __init__(
+        self, input_dim: int, max_hidden_dim: int = 256, output_dim: int = 181, max_layers: int = 6, max_heads: int = 8
+    ):
         super().__init__()
         self.input_dim = input_dim
         self.max_hidden_dim = max_hidden_dim
@@ -267,10 +260,9 @@ class ElasticTransformer(nn.Module):
         self.pos_encoding = PositionalEncoding(max_hidden_dim)
 
         # Transformer layers
-        self.transformer_layers = nn.ModuleList([
-            ElasticTransformerLayer(max_hidden_dim, max_heads)
-            for _ in range(max_layers)
-        ])
+        self.transformer_layers = nn.ModuleList(
+            [ElasticTransformerLayer(max_hidden_dim, max_heads) for _ in range(max_layers)]
+        )
 
         # Output projection
         self.output_proj = nn.Linear(max_hidden_dim, output_dim)
@@ -282,9 +274,9 @@ class ElasticTransformer(nn.Module):
         """
         Forward pass with elastic configuration.
         """
-        active_hidden = active_config.get('hidden_dim', self.max_hidden_dim) if active_config else self.max_hidden_dim
-        active_layers = active_config.get('num_layers', self.max_layers) if active_config else self.max_layers
-        active_heads = active_config.get('num_heads', self.max_heads) if active_config else self.max_heads
+        active_hidden = active_config.get("hidden_dim", self.max_hidden_dim) if active_config else self.max_hidden_dim
+        active_layers = active_config.get("num_layers", self.max_layers) if active_config else self.max_layers
+        active_heads = active_config.get("num_heads", self.max_heads) if active_config else self.max_heads
 
         # Input embedding
         x = self.input_embed(x)[:, :, :active_hidden]
@@ -292,9 +284,7 @@ class ElasticTransformer(nn.Module):
 
         # Transformer layers
         for layer_idx in range(active_layers):
-            x = self.transformer_layers[layer_idx](
-                x, active_hidden_dim=active_hidden, active_heads=active_heads
-            )
+            x = self.transformer_layers[layer_idx](x, active_hidden_dim=active_hidden, active_heads=active_heads)
 
         # Pool sequence
         x = x.mean(dim=1)
@@ -304,12 +294,7 @@ class ElasticTransformer(nn.Module):
 
         # Final norm with elastic support
         # FIX: Use F.layer_norm with sliced parameters
-        x = F.layer_norm(
-            x,
-            [x.shape[-1]],
-            self.final_norm.weight[:x.shape[-1]],
-            self.final_norm.bias[:x.shape[-1]]
-        )
+        x = F.layer_norm(x, [x.shape[-1]], self.final_norm.weight[: x.shape[-1]], self.final_norm.bias[: x.shape[-1]])
 
         # Output projection with sliced weights
         output_weight = self.output_proj.weight[:, :active_hidden]
@@ -321,9 +306,9 @@ class ElasticTransformer(nn.Module):
         """
         Forward with attention visualization.
         """
-        active_hidden = active_config.get('hidden_dim', self.max_hidden_dim) if active_config else self.max_hidden_dim
-        active_layers = active_config.get('num_layers', self.max_layers) if active_config else self.max_layers
-        active_heads = active_config.get('num_heads', self.max_heads) if active_config else self.max_heads
+        active_hidden = active_config.get("hidden_dim", self.max_hidden_dim) if active_config else self.max_hidden_dim
+        active_layers = active_config.get("num_layers", self.max_layers) if active_config else self.max_layers
+        active_heads = active_config.get("num_heads", self.max_heads) if active_config else self.max_heads
 
         x = self.input_embed(x)[:, :, :active_hidden]
         x = self.pos_encoding(x)
@@ -331,8 +316,7 @@ class ElasticTransformer(nn.Module):
         attention_maps = []
         for layer_idx in range(active_layers):
             x, attn = self.transformer_layers[layer_idx](
-                x, active_hidden_dim=active_hidden, active_heads=active_heads,
-                return_attention=True
+                x, active_hidden_dim=active_hidden, active_heads=active_heads, return_attention=True
             )
             attention_maps.append(attn)
 
@@ -342,21 +326,16 @@ class ElasticTransformer(nn.Module):
         x = x[:, :active_hidden]
 
         # FIX: Use F.layer_norm with sliced parameters
-        x = F.layer_norm(
-            x,
-            [x.shape[-1]],
-            self.final_norm.weight[:x.shape[-1]],
-            self.final_norm.bias[:x.shape[-1]]
-        )
+        x = F.layer_norm(x, [x.shape[-1]], self.final_norm.weight[: x.shape[-1]], self.final_norm.bias[: x.shape[-1]])
 
         output_weight = self.output_proj.weight[:, :active_hidden]
         output = F.linear(x, output_weight, self.output_proj.bias)
 
         interpretation = {
-            'attention_maps': attention_maps,
-            'num_active_layers': active_layers,
-            'active_hidden_dim': active_hidden,
-            'active_heads': active_heads,
+            "attention_maps": attention_maps,
+            "num_active_layers": active_layers,
+            "active_hidden_dim": active_hidden,
+            "active_heads": active_heads,
         }
 
         return output, interpretation
@@ -386,8 +365,9 @@ class ElasticTransformerLayer(nn.Module):
 
         self.dropout = nn.Dropout(0.1)
 
-    def forward(self, x: torch.Tensor, active_hidden_dim: int = None,
-                active_heads: int = None, return_attention: bool = False):
+    def forward(
+        self, x: torch.Tensor, active_hidden_dim: int = None, active_heads: int = None, return_attention: bool = False
+    ):
         """Forward with elastic configuration."""
         active_hidden = active_hidden_dim or self.max_hidden_dim
         active_heads = active_heads or self.max_heads
@@ -402,20 +382,12 @@ class ElasticTransformerLayer(nn.Module):
         residual = x
 
         # FIX: Use F.layer_norm with sliced parameters
-        x = F.layer_norm(
-            x,
-            [x.shape[-1]],
-            self.norm1.weight[:x.shape[-1]],
-            self.norm1.bias[:x.shape[-1]]
-        )
+        x = F.layer_norm(x, [x.shape[-1]], self.norm1.weight[: x.shape[-1]], self.norm1.bias[: x.shape[-1]])
 
         # Project Q, K, V with sliced weights
-        q = F.linear(x, self.q_proj.weight[:active_hidden, :active_hidden],
-                    self.q_proj.bias[:active_hidden])
-        k = F.linear(x, self.k_proj.weight[:active_hidden, :active_hidden],
-                    self.k_proj.bias[:active_hidden])
-        v = F.linear(x, self.v_proj.weight[:active_hidden, :active_hidden],
-                    self.v_proj.bias[:active_hidden])
+        q = F.linear(x, self.q_proj.weight[:active_hidden, :active_hidden], self.q_proj.bias[:active_hidden])
+        k = F.linear(x, self.k_proj.weight[:active_hidden, :active_hidden], self.k_proj.bias[:active_hidden])
+        v = F.linear(x, self.v_proj.weight[:active_hidden, :active_hidden], self.v_proj.bias[:active_hidden])
 
         # Reshape for multi-head attention
         q = q.view(batch_size, seq_len, active_heads, head_dim).transpose(1, 2)
@@ -432,8 +404,9 @@ class ElasticTransformerLayer(nn.Module):
         attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, active_hidden)
 
         # Output projection
-        attn_output = F.linear(attn_output, self.o_proj.weight[:active_hidden, :active_hidden],
-                              self.o_proj.bias[:active_hidden])
+        attn_output = F.linear(
+            attn_output, self.o_proj.weight[:active_hidden, :active_hidden], self.o_proj.bias[:active_hidden]
+        )
         attn_output = self.dropout(attn_output)
 
         x = residual + attn_output
@@ -442,26 +415,24 @@ class ElasticTransformerLayer(nn.Module):
         residual = x
 
         # FIX: Use F.layer_norm with sliced parameters
-        x = F.layer_norm(
-            x,
-            [x.shape[-1]],
-            self.norm2.weight[:x.shape[-1]],
-            self.norm2.bias[:x.shape[-1]]
-        )
+        x = F.layer_norm(x, [x.shape[-1]], self.norm2.weight[: x.shape[-1]], self.norm2.bias[: x.shape[-1]])
 
-        ff_output = F.linear(x, self.ff1.weight[:active_hidden*4, :active_hidden],
-                            self.ff1.bias[:active_hidden*4])
+        ff_output = F.linear(
+            x, self.ff1.weight[: active_hidden * 4, :active_hidden], self.ff1.bias[: active_hidden * 4]
+        )
         ff_output = F.gelu(ff_output)
-        ff_output = F.linear(ff_output, self.ff2.weight[:active_hidden, :active_hidden*4],
-                            self.ff2.bias[:active_hidden])
+        ff_output = F.linear(
+            ff_output, self.ff2.weight[:active_hidden, : active_hidden * 4], self.ff2.bias[:active_hidden]
+        )
         ff_output = self.dropout(ff_output)
 
         x = residual + ff_output
 
         # Pad back to max dim if needed
         if active_hidden < self.max_hidden_dim:
-            padding = torch.zeros(batch_size, seq_len, self.max_hidden_dim - active_hidden,
-                                  device=x.device, dtype=x.dtype)
+            padding = torch.zeros(
+                batch_size, seq_len, self.max_hidden_dim - active_hidden, device=x.device, dtype=x.dtype
+            )
             x = torch.cat([x, padding], dim=-1)
 
         if return_attention:
@@ -480,10 +451,10 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
 
         pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term[:d_model//2])
+        pe[:, 1::2] = torch.cos(position * div_term[: d_model // 2])
 
         pe = pe.unsqueeze(0)
-        self.register_buffer('pe', pe)
+        self.register_buffer("pe", pe)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Add positional encoding to input."""
@@ -494,6 +465,7 @@ class PositionalEncoding(nn.Module):
 
 # Zero-Cost Proxies for fast architecture evaluation
 
+
 class ZeroCostProxy:
     """
     Zero-cost proxies for fast architecture evaluation without training.
@@ -503,8 +475,7 @@ class ZeroCostProxy:
     """
 
     @staticmethod
-    def synflow(model: nn.Module, input_shape: Tuple[int, ...],
-                device: str = 'cpu') -> float:
+    def synflow(model: nn.Module, input_shape: Tuple[int, ...], device: str = "cpu") -> float:
         """
         Synaptic Flow (SynFlow) proxy.
 
@@ -542,7 +513,7 @@ class ZeroCostProxy:
         return score
 
     @staticmethod
-    def grad_norm(model: nn.Module, dataloader, device: str = 'cpu') -> float:
+    def grad_norm(model: nn.Module, dataloader, device: str = "cpu") -> float:
         """
         Gradient norm at initialization.
 
@@ -574,14 +545,13 @@ class ZeroCostProxy:
                 if param.grad is not None:
                     batch_norm += param.grad.norm(2).item() ** 2
 
-            total_norm += batch_norm ** 0.5
+            total_norm += batch_norm**0.5
             count += 1
 
         return total_norm / max(count, 1)
 
     @staticmethod
-    def jacob_cov(model: nn.Module, input_shape: Tuple[int, ...],
-                  num_samples: int = 32, device: str = 'cpu') -> float:
+    def jacob_cov(model: nn.Module, input_shape: Tuple[int, ...], num_samples: int = 32, device: str = "cpu") -> float:
         """
         Jacobian covariance score.
 
@@ -630,27 +600,28 @@ class ZeroCostProxy:
         return score
 
     @staticmethod
-    def compute_all_proxies(model: nn.Module, input_shape: Tuple[int, ...],
-                            dataloader=None, device: str = 'cpu') -> Dict[str, float]:
+    def compute_all_proxies(
+        model: nn.Module, input_shape: Tuple[int, ...], dataloader=None, device: str = "cpu"
+    ) -> Dict[str, float]:
         """Compute all available zero-cost proxies."""
         results = {}
 
-        results['synflow'] = ZeroCostProxy.synflow(model, input_shape, device)
-        results['jacob_cov'] = ZeroCostProxy.jacob_cov(model, input_shape, device=device)
+        results["synflow"] = ZeroCostProxy.synflow(model, input_shape, device)
+        results["jacob_cov"] = ZeroCostProxy.jacob_cov(model, input_shape, device=device)
 
         if dataloader:
-            results['grad_norm'] = ZeroCostProxy.grad_norm(model, dataloader, device)
+            results["grad_norm"] = ZeroCostProxy.grad_norm(model, dataloader, device)
 
         return results
 
 
 # Export
 __all__ = [
-    'ElasticConfig',
-    'ElasticLSTMCell',
-    'ElasticTransparentRNN',
-    'ElasticTransformer',
-    'ElasticTransformerLayer',
-    'PositionalEncoding',
-    'ZeroCostProxy',
+    "ElasticConfig",
+    "ElasticLSTMCell",
+    "ElasticTransparentRNN",
+    "ElasticTransformer",
+    "ElasticTransformerLayer",
+    "PositionalEncoding",
+    "ZeroCostProxy",
 ]

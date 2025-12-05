@@ -11,14 +11,14 @@ Components:
 - app: Main Streamlit application
 """
 
-from .world_renderer import WorldRenderer
 from .belief_inspector import BeliefInspector
 from .nas_dashboard import NASDashboard
+from .world_renderer import WorldRenderer
 
 __all__ = [
-    'WorldRenderer',
-    'BeliefInspector',
-    'NASDashboard',
+    "WorldRenderer",
+    "BeliefInspector",
+    "NASDashboard",
 ]
 
 
@@ -26,5 +26,5 @@ def run_app():
     """Launch the Streamlit visualization app."""
     import subprocess
     import sys
-    subprocess.run([sys.executable, "-m", "streamlit", "run",
-                   "src/visualization/app.py"])
+
+    subprocess.run([sys.executable, "-m", "streamlit", "run", "src/visualization/app.py"])

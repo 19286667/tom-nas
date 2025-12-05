@@ -21,22 +21,18 @@ Theoretical Foundation:
 - Mental Models (Johnson-Laird)
 """
 
+import logging
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Callable, Tuple
-import numpy as np
-from copy import deepcopy
-import logging
+from typing import Any, Callable, Dict, List, Optional
+
 
 from .mentalese import (
-    CognitiveBlock,
     BeliefBlock,
     IntentBlock,
-    SimulationState,
     MemoryBlock,
-    BlockType,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -44,18 +40,19 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SimulationConfig:
     """Configuration for recursive simulation."""
-    max_recursion_depth: int = 3         # Maximum nesting depth
-    max_steps_per_simulation: int = 10   # Steps to run each simulation
+
+    max_recursion_depth: int = 3  # Maximum nesting depth
+    max_steps_per_simulation: int = 10  # Steps to run each simulation
     confidence_decay_per_depth: float = 0.7  # Confidence decay per level
-    pruning_threshold: float = 0.1       # Prune low-confidence branches
+    pruning_threshold: float = 0.1  # Prune low-confidence branches
 
     # Computational limits
-    max_parallel_simulations: int = 4    # Limit concurrent simulations
-    timeout_ms: float = 1000.0           # Timeout per simulation
+    max_parallel_simulations: int = 4  # Limit concurrent simulations
+    timeout_ms: float = 1000.0  # Timeout per simulation
 
     # Approximation settings
-    use_approximation: bool = True       # Use TRM approximation
-    approximation_threshold: int = 2     # Depth at which to switch to approximation
+    use_approximation: bool = True  # Use TRM approximation
+    approximation_threshold: int = 2  # Depth at which to switch to approximation
 
 
 @dataclass
@@ -66,12 +63,13 @@ class WorldModel:
     This is not the full Godot world - it's a lightweight
     representation sufficient for cognitive simulation.
     """
+
     # Entities in the world
     entities: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     # entity_id -> {position, properties, affordances}
 
     # Agents in the world
-    agents: Dict[str, 'AgentModel'] = field(default_factory=dict)
+    agents: Dict[str, "AgentModel"] = field(default_factory=dict)
     # agent_id -> AgentModel
 
     # World state variables
@@ -80,7 +78,7 @@ class WorldModel:
     # Timestep
     timestep: int = 0
 
-    def clone(self) -> 'WorldModel':
+    def clone(self) -> "WorldModel":
         """Create a deep copy for sandboxed simulation."""
         return WorldModel(
             entities=deepcopy(self.entities),
@@ -93,13 +91,9 @@ class WorldModel:
         """Get world state observable by a specific agent."""
         # In full implementation, would filter by visibility/knowledge
         return {
-            'entities': self.entities,
-            'other_agents': {
-                k: v.get_observable_state()
-                for k, v in self.agents.items()
-                if k != observer_id
-            },
-            'timestep': self.timestep,
+            "entities": self.entities,
+            "other_agents": {k: v.get_observable_state() for k, v in self.agents.items() if k != observer_id},
+            "timestep": self.timestep,
         }
 
 
@@ -111,6 +105,7 @@ class AgentModel:
     This is what Agent A believes about Agent B's cognitive state.
     It's an approximation that enables ToM reasoning.
     """
+
     agent_id: str
 
     # Believed mental state
@@ -122,12 +117,12 @@ class AgentModel:
     behavior_policy: Optional[Callable] = None  # How this agent acts
 
     # Uncertainty about this model
-    model_confidence: float = 0.5        # How confident in this model
+    model_confidence: float = 0.5  # How confident in this model
 
     # Historical observations of this agent
     observation_history: List[Dict[str, Any]] = field(default_factory=list)
 
-    def clone(self) -> 'AgentModel':
+    def clone(self) -> "AgentModel":
         """Create a copy for simulation."""
         return AgentModel(
             agent_id=self.agent_id,
@@ -142,8 +137,8 @@ class AgentModel:
     def get_observable_state(self) -> Dict[str, Any]:
         """Get externally observable aspects of this agent."""
         return {
-            'agent_id': self.agent_id,
-            'apparent_intents': [i.to_natural_language() for i in self.intents[:3]],
+            "agent_id": self.agent_id,
+            "apparent_intents": [i.to_natural_language() for i in self.intents[:3]],
         }
 
     def update_from_observation(self, observation: Dict[str, Any]) -> None:
@@ -151,19 +146,19 @@ class AgentModel:
         self.observation_history.append(observation)
 
         # Simple belief update - in full implementation would use Bayesian inference
-        if 'action' in observation:
+        if "action" in observation:
             # Infer intent from action
             inferred_intent = IntentBlock(
                 goal=f"achieve_{observation['action']}",
-                action_type=observation['action'],
+                action_type=observation["action"],
                 confidence=0.6,
             )
             self.intents.append(inferred_intent)
 
-        if 'utterance' in observation:
+        if "utterance" in observation:
             # Infer belief from utterance
             inferred_belief = BeliefBlock(
-                proposition=observation['utterance'],
+                proposition=observation["utterance"],
                 source_type="testimony",
                 confidence=0.5,
             )
@@ -173,6 +168,7 @@ class AgentModel:
 @dataclass
 class SimulationResult:
     """Result of running a recursive simulation."""
+
     # Simulation identity
     simulating_agent: str
     simulated_agent: str
@@ -188,7 +184,7 @@ class SimulationResult:
     reasoning_trace: List[str] = field(default_factory=list)
 
     # Nested results (if recursive)
-    nested_results: List['SimulationResult'] = field(default_factory=list)
+    nested_results: List["SimulationResult"] = field(default_factory=list)
 
     # Metadata
     steps_simulated: int = 0
@@ -226,8 +222,8 @@ class RecursiveSimulationNode:
         simulating_agent: str,
         world_model: WorldModel,
         config: SimulationConfig,
-        parent_node: Optional['RecursiveSimulationNode'] = None,
-        current_depth: int = 0
+        parent_node: Optional["RecursiveSimulationNode"] = None,
+        current_depth: int = 0,
     ):
         """
         Initialize a simulation node.
@@ -265,16 +261,9 @@ class RecursiveSimulationNode:
 
     def should_approximate(self) -> bool:
         """Check if we should use TRM approximation instead of full simulation."""
-        return (
-            self.config.use_approximation and
-            self.current_depth >= self.config.approximation_threshold
-        )
+        return self.config.use_approximation and self.current_depth >= self.config.approximation_threshold
 
-    def run_simulation(
-        self,
-        target_agent: str,
-        num_steps: Optional[int] = None
-    ) -> SimulationResult:
+    def run_simulation(self, target_agent: str, num_steps: Optional[int] = None) -> SimulationResult:
         """
         Run simulation to predict a target agent's behavior.
 
@@ -288,9 +277,7 @@ class RecursiveSimulationNode:
         start_time = datetime.now()
         steps = num_steps or self.config.max_steps_per_simulation
 
-        self.trace.append(
-            f"[Depth {self.current_depth}] {self.simulating_agent} simulating {target_agent}"
-        )
+        self.trace.append(f"[Depth {self.current_depth}] {self.simulating_agent} simulating {target_agent}")
 
         # Check if we should approximate
         if self.should_approximate():
@@ -323,8 +310,7 @@ class RecursiveSimulationNode:
             if self._agent_needs_tom(agent_model, observable):
                 if self.can_recurse():
                     nested_result = self._create_nested_simulation(
-                        target_agent,
-                        self.simulating_agent  # Target simulates us
+                        target_agent, self.simulating_agent  # Target simulates us
                     )
                     # Incorporate nested result into agent's beliefs
                     agent_model.beliefs.append(nested_result.to_belief())
@@ -337,9 +323,7 @@ class RecursiveSimulationNode:
             # Update world state
             self._apply_action(target_agent, predicted_action)
 
-            self.trace.append(
-                f"  Step {step}: {target_agent} -> {predicted_action}"
-            )
+            self.trace.append(f"  Step {step}: {target_agent} -> {predicted_action}")
 
         self.is_running = False
         self.is_complete = True
@@ -348,16 +332,13 @@ class RecursiveSimulationNode:
         if action_counts:
             most_common = max(action_counts, key=action_counts.get)
             confidence = action_counts[most_common] / len(all_actions)
-            confidence *= (self.config.confidence_decay_per_depth ** self.current_depth)
+            confidence *= self.config.confidence_decay_per_depth**self.current_depth
         else:
             most_common = "no_action"
             confidence = 0.0
 
         # Build action probabilities
-        action_probs = {
-            action: count / len(all_actions)
-            for action, count in action_counts.items()
-        }
+        action_probs = {action: count / len(all_actions) for action, count in action_counts.items()}
 
         end_time = datetime.now()
         computation_time = (end_time - start_time).total_seconds() * 1000
@@ -382,11 +363,7 @@ class RecursiveSimulationNode:
         self.results[target_agent] = result
         return result
 
-    def _agent_needs_tom(
-        self,
-        agent_model: AgentModel,
-        observable: Dict[str, Any]
-    ) -> bool:
+    def _agent_needs_tom(self, agent_model: AgentModel, observable: Dict[str, Any]) -> bool:
         """
         Determine if an agent needs to use ToM in this situation.
 
@@ -396,7 +373,7 @@ class RecursiveSimulationNode:
         - Deception might be involved
         """
         # Simple heuristic: need ToM if other agents present
-        if 'other_agents' in observable and observable['other_agents']:
+        if "other_agents" in observable and observable["other_agents"]:
             # Check if any intent involves other agents
             for intent in agent_model.intents:
                 if intent.target_agent:
@@ -404,15 +381,9 @@ class RecursiveSimulationNode:
 
         return False
 
-    def _create_nested_simulation(
-        self,
-        simulating_agent: str,
-        target_agent: str
-    ) -> SimulationResult:
+    def _create_nested_simulation(self, simulating_agent: str, target_agent: str) -> SimulationResult:
         """Create a nested simulation (agent simulating another agent)."""
-        self.trace.append(
-            f"  [Creating nested simulation: {simulating_agent} -> {target_agent}]"
-        )
+        self.trace.append(f"  [Creating nested simulation: {simulating_agent} -> {target_agent}]")
 
         # Create child node
         child = RecursiveSimulationNode(
@@ -431,11 +402,7 @@ class RecursiveSimulationNode:
 
         return result
 
-    def _predict_action(
-        self,
-        agent_model: AgentModel,
-        observable: Dict[str, Any]
-    ) -> str:
+    def _predict_action(self, agent_model: AgentModel, observable: Dict[str, Any]) -> str:
         """
         Predict what action the agent will take.
 
@@ -452,11 +419,7 @@ class RecursiveSimulationNode:
         # Intent-based prediction
         if agent_model.intents:
             # Find highest urgency intent
-            sorted_intents = sorted(
-                agent_model.intents,
-                key=lambda i: i.urgency * i.confidence,
-                reverse=True
-            )
+            sorted_intents = sorted(agent_model.intents, key=lambda i: i.urgency * i.confidence, reverse=True)
             top_intent = sorted_intents[0]
             return top_intent.action_type or "pursue_goal"
 
@@ -476,19 +439,14 @@ class RecursiveSimulationNode:
         At deeper recursion levels, we use a learned approximation
         to avoid exponential computation costs.
         """
-        self.trace.append(
-            f"  [Using TRM approximation at depth {self.current_depth}]"
-        )
+        self.trace.append(f"  [Using TRM approximation at depth {self.current_depth}]")
 
         # Get agent model
         agent_model = self.world_model.agents.get(target_agent)
 
         if agent_model and agent_model.intents:
             # Simple approximation: predict based on top intent
-            top_intent = max(
-                agent_model.intents,
-                key=lambda i: i.urgency * i.confidence
-            )
+            top_intent = max(agent_model.intents, key=lambda i: i.urgency * i.confidence)
             predicted = top_intent.action_type or "wait"
             confidence = top_intent.confidence * 0.5  # Lower confidence for approximation
         else:
@@ -510,10 +468,7 @@ class RecursiveSimulationNode:
         if not self.child_nodes:
             return self.current_depth
 
-        return max(
-            child.get_simulation_tree_depth()
-            for child in self.child_nodes
-        )
+        return max(child.get_simulation_tree_depth() for child in self.child_nodes)
 
     def get_total_simulations_run(self) -> int:
         """Get total number of simulations in the tree."""
@@ -548,11 +503,7 @@ class SimulationManager:
         # Simulation history
         self.simulation_history: List[SimulationResult] = []
 
-    def update_agent_model(
-        self,
-        target_agent: str,
-        observation: Dict[str, Any]
-    ) -> None:
+    def update_agent_model(self, target_agent: str, observation: Dict[str, Any]) -> None:
         """
         Update our model of another agent based on observation.
 
@@ -565,12 +516,7 @@ class SimulationManager:
 
         self.agent_models[target_agent].update_from_observation(observation)
 
-    def predict_agent(
-        self,
-        target_agent: str,
-        world_model: WorldModel,
-        num_steps: int = 5
-    ) -> SimulationResult:
+    def predict_agent(self, target_agent: str, world_model: WorldModel, num_steps: int = 5) -> SimulationResult:
         """
         Predict what a target agent will do.
 
@@ -613,11 +559,7 @@ class SimulationManager:
 
         return result
 
-    def predict_what_agent_thinks_i_will_do(
-        self,
-        target_agent: str,
-        world_model: WorldModel
-    ) -> SimulationResult:
+    def predict_what_agent_thinks_i_will_do(self, target_agent: str, world_model: WorldModel) -> SimulationResult:
         """
         Predict what another agent thinks I will do.
 

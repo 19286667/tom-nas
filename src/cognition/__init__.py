@@ -20,33 +20,30 @@ the reasoning process, traceable and transparent.
 Author: ToM-NAS Project
 """
 
-from .mentalese import (
-    # Core cognitive block types
-    CognitiveBlock,
-    PerceptBlock,
-    HypothesisBlock,
+from .mentalese import (  # Core cognitive block types; Composite structures; Block operations
     BeliefBlock,
+    BlockTransition,
+    CognitiveBlock,
+    HypothesisBlock,
     IntentBlock,
     MemoryBlock,
-    # Composite structures
+    PerceptBlock,
     RecursiveBelief,
     SimulationState,
-    # Block operations
-    BlockTransition,
     compress_to_memory,
     expand_from_memory,
 )
 from .recursive_simulation import (
+    AgentModel,
     RecursiveSimulationNode,
     SimulationConfig,
     SimulationResult,
-    AgentModel,
     WorldModel,
 )
 from .trm import (
+    CognitiveTransition,
     TinyRecursiveModel,
     TRMConfig,
-    CognitiveTransition,
 )
 
 __all__ = [

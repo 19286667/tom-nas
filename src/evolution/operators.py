@@ -2,12 +2,14 @@
 Evolutionary Operators for ToM-NAS
 Mutation and crossover for neural architectures
 """
-import torch
-import torch.nn as nn
+
 import copy
 import random
+from typing import List, Tuple
+
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+import torch
+import torch.nn as nn
 
 
 class ArchitectureGene:
@@ -16,33 +18,28 @@ class ArchitectureGene:
     def __init__(self):
         self.gene_dict = {
             # Architecture type
-            'arch_type': 'TRN',  # TRN, RSAN, Transformer, or Hybrid
-
+            "arch_type": "TRN",  # TRN, RSAN, Transformer, or Hybrid
             # Layer configuration
-            'num_layers': 2,
-            'hidden_dim': 128,
-            'num_heads': 4,  # For attention-based models
-            'max_recursion': 5,  # For RSAN
-
+            "num_layers": 2,
+            "hidden_dim": 128,
+            "num_heads": 4,  # For attention-based models
+            "max_recursion": 5,  # For RSAN
             # Component toggles
-            'use_layer_norm': True,
-            'use_dropout': True,
-            'dropout_rate': 0.1,
-
+            "use_layer_norm": True,
+            "use_dropout": True,
+            "dropout_rate": 0.1,
             # Gating mechanisms (for TRN)
-            'use_update_gate': True,
-            'use_reset_gate': True,
-
+            "use_update_gate": True,
+            "use_reset_gate": True,
             # Output configuration
-            'belief_head_layers': 1,
-            'action_head_layers': 1,
-
+            "belief_head_layers": 1,
+            "action_head_layers": 1,
             # Training parameters
-            'learning_rate': 0.001,
-            'weight_decay': 0.0001,
+            "learning_rate": 0.001,
+            "weight_decay": 0.0001,
         }
 
-    def mutate(self, mutation_rate: float = 0.1) -> 'ArchitectureGene':
+    def mutate(self, mutation_rate: float = 0.1) -> "ArchitectureGene":
         """Create mutated copy of gene"""
         new_gene = copy.deepcopy(self)
 
@@ -54,38 +51,38 @@ class ArchitectureGene:
 
     def _mutate_gene(self, key: str, value):
         """Mutate individual gene"""
-        if key == 'arch_type':
-            return random.choice(['TRN', 'RSAN', 'Transformer', 'Hybrid'])
+        if key == "arch_type":
+            return random.choice(["TRN", "RSAN", "Transformer", "Hybrid"])
 
-        elif key in ['num_layers', 'belief_head_layers', 'action_head_layers']:
+        elif key in ["num_layers", "belief_head_layers", "action_head_layers"]:
             delta = random.choice([-1, 0, 1])
             return max(1, min(5, value + delta))
 
-        elif key == 'hidden_dim':
+        elif key == "hidden_dim":
             multiplier = random.choice([0.5, 1.0, 1.5, 2.0])
             return int(max(64, min(512, value * multiplier)))
 
-        elif key == 'num_heads':
+        elif key == "num_heads":
             return random.choice([2, 4, 8, 16])
 
-        elif key == 'max_recursion':
+        elif key == "max_recursion":
             return random.randint(3, 7)
 
-        elif key in ['use_layer_norm', 'use_dropout', 'use_update_gate', 'use_reset_gate']:
+        elif key in ["use_layer_norm", "use_dropout", "use_update_gate", "use_reset_gate"]:
             return random.choice([True, False])
 
-        elif key == 'dropout_rate':
+        elif key == "dropout_rate":
             return random.uniform(0.0, 0.5)
 
-        elif key == 'learning_rate':
+        elif key == "learning_rate":
             return random.uniform(0.0001, 0.01)
 
-        elif key == 'weight_decay':
+        elif key == "weight_decay":
             return random.uniform(0.0, 0.001)
 
         return value
 
-    def crossover(self, other: 'ArchitectureGene') -> Tuple['ArchitectureGene', 'ArchitectureGene']:
+    def crossover(self, other: "ArchitectureGene") -> Tuple["ArchitectureGene", "ArchitectureGene"]:
         """Crossover with another gene"""
         child1 = ArchitectureGene()
         child2 = ArchitectureGene()
@@ -138,14 +135,11 @@ class ArchitectureCrossover:
     """Crossover operations for network architectures"""
 
     @staticmethod
-    def weight_averaging(parent1: nn.Module, parent2: nn.Module,
-                        alpha: float = 0.5) -> nn.Module:
+    def weight_averaging(parent1: nn.Module, parent2: nn.Module, alpha: float = 0.5) -> nn.Module:
         """Average weights of two networks"""
         child = copy.deepcopy(parent1)
         with torch.no_grad():
-            for p1, p2, pc in zip(parent1.parameters(),
-                                 parent2.parameters(),
-                                 child.parameters()):
+            for p1, p2, pc in zip(parent1.parameters(), parent2.parameters(), child.parameters()):
                 if p1.shape == p2.shape:
                     pc.data = alpha * p1.data + (1 - alpha) * p2.data
         return child
@@ -164,16 +158,14 @@ class PopulationOperators:
     """High-level operators for managing populations"""
 
     @staticmethod
-    def tournament_selection(population: List[Tuple[nn.Module, float]],
-                           tournament_size: int = 3) -> nn.Module:
+    def tournament_selection(population: List[Tuple[nn.Module, float]], tournament_size: int = 3) -> nn.Module:
         """Select individual via tournament selection"""
         tournament = random.sample(population, min(tournament_size, len(population)))
         winner = max(tournament, key=lambda x: x[1])  # x[1] is fitness
         return copy.deepcopy(winner[0])
 
     @staticmethod
-    def elitism_selection(population: List[Tuple[nn.Module, float]],
-                         elite_size: int = 2) -> List[nn.Module]:
+    def elitism_selection(population: List[Tuple[nn.Module, float]], elite_size: int = 2) -> List[nn.Module]:
         """Select top performers"""
         sorted_pop = sorted(population, key=lambda x: x[1], reverse=True)
         return [copy.deepcopy(ind[0]) for ind in sorted_pop[:elite_size]]
@@ -244,8 +236,7 @@ class SpeciesManager:
                 # Create new species
                 self.species.append([(individual, gene, fitness)])
 
-    def _genes_compatible(self, gene1: ArchitectureGene,
-                         gene2: ArchitectureGene) -> bool:
+    def _genes_compatible(self, gene1: ArchitectureGene, gene2: ArchitectureGene) -> bool:
         """Check if two genes are compatible (similar)"""
         differences = 0
         total_genes = len(gene1.gene_dict)

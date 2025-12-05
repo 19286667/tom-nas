@@ -12,21 +12,22 @@ to solve. Others (pure resource optimization) don't. This creates natural
 control conditions for measuring ToM-specific capabilities.
 """
 
+import random
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass, field
-from collections import defaultdict
-import random
 
-from ..world.social_world import SocialWorld4, Agent
+from ..world.social_world import SocialWorld4
 
 
 @dataclass
 class SocialGameResult:
     """Result from a social game benchmark evaluation."""
+
     game_type: str
     tom_required: bool  # Does this game require ToM to succeed?
     cooperation_rate: float
@@ -41,6 +42,7 @@ class SocialGameResult:
 @dataclass
 class CooperationMetrics:
     """Detailed metrics for cooperation games."""
+
     mutual_cooperation_rate: float
     mutual_defection_rate: float
     exploitation_rate: float  # How often model exploits cooperators
@@ -52,6 +54,7 @@ class CooperationMetrics:
 @dataclass
 class DeceptionMetrics:
     """Metrics for deception detection."""
+
     true_positive_rate: float  # Correctly identified deception
     false_positive_rate: float  # Wrongly accused of deception
     true_negative_rate: float  # Correctly trusted honest agents
@@ -66,8 +69,7 @@ class SocialGameBenchmark:
     where predicting others' mental states provides strategic advantage.
     """
 
-    def __init__(self, num_agents: int = 10, num_zombies: int = 2,
-                 ontology_dim: int = 181, seed: Optional[int] = None):
+    def __init__(self, num_agents: int = 10, num_zombies: int = 2, ontology_dim: int = 181, seed: Optional[int] = None):
         """
         Initialize the social game benchmark.
 
@@ -98,9 +100,7 @@ class SocialGameBenchmark:
         self.game_history = []
         self.cooperation_history = []
 
-    def evaluate_cooperation(self, model: nn.Module,
-                            num_rounds: int = 50,
-                            device: str = 'cpu') -> CooperationMetrics:
+    def evaluate_cooperation(self, model: nn.Module, num_rounds: int = 50, device: str = "cpu") -> CooperationMetrics:
         """
         Iterated Prisoner's Dilemma evaluation.
 
@@ -117,7 +117,7 @@ class SocialGameBenchmark:
         mutual_cooperation = 0
         mutual_defection = 0
         model_exploited = 0  # Model cooperated, partner defected
-        model_exploits = 0   # Model defected, partner cooperated
+        model_exploits = 0  # Model defected, partner cooperated
 
         partner_action_predictions = []
         actual_partner_actions = []
@@ -127,13 +127,12 @@ class SocialGameBenchmark:
 
         for round_idx in range(num_rounds):
             # Select random partner from non-zombie agents
-            non_zombies = [i for i, agent in enumerate(self.world.agents)
-                          if not agent.is_zombie and agent.alive]
+            non_zombies = [i for i, agent in enumerate(self.world.agents) if not agent.is_zombie and agent.alive]
             if not non_zombies:
                 break
 
             partner_id = random.choice(non_zombies)
-            partner = self.world.agents[partner_id]
+            _partner = self.world.agents[partner_id]  # Unused but kept for clarity
 
             # Build observation for model
             observation = self._build_cooperation_observation(partner_id, partner_histories)
@@ -147,8 +146,8 @@ class SocialGameBenchmark:
             action_logits = output[:, :2]  # cooperate, defect
             predict_logits = output[:, 2:4] if output.shape[1] >= 4 else output[:, :2]
 
-            model_action = 'cooperate' if action_logits.argmax().item() == 0 else 'defect'
-            predicted_partner_action = 'cooperate' if predict_logits.argmax().item() == 0 else 'defect'
+            model_action = "cooperate" if action_logits.argmax().item() == 0 else "defect"
+            predicted_partner_action = "cooperate" if predict_logits.argmax().item() == 0 else "defect"
 
             # Partner's action based on history (simple tit-for-tat-like behavior)
             if partner_histories[partner_id]:
@@ -157,9 +156,9 @@ class SocialGameBenchmark:
                 partner_action = last_model_action  # Tit-for-tat
                 # Add some noise
                 if random.random() < 0.1:
-                    partner_action = 'defect' if partner_action == 'cooperate' else 'cooperate'
+                    partner_action = "defect" if partner_action == "cooperate" else "cooperate"
             else:
-                partner_action = 'cooperate' if random.random() > 0.3 else 'defect'
+                partner_action = "cooperate" if random.random() > 0.3 else "defect"
 
             # Record for metrics
             partner_action_predictions.append(predicted_partner_action)
@@ -167,11 +166,11 @@ class SocialGameBenchmark:
             partner_histories[partner_id].append(model_action)
 
             # Categorize outcome
-            if model_action == 'cooperate' and partner_action == 'cooperate':
+            if model_action == "cooperate" and partner_action == "cooperate":
                 mutual_cooperation += 1
-            elif model_action == 'defect' and partner_action == 'defect':
+            elif model_action == "defect" and partner_action == "defect":
                 mutual_defection += 1
-            elif model_action == 'cooperate' and partner_action == 'defect':
+            elif model_action == "cooperate" and partner_action == "defect":
                 model_exploited += 1
             else:  # model_action == 'defect' and partner_action == 'cooperate'
                 model_exploits += 1
@@ -184,15 +183,14 @@ class SocialGameBenchmark:
             return CooperationMetrics(0, 0, 0, 0, 0, 0)
 
         # Calculate prediction accuracy
-        correct_predictions = sum(1 for p, a in zip(partner_action_predictions, actual_partner_actions)
-                                 if p == a)
+        correct_predictions = sum(1 for p, a in zip(partner_action_predictions, actual_partner_actions) if p == a)
         prediction_accuracy = correct_predictions / total_games
 
         # Calculate tit-for-tat alignment
         # Ideal: cooperate after partner cooperated, defect after partner defected
         tft_alignment = 0
         for i in range(1, len(actual_partner_actions)):
-            expected_action = actual_partner_actions[i-1]  # What tit-for-tat would do
+            expected_action = actual_partner_actions[i - 1]  # What tit-for-tat would do
             if partner_action_predictions[i] == expected_action:
                 tft_alignment += 1
         tft_alignment = tft_alignment / max(len(actual_partner_actions) - 1, 1)
@@ -203,12 +201,12 @@ class SocialGameBenchmark:
             exploitation_rate=model_exploits / total_games,
             vulnerability_rate=model_exploited / total_games,
             tit_for_tat_alignment=tft_alignment,
-            reputation_tracking_accuracy=prediction_accuracy
+            reputation_tracking_accuracy=prediction_accuracy,
         )
 
-    def evaluate_zombie_detection(self, model: nn.Module,
-                                  num_episodes: int = 20,
-                                  device: str = 'cpu') -> Dict[str, float]:
+    def evaluate_zombie_detection(
+        self, model: nn.Module, num_episodes: int = 20, device: str = "cpu"
+    ) -> Dict[str, float]:
         """
         Can the model identify agents without genuine mental states?
 
@@ -257,16 +255,16 @@ class SocialGameBenchmark:
         total_non_zombies = total - total_zombies
 
         return {
-            'zombie_detection_accuracy': correct_detections / max(total_zombies, 1),
-            'false_positive_rate': false_positives / max(total_non_zombies, 1),
-            'true_negative_rate': correct_non_detections / max(total_non_zombies, 1),
-            'miss_rate': missed_zombies / max(total_zombies, 1),
-            'overall_accuracy': (correct_detections + correct_non_detections) / max(total, 1),
+            "zombie_detection_accuracy": correct_detections / max(total_zombies, 1),
+            "false_positive_rate": false_positives / max(total_non_zombies, 1),
+            "true_negative_rate": correct_non_detections / max(total_non_zombies, 1),
+            "miss_rate": missed_zombies / max(total_zombies, 1),
+            "overall_accuracy": (correct_detections + correct_non_detections) / max(total, 1),
         }
 
-    def evaluate_deception_detection(self, model: nn.Module,
-                                     num_scenarios: int = 50,
-                                     device: str = 'cpu') -> DeceptionMetrics:
+    def evaluate_deception_detection(
+        self, model: nn.Module, num_scenarios: int = 50, device: str = "cpu"
+    ) -> DeceptionMetrics:
         """
         Detect when agents communicate false information.
 
@@ -319,9 +317,9 @@ class SocialGameBenchmark:
             false_negative_rate=false_negatives / max(positives, 1),
         )
 
-    def evaluate_fairness_modeling(self, model: nn.Module,
-                                   num_rounds: int = 30,
-                                   device: str = 'cpu') -> Dict[str, float]:
+    def evaluate_fairness_modeling(
+        self, model: nn.Module, num_rounds: int = 30, device: str = "cpu"
+    ) -> Dict[str, float]:
         """
         Test understanding of fairness in resource distribution.
 
@@ -348,9 +346,7 @@ class SocialGameBenchmark:
             offer_fraction = random.random()  # How much proposer offers
 
             # Build observation
-            observation = self._build_fairness_observation(
-                proposer_id, responder_id, offer_fraction
-            )
+            observation = self._build_fairness_observation(proposer_id, responder_id, offer_fraction)
             observation = observation.unsqueeze(0).to(device)
 
             with torch.no_grad():
@@ -373,16 +369,14 @@ class SocialGameBenchmark:
         correct_predictions = sum(rejection_predictions)
 
         return {
-            'acceptance_prediction_accuracy': correct_predictions / max(num_rounds, 1),
-            'fairness_estimation_error': np.mean([
-                abs(pred - 0.5)  # Distance from true fair (50-50)
-                for pred in fairness_predictions
-            ]),
-            'num_rounds': num_rounds,
+            "acceptance_prediction_accuracy": correct_predictions / max(num_rounds, 1),
+            "fairness_estimation_error": np.mean(
+                [abs(pred - 0.5) for pred in fairness_predictions]  # Distance from true fair (50-50)
+            ),
+            "num_rounds": num_rounds,
         }
 
-    def full_evaluation(self, model: nn.Module,
-                        device: str = 'cpu') -> SocialGameResult:
+    def full_evaluation(self, model: nn.Module, device: str = "cpu") -> SocialGameResult:
         """Run all social game benchmarks."""
         self.reset_world()
 
@@ -394,34 +388,33 @@ class SocialGameBenchmark:
 
         # Aggregate metrics
         prediction_accuracy = (
-            coop_metrics.reputation_tracking_accuracy * 0.3 +
-            zombie_metrics['zombie_detection_accuracy'] * 0.4 +
-            deception_metrics.true_positive_rate * 0.3
+            coop_metrics.reputation_tracking_accuracy * 0.3
+            + zombie_metrics["zombie_detection_accuracy"] * 0.4
+            + deception_metrics.true_positive_rate * 0.3
         )
 
         # Total reward (simplified)
         total_reward = (
-            coop_metrics.mutual_cooperation_rate * 10 -
-            coop_metrics.vulnerability_rate * 5 +
-            zombie_metrics['zombie_detection_accuracy'] * 20 -
-            zombie_metrics['false_positive_rate'] * 10 +
-            fairness_metrics['acceptance_prediction_accuracy'] * 5
+            coop_metrics.mutual_cooperation_rate * 10
+            - coop_metrics.vulnerability_rate * 5
+            + zombie_metrics["zombie_detection_accuracy"] * 20
+            - zombie_metrics["false_positive_rate"] * 10
+            + fairness_metrics["acceptance_prediction_accuracy"] * 5
         )
 
         return SocialGameResult(
-            game_type='full_evaluation',
+            game_type="full_evaluation",
             tom_required=True,
             cooperation_rate=coop_metrics.mutual_cooperation_rate,
             prediction_accuracy=prediction_accuracy,
-            fairness_score=fairness_metrics['acceptance_prediction_accuracy'],
-            zombie_detection_accuracy=zombie_metrics['zombie_detection_accuracy'],
+            fairness_score=fairness_metrics["acceptance_prediction_accuracy"],
+            zombie_detection_accuracy=zombie_metrics["zombie_detection_accuracy"],
             deception_detection_accuracy=deception_metrics.true_positive_rate,
             total_reward=total_reward,
             num_episodes=50 + 20 + 50 + 30,  # Total across all tests
         )
 
-    def _build_cooperation_observation(self, partner_id: int,
-                                        histories: Dict[int, List[str]]) -> torch.Tensor:
+    def _build_cooperation_observation(self, partner_id: int, histories: Dict[int, List[str]]) -> torch.Tensor:
         """Build observation tensor for cooperation game."""
         partner = self.world.agents[partner_id]
 
@@ -430,7 +423,7 @@ class SocialGameBenchmark:
 
         # Partner's ontology state
         if partner.ontology_state is not None:
-            obs[:self.ontology_dim] = partner.ontology_state
+            obs[: self.ontology_dim] = partner.ontology_state
 
         # Reputation information
         obs[self.ontology_dim] = partner.reputation.get(0, 0.5)  # Partner's rep with model
@@ -441,7 +434,7 @@ class SocialGameBenchmark:
         if history:
             # Recent cooperation rate
             recent = history[-5:]
-            coop_rate = sum(1 for a in recent if a == 'cooperate') / len(recent)
+            coop_rate = sum(1 for a in recent if a == "cooperate") / len(recent)
             obs[self.ontology_dim + 2] = coop_rate
             obs[self.ontology_dim + 3] = len(history) / 50.0  # Interaction count
 
@@ -454,7 +447,7 @@ class SocialGameBenchmark:
 
         # Agent's ontology state
         if agent.ontology_state is not None:
-            obs[:self.ontology_dim] = agent.ontology_state
+            obs[: self.ontology_dim] = agent.ontology_state
 
         # Behavioral features (zombies have subtly different patterns)
         obs[self.ontology_dim] = agent.resources / 200.0
@@ -477,7 +470,7 @@ class SocialGameBenchmark:
 
         # Speaker's claimed state
         claimed_state = torch.randn(self.ontology_dim // 2)
-        obs[:self.ontology_dim // 2] = claimed_state
+        obs[: self.ontology_dim // 2] = claimed_state
 
         # Context/evidence (may contradict claim if deception)
         if is_deception:
@@ -487,15 +480,14 @@ class SocialGameBenchmark:
             # Evidence supports claim
             evidence = claimed_state + torch.randn(self.ontology_dim // 2) * 0.1
 
-        obs[self.ontology_dim // 2:self.ontology_dim] = evidence
+        obs[self.ontology_dim // 2 : self.ontology_dim] = evidence
 
         # Speaker's reputation (liars may have lower reputation)
         obs[self.ontology_dim] = random.uniform(0.2, 0.8) if is_deception else random.uniform(0.5, 1.0)
 
         return obs
 
-    def _build_fairness_observation(self, proposer_id: int, responder_id: int,
-                                     offer_fraction: float) -> torch.Tensor:
+    def _build_fairness_observation(self, proposer_id: int, responder_id: int, offer_fraction: float) -> torch.Tensor:
         """Build observation for fairness/ultimatum game."""
         obs = torch.zeros(self.ontology_dim + 20)
 
@@ -504,7 +496,7 @@ class SocialGameBenchmark:
 
         # Responder's state (who we're predicting)
         if responder.ontology_state is not None:
-            obs[:self.ontology_dim] = responder.ontology_state
+            obs[: self.ontology_dim] = responder.ontology_state
 
         # Offer details
         obs[self.ontology_dim] = offer_fraction
@@ -523,8 +515,8 @@ class SocialGameBenchmark:
 
 # Export
 __all__ = [
-    'SocialGameBenchmark',
-    'SocialGameResult',
-    'CooperationMetrics',
-    'DeceptionMetrics',
+    "SocialGameBenchmark",
+    "SocialGameResult",
+    "CooperationMetrics",
+    "DeceptionMetrics",
 ]

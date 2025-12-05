@@ -14,11 +14,12 @@ ToM specificity measures whether the model performs better on belief questions
 than on reality questions, indicating genuine mental state reasoning.
 """
 
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
 
 from ..benchmarks.tomi_loader import ToMiDataset, ToMiEvaluator
 
@@ -26,6 +27,7 @@ from ..benchmarks.tomi_loader import ToMiDataset, ToMiEvaluator
 @dataclass
 class ToMFitnessResult:
     """Results from ToM fitness evaluation."""
+
     total_fitness: float
     tom_accuracy: float
     control_accuracy: float
@@ -38,15 +40,15 @@ class ToMFitnessResult:
 
     def to_dict(self) -> Dict[str, float]:
         return {
-            'total_fitness': self.total_fitness,
-            'tom_accuracy': self.tom_accuracy,
-            'control_accuracy': self.control_accuracy,
-            'tom_specificity': self.tom_specificity,
-            'first_order_accuracy': self.first_order_accuracy,
-            'second_order_accuracy': self.second_order_accuracy,
-            'reality_accuracy': self.reality_accuracy,
-            'efficiency_score': self.efficiency_score,
-            'param_count': self.param_count
+            "total_fitness": self.total_fitness,
+            "tom_accuracy": self.tom_accuracy,
+            "control_accuracy": self.control_accuracy,
+            "tom_specificity": self.tom_specificity,
+            "first_order_accuracy": self.first_order_accuracy,
+            "second_order_accuracy": self.second_order_accuracy,
+            "reality_accuracy": self.reality_accuracy,
+            "efficiency_score": self.efficiency_score,
+            "param_count": self.param_count,
         }
 
 
@@ -74,8 +76,8 @@ class ToMSpecificFitness:
         self,
         dataset: Optional[ToMiDataset] = None,
         target_params: int = 500000,
-        device: str = 'cpu',
-        weights: Optional[Dict[str, float]] = None
+        device: str = "cpu",
+        weights: Optional[Dict[str, float]] = None,
     ):
         """
         Initialize the ToM fitness evaluator.
@@ -101,18 +103,13 @@ class ToMSpecificFitness:
 
         # Fitness weights
         self.weights = weights or {
-            'tom_accuracy': 0.5,
-            'control_accuracy': 0.2,
-            'tom_specificity': 0.2,
-            'efficiency': 0.1
+            "tom_accuracy": 0.5,
+            "control_accuracy": 0.2,
+            "tom_specificity": 0.2,
+            "efficiency": 0.1,
         }
 
-    def evaluate(
-        self,
-        model: nn.Module,
-        num_examples: Optional[int] = None,
-        split: str = 'val'
-    ) -> ToMFitnessResult:
+    def evaluate(self, model: nn.Module, num_examples: Optional[int] = None, split: str = "val") -> ToMFitnessResult:
         """
         Evaluate a model's Theory of Mind fitness.
 
@@ -130,15 +127,15 @@ class ToMSpecificFitness:
         accuracies = self.evaluator.evaluate(model, split=split, num_examples=num_examples)
 
         # Extract components
-        first_order = accuracies.get('first_order_accuracy', 0.0)
-        second_order = accuracies.get('second_order_accuracy', 0.0)
-        reality = accuracies.get('reality_accuracy', 0.0)
-        memory = accuracies.get('memory_accuracy', 0.0)
+        first_order = accuracies.get("first_order_accuracy", 0.0)
+        second_order = accuracies.get("second_order_accuracy", 0.0)
+        reality = accuracies.get("reality_accuracy", 0.0)
+        memory = accuracies.get("memory_accuracy", 0.0)
 
         # Compute aggregate metrics
-        tom_accuracy = accuracies.get('tom_accuracy', (first_order + second_order) / 2)
-        control_accuracy = accuracies.get('control_accuracy', (reality + memory) / 2)
-        tom_specificity = accuracies.get('tom_specificity', tom_accuracy - control_accuracy)
+        tom_accuracy = accuracies.get("tom_accuracy", (first_order + second_order) / 2)
+        control_accuracy = accuracies.get("control_accuracy", (reality + memory) / 2)
+        tom_specificity = accuracies.get("tom_specificity", tom_accuracy - control_accuracy)
 
         # Compute efficiency
         param_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -146,10 +143,10 @@ class ToMSpecificFitness:
 
         # Compute total fitness
         total_fitness = (
-            self.weights['tom_accuracy'] * tom_accuracy +
-            self.weights['control_accuracy'] * control_accuracy +
-            self.weights['tom_specificity'] * max(tom_specificity, 0) +  # Don't penalize negative
-            self.weights['efficiency'] * efficiency_score
+            self.weights["tom_accuracy"] * tom_accuracy
+            + self.weights["control_accuracy"] * control_accuracy
+            + self.weights["tom_specificity"] * max(tom_specificity, 0)  # Don't penalize negative
+            + self.weights["efficiency"] * efficiency_score
         )
 
         return ToMFitnessResult(
@@ -161,7 +158,7 @@ class ToMSpecificFitness:
             second_order_accuracy=second_order,
             reality_accuracy=reality,
             efficiency_score=efficiency_score,
-            param_count=param_count
+            param_count=param_count,
         )
 
     def _compute_efficiency(self, param_count: int) -> float:
@@ -191,19 +188,11 @@ class AdversarialToMFitness:
     4. Modifying sentence structure
     """
 
-    def __init__(
-        self,
-        base_fitness: ToMSpecificFitness,
-        adversarial_weight: float = 0.3
-    ):
+    def __init__(self, base_fitness: ToMSpecificFitness, adversarial_weight: float = 0.3):
         self.base_fitness = base_fitness
         self.adversarial_weight = adversarial_weight
 
-    def evaluate(
-        self,
-        model: nn.Module,
-        num_examples: Optional[int] = 100
-    ) -> Dict[str, Any]:
+    def evaluate(self, model: nn.Module, num_examples: Optional[int] = 100) -> Dict[str, Any]:
         """
         Evaluate with both standard and adversarial examples.
         """
@@ -215,16 +204,15 @@ class AdversarialToMFitness:
 
         # Combine scores
         combined_fitness = (
-            (1 - self.adversarial_weight) * standard_result.total_fitness +
-            self.adversarial_weight * adversarial_accuracy
-        )
+            1 - self.adversarial_weight
+        ) * standard_result.total_fitness + self.adversarial_weight * adversarial_accuracy
 
         return {
-            'total_fitness': combined_fitness,
-            'standard_fitness': standard_result.total_fitness,
-            'adversarial_accuracy': adversarial_accuracy,
-            'standard_result': standard_result.to_dict(),
-            'robustness_gap': standard_result.tom_accuracy - adversarial_accuracy
+            "total_fitness": combined_fitness,
+            "standard_fitness": standard_result.total_fitness,
+            "adversarial_accuracy": adversarial_accuracy,
+            "standard_result": standard_result.to_dict(),
+            "robustness_gap": standard_result.tom_accuracy - adversarial_accuracy,
         }
 
     def _evaluate_adversarial(self, model: nn.Module, num_examples: int) -> float:
@@ -242,7 +230,7 @@ class AdversarialToMFitness:
                 example = np.random.choice(self.base_fitness.dataset.examples)
 
                 for q_idx, question in enumerate(example.questions):
-                    if question.question_type not in ['first_order', 'second_order']:
+                    if question.question_type not in ["first_order", "second_order"]:
                         continue
 
                     inp, tgt, correct_idx = self.base_fitness.dataset.encode_example(example, q_idx)
@@ -253,7 +241,7 @@ class AdversarialToMFitness:
                     output = model(inp.unsqueeze(0).to(self.base_fitness.device))
 
                     if isinstance(output, dict):
-                        beliefs = output.get('beliefs')
+                        beliefs = output.get("beliefs")
                         if beliefs is not None:
                             pred_idx = beliefs.argmax(dim=-1).item()
                             if pred_idx == correct_idx:
@@ -298,7 +286,7 @@ class EvolutionaryFitnessCache:
         """Cache a fitness result."""
         if len(self.cache) >= self.max_size:
             # Remove oldest entries (simple LRU approximation)
-            to_remove = list(self.cache.keys())[:len(self.cache) // 2]
+            to_remove = list(self.cache.keys())[: len(self.cache) // 2]
             for key in to_remove:
                 del self.cache[key]
 
@@ -309,10 +297,10 @@ class EvolutionaryFitnessCache:
         """Get cache statistics."""
         total = self.hits + self.misses
         return {
-            'size': len(self.cache),
-            'hits': self.hits,
-            'misses': self.misses,
-            'hit_rate': self.hits / total if total > 0 else 0.0
+            "size": len(self.cache),
+            "hits": self.hits,
+            "misses": self.misses,
+            "hit_rate": self.hits / total if total > 0 else 0.0,
         }
 
 
@@ -328,7 +316,7 @@ class EarlyTerminationFitness:
         self,
         base_fitness: ToMSpecificFitness,
         sample_size: int = 50,
-        threshold: float = 0.25  # Must be better than random (1/4 for 4 locations)
+        threshold: float = 0.25,  # Must be better than random (1/4 for 4 locations)
     ):
         self.base_fitness = base_fitness
         self.sample_size = sample_size
@@ -345,11 +333,7 @@ class EarlyTerminationFitness:
             (result, was_early_terminated)
         """
         # Quick evaluation on small sample
-        quick_result = self.base_fitness.evaluate(
-            model,
-            num_examples=self.sample_size,
-            split='train'
-        )
+        quick_result = self.base_fitness.evaluate(model, num_examples=self.sample_size, split="train")
 
         # Check if worth full evaluation
         if quick_result.tom_accuracy < self.threshold:
@@ -359,7 +343,7 @@ class EarlyTerminationFitness:
 
         # Full evaluation
         self.fully_evaluated += 1
-        full_result = self.base_fitness.evaluate(model, split='val')
+        full_result = self.base_fitness.evaluate(model, split="val")
 
         return full_result, False
 
@@ -367,9 +351,9 @@ class EarlyTerminationFitness:
         """Get early termination statistics."""
         total = self.early_terminated + self.fully_evaluated
         return {
-            'early_terminated': self.early_terminated,
-            'fully_evaluated': self.fully_evaluated,
-            'early_termination_rate': self.early_terminated / total if total > 0 else 0.0
+            "early_terminated": self.early_terminated,
+            "fully_evaluated": self.fully_evaluated,
+            "early_termination_rate": self.early_terminated / total if total > 0 else 0.0,
         }
 
 
@@ -380,21 +364,13 @@ class CombinedToMFitness:
     Uses caching, early termination, and ToM-specific evaluation.
     """
 
-    def __init__(
-        self,
-        device: str = 'cpu',
-        target_params: int = 500000
-    ):
+    def __init__(self, device: str = "cpu", target_params: int = 500000):
         # Initialize components
         self.dataset = ToMiDataset()
         self.dataset.generate_synthetic(num_examples=1000)
         self.dataset.split()
 
-        self.base_fitness = ToMSpecificFitness(
-            dataset=self.dataset,
-            target_params=target_params,
-            device=device
-        )
+        self.base_fitness = ToMSpecificFitness(dataset=self.dataset, target_params=target_params, device=device)
 
         self.early_termination = EarlyTerminationFitness(self.base_fitness)
         self.cache = EvolutionaryFitnessCache()
@@ -420,10 +396,7 @@ class CombinedToMFitness:
 
     def get_stats(self) -> Dict[str, Any]:
         """Get combined statistics."""
-        return {
-            'cache': self.cache.get_stats(),
-            'early_termination': self.early_termination.get_stats()
-        }
+        return {"cache": self.cache.get_stats(), "early_termination": self.early_termination.get_stats()}
 
 
 def test_tom_fitness():
@@ -436,17 +409,13 @@ def test_tom_fitness():
     class SimpleModel(nn.Module):
         def __init__(self):
             super().__init__()
-            self.net = nn.Sequential(
-                nn.Linear(181, 128),
-                nn.ReLU(),
-                nn.Linear(128, 181)
-            )
+            self.net = nn.Sequential(nn.Linear(181, 128), nn.ReLU(), nn.Linear(128, 181))
 
         def forward(self, x):
             if x.dim() == 3:
                 x = x[:, -1, :]  # Take last timestep
             out = torch.sigmoid(self.net(x))
-            return {'beliefs': out, 'actions': out.mean(dim=-1)}
+            return {"beliefs": out, "actions": out.mean(dim=-1)}
 
     model = SimpleModel()
 
@@ -456,7 +425,7 @@ def test_tom_fitness():
     print("\nEvaluating model...")
     result = fitness.evaluate(model)
 
-    print(f"\n--- Results ---")
+    print("\n--- Results ---")
     print(f"Total Fitness: {result.total_fitness:.4f}")
     print(f"ToM Accuracy: {result.tom_accuracy:.4f}")
     print(f"Control Accuracy: {result.control_accuracy:.4f}")

@@ -20,23 +20,23 @@ Theoretical Foundation:
 Author: ToM-NAS Project
 """
 
-from .schemas import (
-    SemanticNode,
-    SemanticEdge,
-    TaxonomyDimension,
-    ConceptualDomain,
-    ActivationContext,
-    SemanticActivation,
-)
 from .indras_net import IndrasNet
+from .query_engine import SemanticQueryEngine
+from .schemas import (
+    ActivationContext,
+    ConceptualDomain,
+    SemanticActivation,
+    SemanticEdge,
+    SemanticNode,
+    TaxonomyDimension,
+)
 from .taxonomy import (
-    TaxonomyLayer,
-    MundaneTaxonomy,
-    InstitutionalTaxonomy,
     AestheticTaxonomy,
     FullTaxonomy,
+    InstitutionalTaxonomy,
+    MundaneTaxonomy,
+    TaxonomyLayer,
 )
-from .query_engine import SemanticQueryEngine
 
 __all__ = [
     # Core schemas

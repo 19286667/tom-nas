@@ -22,7 +22,8 @@ Theoretical Foundation:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any, Set
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 
 from .protocol import EntityUpdate, Vector3
@@ -36,6 +37,7 @@ class GroundingContext:
     The same physical object may ground to different meanings
     depending on context (a chair in a courtroom vs. at home).
     """
+
     # Spatial context
     observer_position: Vector3 = field(default_factory=Vector3)
     observer_orientation: Vector3 = field(default_factory=Vector3)
@@ -64,8 +66,9 @@ class VisualFeatures:
 
     These features enable prototype matching and categorization.
     """
+
     # Size features
-    volume: float = 1.0                  # Bounding box volume
+    volume: float = 1.0  # Bounding box volume
     height: float = 1.0
     width: float = 1.0
     depth: float = 1.0
@@ -87,26 +90,29 @@ class VisualFeatures:
     has_legs: bool = False
 
     # Material inference
-    inferred_material: str = "unknown"   # wood, metal, fabric, etc.
+    inferred_material: str = "unknown"  # wood, metal, fabric, etc.
 
     def to_vector(self) -> np.ndarray:
         """Convert to feature vector."""
-        return np.array([
-            self.volume / 10.0,  # Normalize
-            self.height / 5.0,
-            self.width / 5.0,
-            self.depth / 5.0,
-            self.hue,
-            self.saturation,
-            self.brightness,
-            self.roughness,
-            self.metallic,
-            1.0 if self.is_elongated else 0.0,
-            1.0 if self.is_flat else 0.0,
-            1.0 if self.is_spherical else 0.0,
-            1.0 if self.has_handle else 0.0,
-            1.0 if self.has_legs else 0.0,
-        ], dtype=np.float32)
+        return np.array(
+            [
+                self.volume / 10.0,  # Normalize
+                self.height / 5.0,
+                self.width / 5.0,
+                self.depth / 5.0,
+                self.hue,
+                self.saturation,
+                self.brightness,
+                self.roughness,
+                self.metallic,
+                1.0 if self.is_elongated else 0.0,
+                1.0 if self.is_flat else 0.0,
+                1.0 if self.is_spherical else 0.0,
+                1.0 if self.has_handle else 0.0,
+                1.0 if self.has_legs else 0.0,
+            ],
+            dtype=np.float32,
+        )
 
 
 @dataclass
@@ -116,14 +122,15 @@ class GroundedSymbol:
 
     This is the fundamental unit linking Godot physics to meaning.
     """
+
     # Physical identity
-    godot_id: int                        # Godot node ID
-    entity_type: str                     # object, agent, location
-    name: str                            # Entity name
+    godot_id: int  # Godot node ID
+    entity_type: str  # object, agent, location
+    name: str  # Entity name
 
     # Semantic identity
     semantic_node_id: Optional[str] = None  # ID in Indra's Net
-    category: str = "unknown"            # Inferred category
+    category: str = "unknown"  # Inferred category
 
     # Physical state
     position: Vector3 = field(default_factory=Vector3)
@@ -163,11 +170,13 @@ class GroundedSymbol:
         distance = self.position.distance_to(self.last_position)
         if distance > 0.1:
             self.is_stable = False
-            self.change_history.append({
-                'type': 'moved',
-                'distance': distance,
-                'timestamp': datetime.now().isoformat(),
-            })
+            self.change_history.append(
+                {
+                    "type": "moved",
+                    "distance": distance,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
         else:
             self.is_stable = True
 
@@ -177,7 +186,7 @@ class GroundedSymbol:
             dx = self.position.x - self.last_position.x
             dy = self.position.y - self.last_position.y
             dz = self.position.z - self.last_position.z
-            self.velocity = Vector3(dx/dt, dy/dt, dz/dt)
+            self.velocity = Vector3(dx / dt, dy / dt, dz / dt)
 
 
 class SymbolGrounder:
@@ -218,95 +227,109 @@ class SymbolGrounder:
         # These would be learned or derived from training data
         # Simplified version with hand-coded prototypes
         prototypes = {
-            "chair": np.array([
-                0.05,   # volume (small-medium)
-                0.15,   # height (medium)
-                0.1,    # width
-                0.1,    # depth
-                0.1,    # hue (brown-ish)
-                0.4,    # saturation
-                0.5,    # brightness
-                0.6,    # roughness (wood)
-                0.1,    # metallic
-                0.0,    # not elongated
-                0.0,    # not flat
-                0.0,    # not spherical
-                0.0,    # no handle
-                1.0,    # has legs
-            ], dtype=np.float32),
-            "table": np.array([
-                0.15,   # volume (larger)
-                0.15,   # height
-                0.3,    # width (wide)
-                0.2,    # depth
-                0.1,    # hue
-                0.3,    # saturation
-                0.5,    # brightness
-                0.5,    # roughness
-                0.1,    # metallic
-                0.0,    # not elongated
-                1.0,    # flat (surface)
-                0.0,    # not spherical
-                0.0,    # no handle
-                1.0,    # has legs
-            ], dtype=np.float32),
-            "hammer": np.array([
-                0.01,   # volume (small)
-                0.1,    # height
-                0.02,   # width (narrow)
-                0.02,   # depth
-                0.0,    # hue (neutral)
-                0.3,    # saturation
-                0.4,    # brightness
-                0.4,    # roughness
-                0.7,    # metallic (head)
-                1.0,    # elongated
-                0.0,    # not flat
-                0.0,    # not spherical
-                1.0,    # has handle
-                0.0,    # no legs
-            ], dtype=np.float32),
-            "door": np.array([
-                0.1,    # volume
-                0.4,    # height (tall)
-                0.2,    # width
-                0.01,   # depth (thin)
-                0.1,    # hue
-                0.3,    # saturation
-                0.5,    # brightness
-                0.5,    # roughness
-                0.2,    # metallic (handle)
-                0.0,    # not elongated
-                1.0,    # flat
-                0.0,    # not spherical
-                1.0,    # has handle
-                0.0,    # no legs
-            ], dtype=np.float32),
-            "person": np.array([
-                0.1,    # volume
-                0.35,   # height (tall)
-                0.1,    # width
-                0.1,    # depth
-                0.15,   # hue (skin tones)
-                0.4,    # saturation
-                0.6,    # brightness
-                0.6,    # roughness
-                0.0,    # metallic
-                1.0,    # elongated (standing)
-                0.0,    # not flat
-                0.0,    # not spherical
-                0.0,    # no handle
-                1.0,    # has legs
-            ], dtype=np.float32),
+            "chair": np.array(
+                [
+                    0.05,  # volume (small-medium)
+                    0.15,  # height (medium)
+                    0.1,  # width
+                    0.1,  # depth
+                    0.1,  # hue (brown-ish)
+                    0.4,  # saturation
+                    0.5,  # brightness
+                    0.6,  # roughness (wood)
+                    0.1,  # metallic
+                    0.0,  # not elongated
+                    0.0,  # not flat
+                    0.0,  # not spherical
+                    0.0,  # no handle
+                    1.0,  # has legs
+                ],
+                dtype=np.float32,
+            ),
+            "table": np.array(
+                [
+                    0.15,  # volume (larger)
+                    0.15,  # height
+                    0.3,  # width (wide)
+                    0.2,  # depth
+                    0.1,  # hue
+                    0.3,  # saturation
+                    0.5,  # brightness
+                    0.5,  # roughness
+                    0.1,  # metallic
+                    0.0,  # not elongated
+                    1.0,  # flat (surface)
+                    0.0,  # not spherical
+                    0.0,  # no handle
+                    1.0,  # has legs
+                ],
+                dtype=np.float32,
+            ),
+            "hammer": np.array(
+                [
+                    0.01,  # volume (small)
+                    0.1,  # height
+                    0.02,  # width (narrow)
+                    0.02,  # depth
+                    0.0,  # hue (neutral)
+                    0.3,  # saturation
+                    0.4,  # brightness
+                    0.4,  # roughness
+                    0.7,  # metallic (head)
+                    1.0,  # elongated
+                    0.0,  # not flat
+                    0.0,  # not spherical
+                    1.0,  # has handle
+                    0.0,  # no legs
+                ],
+                dtype=np.float32,
+            ),
+            "door": np.array(
+                [
+                    0.1,  # volume
+                    0.4,  # height (tall)
+                    0.2,  # width
+                    0.01,  # depth (thin)
+                    0.1,  # hue
+                    0.3,  # saturation
+                    0.5,  # brightness
+                    0.5,  # roughness
+                    0.2,  # metallic (handle)
+                    0.0,  # not elongated
+                    1.0,  # flat
+                    0.0,  # not spherical
+                    1.0,  # has handle
+                    0.0,  # no legs
+                ],
+                dtype=np.float32,
+            ),
+            "person": np.array(
+                [
+                    0.1,  # volume
+                    0.35,  # height (tall)
+                    0.1,  # width
+                    0.1,  # depth
+                    0.15,  # hue (skin tones)
+                    0.4,  # saturation
+                    0.6,  # brightness
+                    0.6,  # roughness
+                    0.0,  # metallic
+                    1.0,  # elongated (standing)
+                    0.0,  # not flat
+                    0.0,  # not spherical
+                    0.0,  # no handle
+                    1.0,  # has legs
+                ],
+                dtype=np.float32,
+            ),
         }
         return prototypes
 
     def _init_affordance_rules(self) -> Dict[str, callable]:
         """Initialize rules for inferring affordances from features."""
+
         def can_sit_on(features: VisualFeatures) -> bool:
-            return (features.height < 1.5 and
-                    features.has_legs and
-                    not features.is_elongated)
+            return features.height < 1.5 and features.has_legs and not features.is_elongated
 
         def can_pick_up(features: VisualFeatures) -> bool:
             return features.volume < 0.1 and features.height < 1.0
@@ -321,18 +344,14 @@ class SymbolGrounder:
             return features.is_flat and features.height < 0.5
 
         return {
-            'can_sit_on': can_sit_on,
-            'can_pick_up': can_pick_up,
-            'can_open': can_open,
-            'can_strike_with': can_strike_with,
-            'can_stand_on': can_stand_on,
+            "can_sit_on": can_sit_on,
+            "can_pick_up": can_pick_up,
+            "can_open": can_open,
+            "can_strike_with": can_strike_with,
+            "can_stand_on": can_stand_on,
         }
 
-    def ground_entity(
-        self,
-        entity: EntityUpdate,
-        context: Optional[GroundingContext] = None
-    ) -> GroundedSymbol:
+    def ground_entity(self, entity: EntityUpdate, context: Optional[GroundingContext] = None) -> GroundedSymbol:
         """
         Ground a Godot entity as a semantic symbol.
 
@@ -386,9 +405,7 @@ class SymbolGrounder:
                 self.semantic_to_physical[semantic_id] = godot_id
 
                 # Get semantic associations
-                symbol.semantic_associations = self._get_semantic_associations(
-                    semantic_id, context
-                )
+                symbol.semantic_associations = self._get_semantic_associations(semantic_id, context)
 
         # Store grounded symbol
         self.grounded_symbols[godot_id] = symbol
@@ -431,27 +448,24 @@ class SymbolGrounder:
 
         # Check semantic tags for hints
         tags = entity.semantic_tags
-        features.has_handle = any('handle' in t.lower() for t in tags)
-        features.has_legs = any('leg' in t.lower() for t in tags)
+        features.has_handle = any("handle" in t.lower() for t in tags)
+        features.has_legs = any("leg" in t.lower() for t in tags)
 
         # Material inference from tags
         for tag in tags:
-            if 'wood' in tag.lower():
-                features.inferred_material = 'wood'
+            if "wood" in tag.lower():
+                features.inferred_material = "wood"
                 features.roughness = 0.6
-            elif 'metal' in tag.lower():
-                features.inferred_material = 'metal'
+            elif "metal" in tag.lower():
+                features.inferred_material = "metal"
                 features.metallic = 0.8
-            elif 'fabric' in tag.lower():
-                features.inferred_material = 'fabric'
+            elif "fabric" in tag.lower():
+                features.inferred_material = "fabric"
                 features.roughness = 0.7
 
         return features
 
-    def _match_prototype(
-        self,
-        features: VisualFeatures
-    ) -> Tuple[str, float]:
+    def _match_prototype(self, features: VisualFeatures) -> Tuple[str, float]:
         """Match features to category prototypes."""
         feature_vector = features.to_vector()
 
@@ -485,11 +499,7 @@ class SymbolGrounder:
 
         return affordances
 
-    def _find_semantic_node(
-        self,
-        symbol: GroundedSymbol,
-        context: Optional[GroundingContext]
-    ) -> Optional[str]:
+    def _find_semantic_node(self, symbol: GroundedSymbol, context: Optional[GroundingContext]) -> Optional[str]:
         """Find matching semantic node in knowledge base."""
         if not self.knowledge_base:
             return None
@@ -507,11 +517,7 @@ class SymbolGrounder:
         # Would do more sophisticated matching in full implementation
         return None
 
-    def _get_semantic_associations(
-        self,
-        semantic_id: str,
-        context: Optional[GroundingContext]
-    ) -> Dict[str, float]:
+    def _get_semantic_associations(self, semantic_id: str, context: Optional[GroundingContext]) -> Dict[str, float]:
         """Get semantic associations from knowledge base."""
         if not self.knowledge_base:
             return {}
@@ -525,11 +531,7 @@ class SymbolGrounder:
 
         return associations
 
-    def _update_grounded_symbol(
-        self,
-        symbol: GroundedSymbol,
-        entity: EntityUpdate
-    ):
+    def _update_grounded_symbol(self, symbol: GroundedSymbol, entity: EntityUpdate):
         """Update an existing grounded symbol with new data."""
         # Update position
         symbol.update_position(entity.position)
@@ -553,23 +555,13 @@ class SymbolGrounder:
 
     def get_symbols_in_category(self, category: str) -> List[GroundedSymbol]:
         """Get all grounded symbols of a category."""
-        return [
-            s for s in self.grounded_symbols.values()
-            if s.category == category
-        ]
+        return [s for s in self.grounded_symbols.values() if s.category == category]
 
     def get_symbols_with_affordance(self, affordance: str) -> List[GroundedSymbol]:
         """Get all grounded symbols with a specific affordance."""
-        return [
-            s for s in self.grounded_symbols.values()
-            if affordance in s.physical_affordances
-        ]
+        return [s for s in self.grounded_symbols.values() if affordance in s.physical_affordances]
 
-    def get_nearby_symbols(
-        self,
-        position: Vector3,
-        radius: float
-    ) -> List[GroundedSymbol]:
+    def get_nearby_symbols(self, position: Vector3, radius: float) -> List[GroundedSymbol]:
         """Get grounded symbols within radius of a position."""
         nearby = []
         for symbol in self.grounded_symbols.values():
@@ -591,9 +583,9 @@ class SymbolGrounder:
             categories[symbol.category] = categories.get(symbol.category, 0) + 1
 
         return {
-            'total_groundings': self.total_groundings,
-            'active_symbols': len(self.grounded_symbols),
-            'grounding_updates': self.grounding_updates,
-            'categories': categories,
-            'semantic_links': len(self.semantic_to_physical),
+            "total_groundings": self.total_groundings,
+            "active_symbols": len(self.grounded_symbols),
+            "grounding_updates": self.grounding_updates,
+            "categories": categories,
+            "semantic_links": len(self.semantic_to_physical),
         }

@@ -30,25 +30,21 @@ Each source generates archetypal patterns that humans naturally
 recognize and find meaningful.
 """
 
-import torch
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Set, Callable
-from enum import Enum, auto
-from collections import defaultdict
 import random
-import math
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import Any, Callable, Dict, List, Optional
 
-from .soul_map import SoulMap
+
 from .npcs.base_npc import BaseNPC
 from .psychosocial_coevolution import (
-    PsychosocialCoevolutionEngine, SocialNetwork, SocialEdge,
-    RelationshipType, TheoreticalConstants
+    PsychosocialCoevolutionEngine,
 )
-
 
 # =============================================================================
 # NARRATIVE ARCHETYPES
 # =============================================================================
+
 
 class NarrativeArchetype(Enum):
     """
@@ -62,35 +58,36 @@ class NarrativeArchetype(Enum):
     - Recognizable character roles
     - Implicit ToM requirements to understand/resolve
     """
+
     # ALLIANCE ARCHETYPES
-    RELUCTANT_ALLIANCE = auto()        # Former enemies must cooperate
-    BETRAYAL_BREWING = auto()          # Coalition member planning defection
-    LOYALTY_TEST = auto()              # Trust being verified through trial
-    POWER_STRUGGLE = auto()            # Coalition leadership contested
+    RELUCTANT_ALLIANCE = auto()  # Former enemies must cooperate
+    BETRAYAL_BREWING = auto()  # Coalition member planning defection
+    LOYALTY_TEST = auto()  # Trust being verified through trial
+    POWER_STRUGGLE = auto()  # Coalition leadership contested
 
     # DECEPTION ARCHETYPES
-    HIDDEN_IDENTITY = auto()           # Someone isn't who they claim
-    DOUBLE_AGENT = auto()              # Playing both sides
-    FALSE_FLAG = auto()                # Action attributed to wrong party
-    MANIPULATION_WEB = auto()          # Complex multi-party deception
+    HIDDEN_IDENTITY = auto()  # Someone isn't who they claim
+    DOUBLE_AGENT = auto()  # Playing both sides
+    FALSE_FLAG = auto()  # Action attributed to wrong party
+    MANIPULATION_WEB = auto()  # Complex multi-party deception
 
     # STATUS ARCHETYPES
-    RISING_CHALLENGER = auto()         # Low-status agent ascending
-    FALLEN_LEADER = auto()             # High-status agent in decline
-    USURPER_PLOT = auto()              # Conspiracy to overthrow
-    MERITOCRACY_TEST = auto()          # Status earned through demonstration
+    RISING_CHALLENGER = auto()  # Low-status agent ascending
+    FALLEN_LEADER = auto()  # High-status agent in decline
+    USURPER_PLOT = auto()  # Conspiracy to overthrow
+    MERITOCRACY_TEST = auto()  # Status earned through demonstration
 
     # PSYCHOLOGICAL ARCHETYPES
-    IDENTITY_CRISIS = auto()           # Agent questioning core beliefs
-    VALUE_CONFLICT = auto()            # Competing drives forcing choice
-    REDEMPTION_ARC = auto()            # Past wrongs seeking absolution
-    TRANSFORMATION = auto()            # Fundamental psychological shift
+    IDENTITY_CRISIS = auto()  # Agent questioning core beliefs
+    VALUE_CONFLICT = auto()  # Competing drives forcing choice
+    REDEMPTION_ARC = auto()  # Past wrongs seeking absolution
+    TRANSFORMATION = auto()  # Fundamental psychological shift
 
     # INFORMATION ARCHETYPES
-    SECRET_KNOWLEDGE = auto()          # Asymmetric information exploitation
-    REVELATION_PENDING = auto()        # Truth about to emerge
-    PROPHECY_UNFOLDING = auto()        # Predicted events manifesting
-    EPISTEMIC_CRISIS = auto()          # What's known is wrong
+    SECRET_KNOWLEDGE = auto()  # Asymmetric information exploitation
+    REVELATION_PENDING = auto()  # Truth about to emerge
+    PROPHECY_UNFOLDING = auto()  # Predicted events manifesting
+    EPISTEMIC_CRISIS = auto()  # What's known is wrong
 
 
 @dataclass
@@ -98,6 +95,7 @@ class NarrativeElement:
     """
     A single narrative element (character, event, or relationship).
     """
+
     element_id: str
     element_type: str  # "character", "event", "relationship", "location"
     description: str
@@ -114,20 +112,21 @@ class EmergentNarrative:
     underlying social simulation and has been recognized
     as matching an archetypal pattern.
     """
+
     narrative_id: str
     archetype: NarrativeArchetype
     title: str
     description: str
 
     # Participants and roles
-    protagonists: List[str]      # NPCs in protagonist roles
-    antagonists: List[str]       # NPCs in antagonist roles
-    supporting_cast: List[str]   # Other involved NPCs
+    protagonists: List[str]  # NPCs in protagonist roles
+    antagonists: List[str]  # NPCs in antagonist roles
+    supporting_cast: List[str]  # Other involved NPCs
 
     # Narrative structure
     elements: List[NarrativeElement] = field(default_factory=list)
-    current_act: int = 1         # 3-act structure: 1=setup, 2=conflict, 3=resolution
-    tension_level: float = 0.0   # 0-1, narrative tension
+    current_act: int = 1  # 3-act structure: 1=setup, 2=conflict, 3=resolution
+    tension_level: float = 0.0  # 0-1, narrative tension
 
     # Emergence tracking
     tick_emerged: int = 0
@@ -135,7 +134,7 @@ class EmergentNarrative:
     detection_confidence: float = 0.0  # How clearly this pattern matches
 
     # ToM requirements
-    min_tom_depth: int = 1       # Minimum ToM to understand this narrative
+    min_tom_depth: int = 1  # Minimum ToM to understand this narrative
     understanding_checkpoints: List[str] = field(default_factory=list)
 
     # Outcome tracking
@@ -144,17 +143,14 @@ class EmergentNarrative:
 
     def get_dramatic_summary(self) -> str:
         """Generate a dramatic summary of the narrative."""
-        act_descriptions = {
-            1: "The stage is set...",
-            2: "Conflict intensifies...",
-            3: "Resolution approaches..."
-        }
+        act_descriptions = {1: "The stage is set...", 2: "Conflict intensifies...", 3: "Resolution approaches..."}
         return f"[{self.archetype.name}] {self.title}\n{act_descriptions.get(self.current_act, '')}\n{self.description}"
 
 
 # =============================================================================
 # NARRATIVE DETECTION
 # =============================================================================
+
 
 class NarrativeDetector:
     """
@@ -189,11 +185,7 @@ class NarrativeDetector:
             NarrativeArchetype.LOYALTY_TEST: self._detect_loyalty_test,
         }
 
-    def scan_for_narratives(
-        self,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> List[EmergentNarrative]:
+    def scan_for_narratives(self, npcs: Dict[str, BaseNPC], tick: int) -> List[EmergentNarrative]:
         """
         Scan current state for emergent narratives.
 
@@ -224,9 +216,7 @@ class NarrativeDetector:
                 continue  # Already resolved
 
             # Check participant overlap
-            existing_participants = set(
-                narrative.protagonists + narrative.antagonists + narrative.supporting_cast
-            )
+            existing_participants = set(narrative.protagonists + narrative.antagonists + narrative.supporting_cast)
             new_participants = set(detection.get("participants", []))
 
             overlap = len(existing_participants & new_participants)
@@ -235,12 +225,7 @@ class NarrativeDetector:
 
         return False
 
-    def _create_narrative(
-        self,
-        detection: Dict,
-        archetype: NarrativeArchetype,
-        tick: int
-    ) -> EmergentNarrative:
+    def _create_narrative(self, detection: Dict, archetype: NarrativeArchetype, tick: int) -> EmergentNarrative:
         """Create narrative from detection result."""
         self.narrative_counter += 1
 
@@ -263,11 +248,7 @@ class NarrativeDetector:
     # PATTERN MATCHERS
     # =========================================================================
 
-    def _detect_betrayal_brewing(
-        self,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> Optional[Dict]:
+    def _detect_betrayal_brewing(self, npcs: Dict[str, BaseNPC], tick: int) -> Optional[Dict]:
         """
         Detect brewing betrayal within a coalition.
 
@@ -301,17 +282,12 @@ class NarrativeDetector:
                 # Check betrayal conditions
                 if coalition_trust and outside_connections:
                     declining_trust = any(
-                        len(e.cooperation_history) > 3 and
-                        e.cooperation_history[-1] == False
-                        for e in coalition_trust
+                        len(e.cooperation_history) > 3 and not e.cooperation_history[-1] for e in coalition_trust
                     )
                     negative_affect = any(e.affect < -0.1 for e in coalition_trust)
 
                     if declining_trust and negative_affect:
-                        betrayed = [
-                            e.target_id for e in coalition_trust
-                            if e.affect < 0
-                        ]
+                        betrayed = [e.target_id for e in coalition_trust if e.affect < 0]
                         if betrayed:
                             npc = npcs.get(potential_betrayer)
                             npc_name = npc.name if npc else potential_betrayer
@@ -319,7 +295,9 @@ class NarrativeDetector:
                             return {
                                 "confidence": 0.7,
                                 "title": f"The Wavering Loyalty of {npc_name}",
-                                "description": f"{npc_name} grows distant from their allies, eyes turning toward new horizons. Trust, once solid, shows cracks.",
+                                "description": (
+                                    f"{npc_name} grows distant from their allies, eyes turning toward new horizons. Trust, once solid, shows cracks."
+                                ),
                                 "protagonists": betrayed[:1],
                                 "antagonists": [potential_betrayer],
                                 "supporting_cast": list(members - {potential_betrayer} - set(betrayed)),
@@ -328,18 +306,14 @@ class NarrativeDetector:
                                 "predicted_outcomes": [
                                     "Betrayal executed, coalition fractures",
                                     "Betrayer discovered, expelled",
-                                    "Reconciliation, trust rebuilt"
+                                    "Reconciliation, trust rebuilt",
                                 ],
                                 "tension": 0.6,
                             }
 
         return None
 
-    def _detect_reluctant_alliance(
-        self,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> Optional[Dict]:
+    def _detect_reluctant_alliance(self, npcs: Dict[str, BaseNPC], tick: int) -> Optional[Dict]:
         """
         Detect reluctant alliance forming.
 
@@ -373,7 +347,9 @@ class NarrativeDetector:
                     return {
                         "confidence": 0.65,
                         "title": f"Strange Bedfellows: {name1} and {name2}",
-                        "description": f"Old wounds cannot heal, yet circumstances force {name1} and {name2} to stand together. Neither trusts the other, but necessity makes allies of enemies.",
+                        "description": (
+                            f"Old wounds cannot heal, yet circumstances force {name1} and {name2} to stand together. Neither trusts the other, but necessity makes allies of enemies."
+                        ),
                         "protagonists": [source, target],
                         "antagonists": [],
                         "supporting_cast": [],
@@ -382,18 +358,14 @@ class NarrativeDetector:
                         "predicted_outcomes": [
                             "Alliance strengthens into genuine bond",
                             "Temporary truce, old enmity returns",
-                            "One betrays the other at crucial moment"
+                            "One betrays the other at crucial moment",
                         ],
                         "tension": 0.5,
                     }
 
         return None
 
-    def _detect_power_struggle(
-        self,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> Optional[Dict]:
+    def _detect_power_struggle(self, npcs: Dict[str, BaseNPC], tick: int) -> Optional[Dict]:
         """
         Detect power struggle within coalition or hierarchy.
 
@@ -407,10 +379,7 @@ class NarrativeDetector:
 
         # Find high-status agents in same coalition
         for coalition_id, members in network.coalitions.items():
-            high_status = [
-                m for m in members
-                if hierarchy.get(m, 0.5) > 0.6
-            ]
+            high_status = [m for m in members if hierarchy.get(m, 0.5) > 0.6]
 
             if len(high_status) >= 2:
                 # Check for competition between them
@@ -425,8 +394,10 @@ class NarrativeDetector:
 
                     return {
                         "confidence": 0.75,
-                        "title": f"The Contest for Dominance",
-                        "description": f"Two titans within the same alliance: {name1} and {name2}. The group cannot have two heads. One must yield, or both must fall.",
+                        "title": "The Contest for Dominance",
+                        "description": (
+                            f"Two titans within the same alliance: {name1} and {name2}. The group cannot have two heads. One must yield, or both must fall."
+                        ),
                         "protagonists": [contender1],
                         "antagonists": [contender2],
                         "supporting_cast": list(members - {contender1, contender2}),
@@ -436,18 +407,14 @@ class NarrativeDetector:
                             f"{name1} prevails, {name2} submitted",
                             f"{name2} prevails, {name1} submitted",
                             "Coalition splits along factional lines",
-                            "External threat forces reconciliation"
+                            "External threat forces reconciliation",
                         ],
                         "tension": 0.8,
                     }
 
         return None
 
-    def _detect_rising_challenger(
-        self,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> Optional[Dict]:
+    def _detect_rising_challenger(self, npcs: Dict[str, BaseNPC], tick: int) -> Optional[Dict]:
         """
         Detect rising challenger in hierarchy.
 
@@ -482,7 +449,9 @@ class NarrativeDetector:
                     return {
                         "confidence": 0.6,
                         "title": f"The Ascent of {challenger_name}",
-                        "description": f"From the middle ranks emerges {challenger_name}, each success drawing them closer to {leader_name}'s throne. The old order watches warily.",
+                        "description": (
+                            f"From the middle ranks emerges {challenger_name}, each success drawing them closer to {leader_name}'s throne. The old order watches warily."
+                        ),
                         "protagonists": [agent_id],
                         "antagonists": [top_agent[0]],
                         "supporting_cast": [],
@@ -491,18 +460,14 @@ class NarrativeDetector:
                         "predicted_outcomes": [
                             f"{challenger_name} achieves prominence",
                             f"{leader_name} suppresses the challenger",
-                            "New alliance reshapes hierarchy"
+                            "New alliance reshapes hierarchy",
                         ],
                         "tension": 0.5,
                     }
 
         return None
 
-    def _detect_hidden_identity(
-        self,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> Optional[Dict]:
+    def _detect_hidden_identity(self, npcs: Dict[str, BaseNPC], tick: int) -> Optional[Dict]:
         """
         Detect hidden identity / deception scenario.
 
@@ -514,7 +479,7 @@ class NarrativeDetector:
         belief_engine = self.engine.belief_engine
 
         for npc_id, npc in npcs.items():
-            if not hasattr(npc, 'is_zombie') or not npc.is_zombie:
+            if not hasattr(npc, "is_zombie") or not npc.is_zombie:
                 continue
 
             # Zombie NPCs have hidden nature
@@ -528,12 +493,14 @@ class NarrativeDetector:
                     suspecting.append(other_id)
 
             if suspecting:
-                npc_name = npc.name if hasattr(npc, 'name') else npc_id
+                npc_name = npc.name if hasattr(npc, "name") else npc_id
 
                 return {
                     "confidence": 0.7,
                     "title": f"Who Is {npc_name}, Really?",
-                    "description": f"Something is wrong with {npc_name}. The words say one thing, but the eyes say another. Some have begun to wonder what lies beneath the mask.",
+                    "description": (
+                        f"Something is wrong with {npc_name}. The words say one thing, but the eyes say another. Some have begun to wonder what lies beneath the mask."
+                    ),
                     "protagonists": suspecting[:2],
                     "antagonists": [npc_id],
                     "supporting_cast": [],
@@ -542,18 +509,14 @@ class NarrativeDetector:
                     "predicted_outcomes": [
                         "True nature exposed",
                         "Suspicions dismissed as paranoia",
-                        "Confrontation leads to revelation"
+                        "Confrontation leads to revelation",
                     ],
                     "tension": 0.7,
                 }
 
         return None
 
-    def _detect_identity_crisis(
-        self,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> Optional[Dict]:
+    def _detect_identity_crisis(self, npcs: Dict[str, BaseNPC], tick: int) -> Optional[Dict]:
         """
         Detect psychological identity crisis.
 
@@ -563,7 +526,7 @@ class NarrativeDetector:
         - Recent dramatic experiences
         """
         for npc_id, npc in npcs.items():
-            if not hasattr(npc, 'soul_map'):
+            if not hasattr(npc, "soul_map"):
                 continue
 
             soul_map = npc.soul_map
@@ -572,23 +535,25 @@ class NarrativeDetector:
             conflicts = []
 
             # Autonomy vs Affiliation conflict
-            if hasattr(soul_map, 'autonomy_drive') and hasattr(soul_map, 'affiliation_drive'):
+            if hasattr(soul_map, "autonomy_drive") and hasattr(soul_map, "affiliation_drive"):
                 if abs(soul_map.autonomy_drive - soul_map.affiliation_drive) > 0.5:
                     if soul_map.autonomy_drive > 0.7 and soul_map.affiliation_drive > 0.7:
                         conflicts.append("independence vs belonging")
 
             # Self coherence problems
-            if hasattr(soul_map, 'self_coherence'):
+            if hasattr(soul_map, "self_coherence"):
                 if soul_map.self_coherence < 0.3:
                     conflicts.append("fragmented sense of self")
 
             if conflicts:
-                npc_name = npc.name if hasattr(npc, 'name') else npc_id
+                npc_name = npc.name if hasattr(npc, "name") else npc_id
 
                 return {
                     "confidence": 0.65,
                     "title": f"The Fracturing of {npc_name}",
-                    "description": f"{npc_name} stands at a crossroads within their own soul. {' And '.join(conflicts)} tear at the foundations of who they thought they were.",
+                    "description": (
+                        f"{npc_name} stands at a crossroads within their own soul. {' And '.join(conflicts)} tear at the foundations of who they thought they were."
+                    ),
                     "protagonists": [npc_id],
                     "antagonists": [],
                     "supporting_cast": [],
@@ -597,18 +562,14 @@ class NarrativeDetector:
                     "predicted_outcomes": [
                         "Integration, stronger sense of self",
                         "Fragmentation continues, behavior erratic",
-                        "Transformation into new identity"
+                        "Transformation into new identity",
                     ],
                     "tension": 0.5,
                 }
 
         return None
 
-    def _detect_secret_knowledge(
-        self,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> Optional[Dict]:
+    def _detect_secret_knowledge(self, npcs: Dict[str, BaseNPC], tick: int) -> Optional[Dict]:
         """
         Detect asymmetric information scenario.
 
@@ -619,10 +580,7 @@ class NarrativeDetector:
         belief_engine = self.engine.belief_engine
 
         # Find beliefs held by few
-        rare_beliefs = [
-            (bid, belief) for bid, belief in belief_engine.beliefs.items()
-            if 1 <= len(belief.holders) <= 3
-        ]
+        rare_beliefs = [(bid, belief) for bid, belief in belief_engine.beliefs.items() if 1 <= len(belief.holders) <= 3]
 
         if not rare_beliefs:
             return None
@@ -635,15 +593,14 @@ class NarrativeDetector:
         non_holders = [npc_id for npc_id in npcs if npc_id not in holders][:5]
 
         if holders and non_holders:
-            holder_names = [
-                npcs[h].name if h in npcs and hasattr(npcs[h], 'name') else h
-                for h in holders
-            ]
+            holder_names = [npcs[h].name if h in npcs and hasattr(npcs[h], "name") else h for h in holders]
 
             return {
                 "confidence": 0.6,
                 "title": f"The Secret of {holder_names[0]}",
-                "description": f"Knowledge is power, and {holder_names[0]} holds knowledge that others lack. What will they do with this advantage?",
+                "description": (
+                    f"Knowledge is power, and {holder_names[0]} holds knowledge that others lack. What will they do with this advantage?"
+                ),
                 "protagonists": holders,
                 "antagonists": [],
                 "supporting_cast": non_holders,
@@ -653,18 +610,14 @@ class NarrativeDetector:
                     "Secret shared, leveling playing field",
                     "Secret exploited for advantage",
                     "Secret discovered by others",
-                    "Secret becomes irrelevant"
+                    "Secret becomes irrelevant",
                 ],
                 "tension": 0.4,
             }
 
         return None
 
-    def _detect_loyalty_test(
-        self,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> Optional[Dict]:
+    def _detect_loyalty_test(self, npcs: Dict[str, BaseNPC], tick: int) -> Optional[Dict]:
         """
         Detect loyalty test scenario.
 
@@ -696,7 +649,9 @@ class NarrativeDetector:
                     return {
                         "confidence": 0.6,
                         "title": f"Testing {npc_name}",
-                        "description": f"The coalition is uncertain about {npc_name}. A test approaches - will they prove their loyalty, or reveal their true colors?",
+                        "description": (
+                            f"The coalition is uncertain about {npc_name}. A test approaches - will they prove their loyalty, or reveal their true colors?"
+                        ),
                         "protagonists": uncertain_trust[:2],
                         "antagonists": [],
                         "supporting_cast": [member],
@@ -705,7 +660,7 @@ class NarrativeDetector:
                         "predicted_outcomes": [
                             f"{npc_name} passes, trust strengthened",
                             f"{npc_name} fails, expelled from coalition",
-                            "Test reveals unexpected alliance"
+                            "Test reveals unexpected alliance",
                         ],
                         "tension": 0.6,
                     }
@@ -716,6 +671,7 @@ class NarrativeDetector:
 # =============================================================================
 # NARRATIVE PROGRESSION
 # =============================================================================
+
 
 class NarrativeProgressionEngine:
     """
@@ -741,11 +697,7 @@ class NarrativeProgressionEngine:
             NarrativeArchetype.RISING_CHALLENGER: self._check_rising_resolution,
         }
 
-    def update_narratives(
-        self,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> Dict[str, Any]:
+    def update_narratives(self, npcs: Dict[str, BaseNPC], tick: int) -> Dict[str, Any]:
         """
         Update all active narratives.
 
@@ -764,21 +716,25 @@ class NarrativeProgressionEngine:
             # Update tension based on dynamics
             new_tension = self._calculate_tension(narrative, npcs)
             if abs(new_tension - narrative.tension_level) > 0.1:
-                updates["tension_changes"].append({
-                    "narrative_id": narrative_id,
-                    "old_tension": narrative.tension_level,
-                    "new_tension": new_tension,
-                })
+                updates["tension_changes"].append(
+                    {
+                        "narrative_id": narrative_id,
+                        "old_tension": narrative.tension_level,
+                        "new_tension": new_tension,
+                    }
+                )
                 narrative.tension_level = new_tension
 
             # Check for act transitions
             new_act = self._determine_act(narrative, npcs, tick)
             if new_act != narrative.current_act:
-                updates["act_transitions"].append({
-                    "narrative_id": narrative_id,
-                    "old_act": narrative.current_act,
-                    "new_act": new_act,
-                })
+                updates["act_transitions"].append(
+                    {
+                        "narrative_id": narrative_id,
+                        "old_act": narrative.current_act,
+                        "new_act": new_act,
+                    }
+                )
                 narrative.current_act = new_act
 
             # Check for resolution
@@ -786,18 +742,16 @@ class NarrativeProgressionEngine:
             if resolution:
                 narrative.tick_resolved = tick
                 narrative.actual_outcome = resolution
-                updates["resolutions"].append({
-                    "narrative_id": narrative_id,
-                    "outcome": resolution,
-                })
+                updates["resolutions"].append(
+                    {
+                        "narrative_id": narrative_id,
+                        "outcome": resolution,
+                    }
+                )
 
         return updates
 
-    def _calculate_tension(
-        self,
-        narrative: EmergentNarrative,
-        npcs: Dict[str, BaseNPC]
-    ) -> float:
+    def _calculate_tension(self, narrative: EmergentNarrative, npcs: Dict[str, BaseNPC]) -> float:
         """Calculate current tension level for narrative."""
         network = self.coevolution.social_network
 
@@ -815,18 +769,11 @@ class NarrativeProgressionEngine:
                     tension += (1 - edge.trust) * 0.1
 
         # Add tension from instability
-        tension += self.coevolution.env_evolution.npc_base_parameters.get(
-            "emotional_volatility", 0.5
-        ) * 0.2
+        tension += self.coevolution.env_evolution.npc_base_parameters.get("emotional_volatility", 0.5) * 0.2
 
         return min(1.0, tension)
 
-    def _determine_act(
-        self,
-        narrative: EmergentNarrative,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> int:
+    def _determine_act(self, narrative: EmergentNarrative, npcs: Dict[str, BaseNPC], tick: int) -> int:
         """Determine which act narrative is in."""
         ticks_since_emergence = tick - narrative.tick_emerged
 
@@ -846,12 +793,7 @@ class NarrativeProgressionEngine:
 
         return base_act
 
-    def _check_resolution(
-        self,
-        narrative: EmergentNarrative,
-        npcs: Dict[str, BaseNPC],
-        tick: int
-    ) -> Optional[str]:
+    def _check_resolution(self, narrative: EmergentNarrative, npcs: Dict[str, BaseNPC], tick: int) -> Optional[str]:
         """Check if narrative has resolved."""
         if narrative.current_act < 3:
             return None
@@ -867,11 +809,7 @@ class NarrativeProgressionEngine:
 
         return None
 
-    def _check_betrayal_resolution(
-        self,
-        narrative: EmergentNarrative,
-        npcs: Dict[str, BaseNPC]
-    ) -> Optional[str]:
+    def _check_betrayal_resolution(self, narrative: EmergentNarrative, npcs: Dict[str, BaseNPC]) -> Optional[str]:
         """Check betrayal narrative resolution."""
         if not narrative.antagonists:
             return None
@@ -880,10 +818,7 @@ class NarrativeProgressionEngine:
         network = self.coevolution.social_network
 
         # Check if betrayer is still in coalition
-        in_coalition = any(
-            betrayer in members
-            for members in network.coalitions.values()
-        )
+        in_coalition = any(betrayer in members for members in network.coalitions.values())
 
         if not in_coalition:
             return "Betrayal executed, coalition fractures"
@@ -896,11 +831,7 @@ class NarrativeProgressionEngine:
 
         return None
 
-    def _check_power_resolution(
-        self,
-        narrative: EmergentNarrative,
-        npcs: Dict[str, BaseNPC]
-    ) -> Optional[str]:
+    def _check_power_resolution(self, narrative: EmergentNarrative, npcs: Dict[str, BaseNPC]) -> Optional[str]:
         """Check power struggle resolution."""
         hierarchy = self.coevolution.social_network.hierarchy
 
@@ -910,17 +841,13 @@ class NarrativeProgressionEngine:
 
             if abs(prot_status - ant_status) > 0.3:
                 if prot_status > ant_status:
-                    return f"Protagonist prevails, antagonist submitted"
+                    return "Protagonist prevails, antagonist submitted"
                 else:
-                    return f"Antagonist prevails, protagonist submitted"
+                    return "Antagonist prevails, protagonist submitted"
 
         return None
 
-    def _check_rising_resolution(
-        self,
-        narrative: EmergentNarrative,
-        npcs: Dict[str, BaseNPC]
-    ) -> Optional[str]:
+    def _check_rising_resolution(self, narrative: EmergentNarrative, npcs: Dict[str, BaseNPC]) -> Optional[str]:
         """Check rising challenger resolution."""
         hierarchy = self.coevolution.social_network.hierarchy
 
@@ -938,6 +865,7 @@ class NarrativeProgressionEngine:
 # =============================================================================
 # NARRATIVE INTERFACE
 # =============================================================================
+
 
 class NarrativeEmergenceSystem:
     """
@@ -958,11 +886,7 @@ class NarrativeEmergenceSystem:
         # Display settings
         self.max_active_narratives = 5
 
-    def tick(
-        self,
-        npcs: Dict[str, BaseNPC],
-        current_tick: int
-    ) -> Dict[str, Any]:
+    def tick(self, npcs: Dict[str, BaseNPC], current_tick: int) -> Dict[str, Any]:
         """
         Process one tick of narrative emergence.
 
@@ -983,19 +907,15 @@ class NarrativeEmergenceSystem:
         results["updates"] = self.progression.update_narratives(npcs, current_tick)
 
         # Count active
-        results["active_count"] = sum(
-            1 for n in self.detector.detected_narratives.values()
-            if n.tick_resolved is None
-        )
+        results["active_count"] = sum(1 for n in self.detector.detected_narratives.values() if n.tick_resolved is None)
 
         return results
 
     def get_active_narratives(self) -> List[EmergentNarrative]:
         """Get all active (unresolved) narratives."""
-        return [
-            n for n in self.detector.detected_narratives.values()
-            if n.tick_resolved is None
-        ][:self.max_active_narratives]
+        return [n for n in self.detector.detected_narratives.values() if n.tick_resolved is None][
+            : self.max_active_narratives
+        ]
 
     def get_narrative_for_display(self, narrative_id: str) -> Optional[Dict[str, Any]]:
         """Get narrative formatted for display."""
@@ -1042,16 +962,17 @@ class NarrativeEmergenceSystem:
     def _get_tom_challenge(self, narrative: EmergentNarrative) -> str:
         """Get description of ToM challenge for this narrative."""
         challenges = {
-            NarrativeArchetype.BETRAYAL_BREWING:
-                "Understand the betrayer's hidden intentions and predict when they'll act",
-            NarrativeArchetype.RELUCTANT_ALLIANCE:
-                "Navigate the tension between stated cooperation and underlying distrust",
-            NarrativeArchetype.POWER_STRUGGLE:
-                "Predict strategic moves in a contest where both parties are modeling each other",
-            NarrativeArchetype.HIDDEN_IDENTITY:
-                "Detect inconsistencies between stated identity and actual behavior",
-            NarrativeArchetype.SECRET_KNOWLEDGE:
-                "Understand who knows what, and how that shapes their actions",
+            NarrativeArchetype.BETRAYAL_BREWING: (
+                "Understand the betrayer's hidden intentions and predict when they'll act"
+            ),
+            NarrativeArchetype.RELUCTANT_ALLIANCE: (
+                "Navigate the tension between stated cooperation and underlying distrust"
+            ),
+            NarrativeArchetype.POWER_STRUGGLE: (
+                "Predict strategic moves in a contest where both parties are modeling each other"
+            ),
+            NarrativeArchetype.HIDDEN_IDENTITY: "Detect inconsistencies between stated identity and actual behavior",
+            NarrativeArchetype.SECRET_KNOWLEDGE: "Understand who knows what, and how that shapes their actions",
         }
         return challenges.get(narrative.archetype, "Understand the social dynamics at play")
 
@@ -1086,14 +1007,10 @@ class NarrativeEmergenceSystem:
                 for archetype in NarrativeArchetype
             },
             "average_duration": (
-                sum(
-                    (n.tick_resolved - n.tick_emerged)
-                    for n in all_narratives if n.tick_resolved
-                ) / max(1, sum(1 for n in all_narratives if n.tick_resolved))
+                sum((n.tick_resolved - n.tick_emerged) for n in all_narratives if n.tick_resolved)
+                / max(1, sum(1 for n in all_narratives if n.tick_resolved))
             ),
-            "average_tom_depth": (
-                sum(n.min_tom_depth for n in all_narratives) / max(1, len(all_narratives))
-            ),
+            "average_tom_depth": sum(n.min_tom_depth for n in all_narratives) / max(1, len(all_narratives)),
         }
 
 
@@ -1102,10 +1019,10 @@ class NarrativeEmergenceSystem:
 # =============================================================================
 
 __all__ = [
-    'NarrativeArchetype',
-    'NarrativeElement',
-    'EmergentNarrative',
-    'NarrativeDetector',
-    'NarrativeProgressionEngine',
-    'NarrativeEmergenceSystem',
+    "NarrativeArchetype",
+    "NarrativeElement",
+    "EmergentNarrative",
+    "NarrativeDetector",
+    "NarrativeProgressionEngine",
+    "NarrativeEmergenceSystem",
 ]

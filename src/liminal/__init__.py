@@ -24,54 +24,52 @@ The system draws from established cognitive science and social psychology:
 - Frith & Frith's ToM neuroscience (nested belief modeling)
 """
 
-from .soul_map import SoulMap, SoulMapCluster, DIMENSION_RANGES
-from .realms import Realm, RealmType, REALMS
-from .game_environment import LiminalEnvironment, GameState
-
-# Psychosocial Co-Evolution System
-from .psychosocial_coevolution import (
-    PsychosocialCoevolutionEngine,
-    EnvironmentEvolutionStrategy,
-    SocialNetwork,
-    SocialEdge,
-    RelationshipType,
-    BeliefPropagationEngine,
-    TheoreticalConstants,
-)
+from .game_environment import GameState, LiminalEnvironment
 
 # Narrative Emergence System
 from .narrative_emergence import (
-    NarrativeEmergenceSystem,
-    NarrativeArchetype,
     EmergentNarrative,
+    NarrativeArchetype,
     NarrativeDetector,
+    NarrativeEmergenceSystem,
 )
+
+# Psychosocial Co-Evolution System
+from .psychosocial_coevolution import (
+    BeliefPropagationEngine,
+    EnvironmentEvolutionStrategy,
+    PsychosocialCoevolutionEngine,
+    RelationshipType,
+    SocialEdge,
+    SocialNetwork,
+    TheoreticalConstants,
+)
+from .realms import REALMS, Realm, RealmType
+from .soul_map import DIMENSION_RANGES, SoulMap, SoulMapCluster
 
 __all__ = [
     # Core Systems
-    'SoulMap',
-    'SoulMapCluster',
-    'DIMENSION_RANGES',
-    'Realm',
-    'RealmType',
-    'REALMS',
-    'LiminalEnvironment',
-    'GameState',
-
+    "SoulMap",
+    "SoulMapCluster",
+    "DIMENSION_RANGES",
+    "Realm",
+    "RealmType",
+    "REALMS",
+    "LiminalEnvironment",
+    "GameState",
     # Psychosocial Co-Evolution
-    'PsychosocialCoevolutionEngine',
-    'EnvironmentEvolutionStrategy',
-    'SocialNetwork',
-    'SocialEdge',
-    'RelationshipType',
-    'BeliefPropagationEngine',
-    'TheoreticalConstants',
-
+    "PsychosocialCoevolutionEngine",
+    "EnvironmentEvolutionStrategy",
+    "SocialNetwork",
+    "SocialEdge",
+    "RelationshipType",
+    "BeliefPropagationEngine",
+    "TheoreticalConstants",
     # Narrative Emergence
-    'NarrativeEmergenceSystem',
-    'NarrativeArchetype',
-    'EmergentNarrative',
-    'NarrativeDetector',
+    "NarrativeEmergenceSystem",
+    "NarrativeArchetype",
+    "EmergentNarrative",
+    "NarrativeDetector",
 ]
 
-__version__ = '2.0.0'  # Major version bump for co-evolution addition
+__version__ = "2.0.0"  # Major version bump for co-evolution addition

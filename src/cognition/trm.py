@@ -20,35 +20,33 @@ Theoretical Foundation:
 - Neural Turing Machines (Graves)
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from abc import ABC, abstractmethod
 
 from .mentalese import (
     CognitiveBlock,
-    BeliefBlock,
-    IntentBlock,
     PerceptBlock,
-    BlockType,
 )
 
 
 @dataclass
 class TRMConfig:
     """Configuration for Tiny Recursive Model."""
+
     # Architecture
-    input_dim: int = 128              # Dimension of cognitive block tensors
-    hidden_dim: int = 256             # Hidden layer dimension
-    output_dim: int = 128             # Output dimension
-    num_layers: int = 2               # Number of recurrent layers
+    input_dim: int = 128  # Dimension of cognitive block tensors
+    hidden_dim: int = 256  # Hidden layer dimension
+    output_dim: int = 128  # Output dimension
+    num_layers: int = 2  # Number of recurrent layers
 
     # Prediction heads
-    num_actions: int = 32             # Number of possible actions
-    belief_dim: int = 64              # Dimension of belief prediction
+    num_actions: int = 32  # Number of possible actions
+    belief_dim: int = 64  # Dimension of belief prediction
 
     # Regularization
     dropout: float = 0.1
@@ -56,7 +54,7 @@ class TRMConfig:
 
     # Training
     learning_rate: float = 1e-4
-    max_sequence_length: int = 32     # Maximum steps to process
+    max_sequence_length: int = 32  # Maximum steps to process
 
 
 @dataclass
@@ -66,6 +64,7 @@ class CognitiveTransition:
 
     Captures the before/after of a cognitive state change.
     """
+
     input_block: CognitiveBlock
     context: Dict[str, Any]
     output_block: CognitiveBlock
@@ -79,7 +78,7 @@ class CognitiveTransition:
 
         # Context embedding (simplified)
         context_features = []
-        for key in ['timestep', 'recursion_depth', 'urgency']:
+        for key in ["timestep", "recursion_depth", "urgency"]:
             if key in self.context:
                 context_features.append(float(self.context[key]))
             else:
@@ -163,10 +162,7 @@ class TinyRecursiveModel(nn.Module):
         self.init_hidden = nn.Parameter(torch.zeros(config.num_layers, 1, config.hidden_dim))
 
     def forward(
-        self,
-        block_tensor: torch.Tensor,
-        context: torch.Tensor,
-        hidden: Optional[torch.Tensor] = None
+        self, block_tensor: torch.Tensor, context: torch.Tensor, hidden: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Forward pass through TRM.
@@ -210,10 +206,7 @@ class TinyRecursiveModel(nn.Module):
         return next_state, action_logits, confidence, belief_embedding, new_hidden
 
     def predict_single_step(
-        self,
-        block: CognitiveBlock,
-        context: Dict[str, Any],
-        hidden: Optional[torch.Tensor] = None
+        self, block: CognitiveBlock, context: Dict[str, Any], hidden: Optional[torch.Tensor] = None
     ) -> Tuple[np.ndarray, int, float, torch.Tensor]:
         """
         Predict a single cognitive transition.
@@ -235,14 +228,14 @@ class TinyRecursiveModel(nn.Module):
 
             # Create context tensor
             context_features = [
-                context.get('timestep', 0) / 100.0,
-                context.get('recursion_depth', 0) / 5.0,
-                context.get('urgency', 0.5),
-                context.get('social_pressure', 0.5),
-                context.get('time_pressure', 0.5),
-                context.get('uncertainty', 0.5),
-                context.get('stakes', 0.5),
-                context.get('familiarity', 0.5),
+                context.get("timestep", 0) / 100.0,
+                context.get("recursion_depth", 0) / 5.0,
+                context.get("urgency", 0.5),
+                context.get("social_pressure", 0.5),
+                context.get("time_pressure", 0.5),
+                context.get("uncertainty", 0.5),
+                context.get("stakes", 0.5),
+                context.get("familiarity", 0.5),
             ]
             context_tensor = torch.tensor([context_features], dtype=torch.float32)
             context_tensor = context_tensor.unsqueeze(1)  # (1, 1, 8)
@@ -265,7 +258,7 @@ class TinyRecursiveModel(nn.Module):
         initial_block: CognitiveBlock,
         context: Dict[str, Any],
         num_steps: int,
-        action_names: Optional[List[str]] = None
+        action_names: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Roll out predictions for multiple steps.
@@ -287,7 +280,7 @@ class TinyRecursiveModel(nn.Module):
 
         for step in range(num_steps):
             # Update context with step
-            step_context = {**context, 'timestep': step}
+            step_context = {**context, "timestep": step}
 
             # Create mock block from current state
             mock_block = PerceptBlock(
@@ -297,9 +290,7 @@ class TinyRecursiveModel(nn.Module):
             mock_block._tensor_cache = current_state
 
             # Predict
-            next_state, action_idx, confidence, hidden = self.predict_single_step(
-                mock_block, step_context, hidden
-            )
+            next_state, action_idx, confidence, hidden = self.predict_single_step(mock_block, step_context, hidden)
 
             # Decode action
             if action_names and action_idx < len(action_names):
@@ -307,19 +298,21 @@ class TinyRecursiveModel(nn.Module):
             else:
                 action_name = f"action_{action_idx}"
 
-            predictions.append({
-                'step': step,
-                'action': action_name,
-                'action_index': action_idx,
-                'confidence': confidence,
-                'state': next_state,
-            })
+            predictions.append(
+                {
+                    "step": step,
+                    "action": action_name,
+                    "action_index": action_idx,
+                    "confidence": confidence,
+                    "state": next_state,
+                }
+            )
 
             # Update state for next step
             current_state = next_state
 
             # Apply confidence decay
-            context['uncertainty'] = 1.0 - confidence
+            context["uncertainty"] = 1.0 - confidence
 
         return predictions
 
@@ -332,12 +325,7 @@ class TRMTrainer:
     from full recursive simulations.
     """
 
-    def __init__(
-        self,
-        model: TinyRecursiveModel,
-        config: TRMConfig,
-        device: str = 'cpu'
-    ):
+    def __init__(self, model: TinyRecursiveModel, config: TRMConfig, device: str = "cpu"):
         self.model = model.to(device)
         self.config = config
         self.device = device
@@ -355,11 +343,7 @@ class TRMTrainer:
         # Training history
         self.loss_history: List[float] = []
 
-    def train_step(
-        self,
-        transitions: List[CognitiveTransition],
-        action_to_idx: Dict[str, int]
-    ) -> Dict[str, float]:
+    def train_step(self, transitions: List[CognitiveTransition], action_to_idx: Dict[str, int]) -> Dict[str, float]:
         """
         Train on a batch of transitions.
 
@@ -401,9 +385,7 @@ class TRMTrainer:
             context_batch = F.pad(context_batch, (0, pad_size))
 
         # Forward pass
-        next_state, action_logits, confidence, belief_emb, _ = self.model(
-            input_batch, context_batch
-        )
+        next_state, action_logits, confidence, belief_emb, _ = self.model(input_batch, context_batch)
 
         # Compute losses
         state_loss = self.state_loss(next_state.squeeze(1), target_batch)
@@ -422,16 +404,12 @@ class TRMTrainer:
         self.loss_history.append(loss_val)
 
         return {
-            'total_loss': loss_val,
-            'state_loss': state_loss.item(),
-            'action_loss': action_loss.item(),
+            "total_loss": loss_val,
+            "state_loss": state_loss.item(),
+            "action_loss": action_loss.item(),
         }
 
-    def evaluate(
-        self,
-        transitions: List[CognitiveTransition],
-        action_to_idx: Dict[str, int]
-    ) -> Dict[str, float]:
+    def evaluate(self, transitions: List[CognitiveTransition], action_to_idx: Dict[str, int]) -> Dict[str, float]:
         """Evaluate model on transitions."""
         self.model.eval()
 
@@ -458,25 +436,28 @@ class TRMTrainer:
 
         n = len(transitions)
         return {
-            'action_accuracy': correct_actions / n if n > 0 else 0.0,
-            'mean_state_error': total_state_error / n if n > 0 else 0.0,
+            "action_accuracy": correct_actions / n if n > 0 else 0.0,
+            "mean_state_error": total_state_error / n if n > 0 else 0.0,
         }
 
     def save(self, path: str) -> None:
         """Save model checkpoint."""
-        torch.save({
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'config': self.config,
-            'loss_history': self.loss_history,
-        }, path)
+        torch.save(
+            {
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "config": self.config,
+                "loss_history": self.loss_history,
+            },
+            path,
+        )
 
     def load(self, path: str) -> None:
         """Load model checkpoint."""
         checkpoint = torch.load(path, map_location=self.device)
-        self.model.load_state_dict(checkpoint['model_state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.loss_history = checkpoint.get('loss_history', [])
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        self.loss_history = checkpoint.get("loss_history", [])
 
 
 class TRMEnsemble:
@@ -493,11 +474,7 @@ class TRMEnsemble:
 
         assert len(self.weights) == len(self.models)
 
-    def predict(
-        self,
-        block: CognitiveBlock,
-        context: Dict[str, Any]
-    ) -> Tuple[np.ndarray, int, float]:
+    def predict(self, block: CognitiveBlock, context: Dict[str, Any]) -> Tuple[np.ndarray, int, float]:
         """
         Ensemble prediction from all models.
 
@@ -514,16 +491,18 @@ class TRMEnsemble:
                 block_tensor = block_tensor.unsqueeze(0).unsqueeze(0)
 
                 context_features = [
-                    context.get('timestep', 0) / 100.0,
-                    context.get('recursion_depth', 0) / 5.0,
-                    context.get('urgency', 0.5),
-                    0.5, 0.5, 0.5, 0.5, 0.5,  # Padding
+                    context.get("timestep", 0) / 100.0,
+                    context.get("recursion_depth", 0) / 5.0,
+                    context.get("urgency", 0.5),
+                    0.5,
+                    0.5,
+                    0.5,
+                    0.5,
+                    0.5,  # Padding
                 ]
                 context_tensor = torch.tensor([context_features]).unsqueeze(1)
 
-                next_state, action_logits, confidence, _, _ = model(
-                    block_tensor, context_tensor
-                )
+                next_state, action_logits, confidence, _, _ = model(block_tensor, context_tensor)
 
                 all_states.append(next_state[0, 0].numpy() * weight)
                 action_probs = F.softmax(action_logits[0, 0], dim=-1).numpy()

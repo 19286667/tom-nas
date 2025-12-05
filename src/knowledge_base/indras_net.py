@@ -15,28 +15,27 @@ entire network. Perception triggers cascading activation through the web.
 
 import json
 import pickle
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Any, Iterator
-import numpy as np
+from typing import Any, Dict, List, Optional, Set, Tuple
+
 import networkx as nx
+import numpy as np
 
 from .schemas import (
-    SemanticNode,
-    SemanticEdge,
-    NodeType,
-    EdgeType,
     ActivationContext,
-    SemanticActivation,
-    StereotypeDimension,
+    EdgeType,
+    NodeType,
     PrototypeRepresentation,
+    SemanticActivation,
+    SemanticEdge,
+    SemanticNode,
+    StereotypeDimension,
 )
 from .taxonomy import (
-    FullTaxonomy,
-    TaxonomyLayer,
     ARCHETYPE_TAXONOMY_POSITIONS,
     INSTITUTION_TAXONOMY_POSITIONS,
+    FullTaxonomy,
 )
 
 
@@ -128,7 +127,7 @@ class IndrasNet:
         """Retrieve a node by ID."""
         if not self._graph.has_node(node_id):
             return None
-        return self._graph.nodes[node_id].get('_node_object')
+        return self._graph.nodes[node_id].get("_node_object")
 
     def get_node_by_godot_id(self, godot_id: int) -> Optional[SemanticNode]:
         """Retrieve a node by its Godot physics engine ID."""
@@ -139,11 +138,7 @@ class IndrasNet:
 
     def get_nodes_by_type(self, node_type: NodeType) -> List[SemanticNode]:
         """Get all nodes of a specific type."""
-        return [
-            self.get_node(nid)
-            for nid in self._nodes_by_type[node_type]
-            if self.get_node(nid) is not None
-        ]
+        return [self.get_node(nid) for nid in self._nodes_by_type[node_type] if self.get_node(nid) is not None]
 
     def update_node(self, node: SemanticNode) -> bool:
         """Update an existing node."""
@@ -152,10 +147,10 @@ class IndrasNet:
 
         # Update all attributes
         nx_node = self._graph.nodes[node.id]
-        nx_node['taxonomy_position'] = node.taxonomy_position
-        nx_node['activation_level'] = node.activation_level
-        nx_node['properties'] = node.properties
-        nx_node['_node_object'] = node
+        nx_node["taxonomy_position"] = node.taxonomy_position
+        nx_node["activation_level"] = node.activation_level
+        nx_node["properties"] = node.properties
+        nx_node["_node_object"] = node
 
         self._modification_count += 1
         return True
@@ -231,10 +226,7 @@ class IndrasNet:
         return True
 
     def get_edges(
-        self,
-        source_id: Optional[str] = None,
-        target_id: Optional[str] = None,
-        edge_type: Optional[EdgeType] = None
+        self, source_id: Optional[str] = None, target_id: Optional[str] = None, edge_type: Optional[EdgeType] = None
     ) -> List[SemanticEdge]:
         """
         Get edges matching the criteria.
@@ -253,41 +245,38 @@ class IndrasNet:
             # Specific edge lookup
             if self._graph.has_edge(source_id, target_id):
                 for key, data in self._graph[source_id][target_id].items():
-                    if edge_type is None or data.get('edge_type') == edge_type:
-                        edge_obj = data.get('_edge_object')
+                    if edge_type is None or data.get("edge_type") == edge_type:
+                        edge_obj = data.get("_edge_object")
                         if edge_obj:
                             edges.append(edge_obj)
         elif source_id:
             # All edges from source
             for target in self._graph.successors(source_id):
                 for key, data in self._graph[source_id][target].items():
-                    if edge_type is None or data.get('edge_type') == edge_type:
-                        edge_obj = data.get('_edge_object')
+                    if edge_type is None or data.get("edge_type") == edge_type:
+                        edge_obj = data.get("_edge_object")
                         if edge_obj:
                             edges.append(edge_obj)
         elif target_id:
             # All edges to target
             for source in self._graph.predecessors(target_id):
                 for key, data in self._graph[source][target_id].items():
-                    if edge_type is None or data.get('edge_type') == edge_type:
-                        edge_obj = data.get('_edge_object')
+                    if edge_type is None or data.get("edge_type") == edge_type:
+                        edge_obj = data.get("_edge_object")
                         if edge_obj:
                             edges.append(edge_obj)
         else:
             # All edges
             for source, target, data in self._graph.edges(data=True):
-                if edge_type is None or data.get('edge_type') == edge_type:
-                    edge_obj = data.get('_edge_object')
+                if edge_type is None or data.get("edge_type") == edge_type:
+                    edge_obj = data.get("_edge_object")
                     if edge_obj:
                         edges.append(edge_obj)
 
         return edges
 
     def get_neighbors(
-        self,
-        node_id: str,
-        edge_types: Optional[List[EdgeType]] = None,
-        direction: str = "both"
+        self, node_id: str, edge_types: Optional[List[EdgeType]] = None, direction: str = "both"
     ) -> List[Tuple[str, EdgeType, float]]:
         """
         Get neighboring nodes connected by specified edge types.
@@ -305,32 +294,21 @@ class IndrasNet:
         if direction in ["outgoing", "both"]:
             for target in self._graph.successors(node_id):
                 for key, data in self._graph[node_id][target].items():
-                    if edge_types is None or data.get('edge_type') in edge_types:
-                        neighbors.append((
-                            target,
-                            data.get('edge_type'),
-                            data.get('weight', 1.0)
-                        ))
+                    if edge_types is None or data.get("edge_type") in edge_types:
+                        neighbors.append((target, data.get("edge_type"), data.get("weight", 1.0)))
 
         if direction in ["incoming", "both"]:
             for source in self._graph.predecessors(node_id):
                 for key, data in self._graph[source][node_id].items():
-                    if edge_types is None or data.get('edge_type') in edge_types:
-                        neighbors.append((
-                            source,
-                            data.get('edge_type'),
-                            data.get('weight', 1.0)
-                        ))
+                    if edge_types is None or data.get("edge_type") in edge_types:
+                        neighbors.append((source, data.get("edge_type"), data.get("weight", 1.0)))
 
         return neighbors
 
     # ==================== Activation Spreading ====================
 
     def spread_activation(
-        self,
-        trigger_node_id: str,
-        context: ActivationContext,
-        initial_activation: float = 1.0
+        self, trigger_node_id: str, context: ActivationContext, initial_activation: float = 1.0
     ) -> SemanticActivation:
         """
         Spread activation through the network from a trigger node.
@@ -441,10 +419,7 @@ class IndrasNet:
     # ==================== Semantic Queries ====================
 
     def find_path(
-        self,
-        source_id: str,
-        target_id: str,
-        edge_types: Optional[List[EdgeType]] = None
+        self, source_id: str, target_id: str, edge_types: Optional[List[EdgeType]] = None
     ) -> Optional[List[str]]:
         """
         Find shortest path between two nodes.
@@ -461,12 +436,9 @@ class IndrasNet:
             if edge_types:
                 # Create filtered view
                 def edge_filter(u, v, key, data):
-                    return data.get('edge_type') in edge_types
+                    return data.get("edge_type") in edge_types
 
-                view = nx.subgraph_view(
-                    self._graph,
-                    filter_edge=edge_filter
-                )
+                view = nx.subgraph_view(self._graph, filter_edge=edge_filter)
                 return nx.shortest_path(view, source_id, target_id)
             else:
                 return nx.shortest_path(self._graph, source_id, target_id)
@@ -474,10 +446,7 @@ class IndrasNet:
             return None
 
     def find_by_taxonomy_position(
-        self,
-        target_position: np.ndarray,
-        max_distance: float = 0.5,
-        node_types: Optional[List[NodeType]] = None
+        self, target_position: np.ndarray, max_distance: float = 0.5, node_types: Optional[List[NodeType]] = None
     ) -> List[Tuple[str, float]]:
         """
         Find nodes near a position in taxonomy space.
@@ -500,10 +469,7 @@ class IndrasNet:
             if node_types and node.node_type not in node_types:
                 continue
 
-            distance = self.taxonomy.compute_semantic_distance(
-                node.taxonomy_position,
-                target_position
-            )
+            distance = self.taxonomy.compute_semantic_distance(node.taxonomy_position, target_position)
 
             if distance <= max_distance:
                 results.append((node_id, distance))
@@ -511,9 +477,7 @@ class IndrasNet:
         return sorted(results, key=lambda x: x[1])
 
     def find_by_stereotype(
-        self,
-        warmth_range: Tuple[float, float] = (0.0, 1.0),
-        competence_range: Tuple[float, float] = (0.0, 1.0)
+        self, warmth_range: Tuple[float, float] = (0.0, 1.0), competence_range: Tuple[float, float] = (0.0, 1.0)
     ) -> List[str]:
         """
         Find nodes matching stereotype criteria (SCM dimensions).
@@ -532,11 +496,13 @@ class IndrasNet:
             if not node or not node.stereotype_associations:
                 continue
 
-            warmth = node.stereotype_associations.get('warmth', 0.5)
-            competence = node.stereotype_associations.get('competence', 0.5)
+            warmth = node.stereotype_associations.get("warmth", 0.5)
+            competence = node.stereotype_associations.get("competence", 0.5)
 
-            if (warmth_range[0] <= warmth <= warmth_range[1] and
-                competence_range[0] <= competence <= competence_range[1]):
+            if (
+                warmth_range[0] <= warmth <= warmth_range[1]
+                and competence_range[0] <= competence <= competence_range[1]
+            ):
                 results.append(node_id)
 
         return results
@@ -551,7 +517,7 @@ class IndrasNet:
         position_3d: Tuple[float, float, float],
         taxonomy_positions: Dict[int, float],
         affordances: List[str],
-        properties: Optional[Dict[str, Any]] = None
+        properties: Optional[Dict[str, Any]] = None,
     ) -> SemanticNode:
         """
         Create and add a physical object node grounded in Godot.
@@ -588,7 +554,7 @@ class IndrasNet:
         preset: Optional[str] = None,
         taxonomy_positions: Optional[Dict[int, float]] = None,
         associated_roles: Optional[List[str]] = None,
-        associated_norms: Optional[List[str]] = None
+        associated_norms: Optional[List[str]] = None,
     ) -> SemanticNode:
         """
         Create and add an institution node.
@@ -628,7 +594,7 @@ class IndrasNet:
         name: str,
         preset: Optional[str] = None,
         taxonomy_positions: Optional[Dict[int, float]] = None,
-        stereotype: Optional[StereotypeDimension] = None
+        stereotype: Optional[StereotypeDimension] = None,
     ) -> SemanticNode:
         """
         Create and add an archetype node (Jungian archetypes).
@@ -653,9 +619,9 @@ class IndrasNet:
         stereotype_assoc = {}
         if stereotype:
             stereotype_assoc = {
-                'warmth': stereotype.warmth,
-                'competence': stereotype.competence,
-                'status': stereotype.status,
+                "warmth": stereotype.warmth,
+                "competence": stereotype.competence,
+                "status": stereotype.status,
             }
 
         node = SemanticNode(
@@ -675,7 +641,7 @@ class IndrasNet:
         institution_id: str,
         associated_norms: List[str],
         power_level: float = 0.5,
-        stereotype: Optional[StereotypeDimension] = None
+        stereotype: Optional[StereotypeDimension] = None,
     ) -> SemanticNode:
         """
         Create and add a social role node.
@@ -694,8 +660,8 @@ class IndrasNet:
         stereotype_assoc = {}
         if stereotype:
             stereotype_assoc = {
-                'warmth': stereotype.warmth,
-                'competence': stereotype.competence,
+                "warmth": stereotype.warmth,
+                "competence": stereotype.competence,
             }
 
         node = SemanticNode(
@@ -703,19 +669,21 @@ class IndrasNet:
             node_type=NodeType.ROLE,
             name=name,
             associated_norms=associated_norms,
-            properties={'power_level': power_level, 'institution': institution_id},
+            properties={"power_level": power_level, "institution": institution_id},
             stereotype_associations=stereotype_assoc,
         )
         self.add_node(node)
 
         # Auto-link to institution
         if self._graph.has_node(institution_id):
-            self.add_edge(SemanticEdge(
-                source_id=role_id,
-                target_id=institution_id,
-                edge_type=EdgeType.ROLE_IN,
-                weight=1.0,
-            ))
+            self.add_edge(
+                SemanticEdge(
+                    source_id=role_id,
+                    target_id=institution_id,
+                    edge_type=EdgeType.ROLE_IN,
+                    weight=1.0,
+                )
+            )
 
         return node
 
@@ -725,7 +693,7 @@ class IndrasNet:
         name: str,
         description: str,
         enforcement_strength: float = 0.5,
-        violation_consequence: str = "social_disapproval"
+        violation_consequence: str = "social_disapproval",
     ) -> SemanticNode:
         """
         Create and add a social norm node.
@@ -745,9 +713,9 @@ class IndrasNet:
             node_type=NodeType.NORM,
             name=name,
             properties={
-                'description': description,
-                'enforcement_strength': enforcement_strength,
-                'violation_consequence': violation_consequence,
+                "description": description,
+                "enforcement_strength": enforcement_strength,
+                "violation_consequence": violation_consequence,
             },
         )
         self.add_node(node)
@@ -759,7 +727,7 @@ class IndrasNet:
         name: str,
         required_objects: List[str],
         preconditions: Dict[str, Any],
-        effects: Dict[str, Any]
+        effects: Dict[str, Any],
     ) -> SemanticNode:
         """
         Create and add an action node.
@@ -779,9 +747,9 @@ class IndrasNet:
             node_type=NodeType.ACTION,
             name=name,
             properties={
-                'required_objects': required_objects,
-                'preconditions': preconditions,
-                'effects': effects,
+                "required_objects": required_objects,
+                "preconditions": preconditions,
+                "effects": effects,
             },
         )
         self.add_node(node)
@@ -791,12 +759,14 @@ class IndrasNet:
             if self._graph.has_node(obj_id):
                 obj_node = self.get_node(obj_id)
                 if obj_node:
-                    self.add_edge(SemanticEdge(
-                        source_id=obj_id,
-                        target_id=action_id,
-                        edge_type=EdgeType.AFFORDS,
-                        weight=1.0,
-                    ))
+                    self.add_edge(
+                        SemanticEdge(
+                            source_id=obj_id,
+                            target_id=action_id,
+                            edge_type=EdgeType.AFFORDS,
+                            weight=1.0,
+                        )
+                    )
 
         return node
 
@@ -804,24 +774,27 @@ class IndrasNet:
 
     def save(self, filepath: Path) -> None:
         """Save the graph to disk."""
-        with open(filepath, 'wb') as f:
-            pickle.dump({
-                'graph': self._graph,
-                'nodes_by_type': self._nodes_by_type,
-                'nodes_by_godot_id': self._nodes_by_godot_id,
-                'prototypes': self._prototypes,
-                'stereotypes': self._stereotypes,
-            }, f)
+        with open(filepath, "wb") as f:
+            pickle.dump(
+                {
+                    "graph": self._graph,
+                    "nodes_by_type": self._nodes_by_type,
+                    "nodes_by_godot_id": self._nodes_by_godot_id,
+                    "prototypes": self._prototypes,
+                    "stereotypes": self._stereotypes,
+                },
+                f,
+            )
 
     def load(self, filepath: Path) -> None:
         """Load the graph from disk."""
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             data = pickle.load(f)
-            self._graph = data['graph']
-            self._nodes_by_type = data['nodes_by_type']
-            self._nodes_by_godot_id = data['nodes_by_godot_id']
-            self._prototypes = data['prototypes']
-            self._stereotypes = data['stereotypes']
+            self._graph = data["graph"]
+            self._nodes_by_type = data["nodes_by_type"]
+            self._nodes_by_godot_id = data["nodes_by_godot_id"]
+            self._prototypes = data["prototypes"]
+            self._stereotypes = data["stereotypes"]
 
     def export_to_json(self, filepath: Path) -> None:
         """Export graph structure to JSON (without numpy arrays)."""
@@ -829,26 +802,30 @@ class IndrasNet:
         for node_id in self._graph.nodes():
             node = self.get_node(node_id)
             if node:
-                nodes.append({
-                    'id': node.id,
-                    'type': node.node_type.name,
-                    'name': node.name,
-                    'godot_id': node.godot_id,
-                    'properties': node.properties,
-                    'affordances': node.affordances,
-                })
+                nodes.append(
+                    {
+                        "id": node.id,
+                        "type": node.node_type.name,
+                        "name": node.name,
+                        "godot_id": node.godot_id,
+                        "properties": node.properties,
+                        "affordances": node.affordances,
+                    }
+                )
 
         edges = []
         for source, target, data in self._graph.edges(data=True):
-            edges.append({
-                'source': source,
-                'target': target,
-                'type': data.get('edge_type', EdgeType.ASSOCIATED_WITH).name,
-                'weight': data.get('weight', 1.0),
-            })
+            edges.append(
+                {
+                    "source": source,
+                    "target": target,
+                    "type": data.get("edge_type", EdgeType.ASSOCIATED_WITH).name,
+                    "weight": data.get("weight", 1.0),
+                }
+            )
 
-        with open(filepath, 'w') as f:
-            json.dump({'nodes': nodes, 'edges': edges}, f, indent=2)
+        with open(filepath, "w") as f:
+            json.dump({"nodes": nodes, "edges": edges}, f, indent=2)
 
     # ==================== Statistics ====================
 
@@ -865,17 +842,17 @@ class IndrasNet:
     def get_statistics(self) -> Dict[str, Any]:
         """Get comprehensive graph statistics."""
         stats = {
-            'total_nodes': self.node_count,
-            'total_edges': self.edge_count,
-            'nodes_by_type': {t.name: len(ids) for t, ids in self._nodes_by_type.items()},
-            'creation_time': self._creation_time.isoformat(),
-            'modification_count': self._modification_count,
+            "total_nodes": self.node_count,
+            "total_edges": self.edge_count,
+            "nodes_by_type": {t.name: len(ids) for t, ids in self._nodes_by_type.items()},
+            "creation_time": self._creation_time.isoformat(),
+            "modification_count": self._modification_count,
         }
 
         # Compute connectivity metrics
         if self.node_count > 0:
-            stats['avg_degree'] = self.edge_count / self.node_count
-            stats['density'] = nx.density(self._graph)
+            stats["avg_degree"] = self.edge_count / self.node_count
+            stats["density"] = nx.density(self._graph)
 
         return stats
 

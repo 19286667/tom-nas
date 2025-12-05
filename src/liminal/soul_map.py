@@ -14,17 +14,17 @@ Additionally, realm-specific modifiers (5 dims) track how the environment
 affects the NPC's psychological state.
 """
 
-import torch
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
-from enum import Enum
-import json
 import random
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+import torch
 
 
 class SoulMapCluster(Enum):
     """The five psychological clusters of the Soul Map."""
+
     COGNITIVE = "cognitive"
     EMOTIONAL = "emotional"
     MOTIVATIONAL = "motivational"
@@ -34,87 +34,87 @@ class SoulMapCluster(Enum):
 
 # Dimension definitions for each cluster
 COGNITIVE_DIMENSIONS = [
-    "processing_speed",        # 0.0-1.0: How quickly they process information
-    "working_memory_depth",    # 0.0-1.0: How much context they can hold
-    "pattern_recognition",     # 0.0-1.0: Ability to detect patterns
-    "abstraction_capacity",    # 0.0-1.0: Abstract thinking ability
-    "counterfactual_reasoning", # 0.0-1.0: "What if" thinking
-    "temporal_orientation",    # 0.0-1.0: 0=Past-focused, 1=Future-focused
-    "uncertainty_tolerance",   # 0.0-1.0: Comfort with ambiguity
-    "cognitive_flexibility",   # 0.0-1.0: Ability to adapt thinking
-    "metacognitive_awareness", # 0.0-1.0: Thinking about thinking
-    "tom_depth",              # 1-5 (normalized to 0.0-1.0): Theory of Mind depth
-    "integration_tendency",   # 0.0-1.0: Tendency to synthesize information
-    "explanatory_mode",       # 0.0-1.0: 0=Mechanistic, 1=Teleological
+    "processing_speed",  # 0.0-1.0: How quickly they process information
+    "working_memory_depth",  # 0.0-1.0: How much context they can hold
+    "pattern_recognition",  # 0.0-1.0: Ability to detect patterns
+    "abstraction_capacity",  # 0.0-1.0: Abstract thinking ability
+    "counterfactual_reasoning",  # 0.0-1.0: "What if" thinking
+    "temporal_orientation",  # 0.0-1.0: 0=Past-focused, 1=Future-focused
+    "uncertainty_tolerance",  # 0.0-1.0: Comfort with ambiguity
+    "cognitive_flexibility",  # 0.0-1.0: Ability to adapt thinking
+    "metacognitive_awareness",  # 0.0-1.0: Thinking about thinking
+    "tom_depth",  # 1-5 (normalized to 0.0-1.0): Theory of Mind depth
+    "integration_tendency",  # 0.0-1.0: Tendency to synthesize information
+    "explanatory_mode",  # 0.0-1.0: 0=Mechanistic, 1=Teleological
 ]
 
 EMOTIONAL_DIMENSIONS = [
-    "baseline_valence",        # -1.0 to 1.0: Default emotional state
-    "volatility",             # 0.0-1.0: How quickly emotions change
-    "intensity",              # 0.0-1.0: Strength of emotional responses
-    "anxiety_baseline",       # 0.0-1.0: Default anxiety level
-    "threat_sensitivity",     # 0.0-1.0: Sensitivity to threats
-    "reward_sensitivity",     # 0.0-1.0: Sensitivity to rewards
-    "disgust_sensitivity",    # 0.0-1.0: Sensitivity to disgust triggers
-    "attachment_style",       # 0.0-1.0: 0=Avoidant, 1=Anxious
-    "granularity",            # 0.0-1.0: Emotional differentiation
-    "affect_labeling",        # 0.0-1.0: Ability to name emotions
-    "contagion_susceptibility", # 0.0-1.0: Emotional contagion
-    "recovery_rate",          # 0.0-1.0: How quickly they recover
+    "baseline_valence",  # -1.0 to 1.0: Default emotional state
+    "volatility",  # 0.0-1.0: How quickly emotions change
+    "intensity",  # 0.0-1.0: Strength of emotional responses
+    "anxiety_baseline",  # 0.0-1.0: Default anxiety level
+    "threat_sensitivity",  # 0.0-1.0: Sensitivity to threats
+    "reward_sensitivity",  # 0.0-1.0: Sensitivity to rewards
+    "disgust_sensitivity",  # 0.0-1.0: Sensitivity to disgust triggers
+    "attachment_style",  # 0.0-1.0: 0=Avoidant, 1=Anxious
+    "granularity",  # 0.0-1.0: Emotional differentiation
+    "affect_labeling",  # 0.0-1.0: Ability to name emotions
+    "contagion_susceptibility",  # 0.0-1.0: Emotional contagion
+    "recovery_rate",  # 0.0-1.0: How quickly they recover
 ]
 
 MOTIVATIONAL_DIMENSIONS = [
-    "survival_drive",         # 0.0-1.0: Self-preservation instinct
-    "affiliation_drive",      # 0.0-1.0: Need for social connection
-    "status_drive",           # 0.0-1.0: Need for status/recognition
-    "autonomy_drive",         # 0.0-1.0: Need for independence
-    "mastery_drive",          # 0.0-1.0: Need for competence
-    "meaning_drive",          # 0.0-1.0: Need for purpose
-    "novelty_drive",          # 0.0-1.0: Need for new experiences
-    "order_drive",            # 0.0-1.0: Need for structure
-    "approach_avoidance",     # -1.0 to 1.0: -1=Avoid, 1=Approach
-    "temporal_discounting",   # 0.0-1.0: Future vs immediate reward pref
-    "risk_tolerance",         # 0.0-1.0: Comfort with risk
-    "effort_allocation",      # 0.0-1.0: Willingness to expend effort
+    "survival_drive",  # 0.0-1.0: Self-preservation instinct
+    "affiliation_drive",  # 0.0-1.0: Need for social connection
+    "status_drive",  # 0.0-1.0: Need for status/recognition
+    "autonomy_drive",  # 0.0-1.0: Need for independence
+    "mastery_drive",  # 0.0-1.0: Need for competence
+    "meaning_drive",  # 0.0-1.0: Need for purpose
+    "novelty_drive",  # 0.0-1.0: Need for new experiences
+    "order_drive",  # 0.0-1.0: Need for structure
+    "approach_avoidance",  # -1.0 to 1.0: -1=Avoid, 1=Approach
+    "temporal_discounting",  # 0.0-1.0: Future vs immediate reward pref
+    "risk_tolerance",  # 0.0-1.0: Comfort with risk
+    "effort_allocation",  # 0.0-1.0: Willingness to expend effort
 ]
 
 SOCIAL_DIMENSIONS = [
-    "trust_default",          # 0.0-1.0: Default trust level
-    "cooperation_tendency",   # 0.0-1.0: Tendency to cooperate
-    "competition_tendency",   # 0.0-1.0: Tendency to compete
-    "fairness_sensitivity",   # 0.0-1.0: Sensitivity to fairness
+    "trust_default",  # 0.0-1.0: Default trust level
+    "cooperation_tendency",  # 0.0-1.0: Tendency to cooperate
+    "competition_tendency",  # 0.0-1.0: Tendency to compete
+    "fairness_sensitivity",  # 0.0-1.0: Sensitivity to fairness
     "authority_orientation",  # 0.0-1.0: Deference to authority
-    "group_identity",         # 0.0-1.0: Strength of group identification
-    "empathy_capacity",       # 0.0-1.0: Ability to feel others' emotions
-    "perspective_taking",     # 0.0-1.0: Ability to see others' viewpoints
-    "social_monitoring",      # 0.0-1.0: Awareness of social dynamics
-    "reputation_concern",     # 0.0-1.0: Care about reputation
-    "reciprocity_tracking",   # 0.0-1.0: Memory for social exchanges
-    "betrayal_sensitivity",   # 0.0-1.0: Sensitivity to betrayal
+    "group_identity",  # 0.0-1.0: Strength of group identification
+    "empathy_capacity",  # 0.0-1.0: Ability to feel others' emotions
+    "perspective_taking",  # 0.0-1.0: Ability to see others' viewpoints
+    "social_monitoring",  # 0.0-1.0: Awareness of social dynamics
+    "reputation_concern",  # 0.0-1.0: Care about reputation
+    "reciprocity_tracking",  # 0.0-1.0: Memory for social exchanges
+    "betrayal_sensitivity",  # 0.0-1.0: Sensitivity to betrayal
 ]
 
 SELF_DIMENSIONS = [
-    "self_coherence",         # 0.0-1.0: Stability of self-concept
-    "self_complexity",        # 0.0-1.0: Richness of self-understanding
-    "esteem_stability",       # 0.0-1.0: Stability of self-esteem
-    "narcissism",            # 0.0-1.0: Self-focus/grandiosity
-    "self_verification",      # 0.0-1.0: Need for self-consistency
-    "identity_clarity",       # 0.0-1.0: Clarity of identity
-    "authenticity_drive",     # 0.0-1.0: Need to be genuine
-    "self_expansion",         # 0.0-1.0: Drive to grow/change
-    "narrative_identity",     # 0.0-1.0: Coherence of life story
-    "temporal_continuity",    # 0.0-1.0: Sense of continuity over time
-    "agency_sense",           # 0.0-1.0: Sense of personal control
-    "body_ownership",         # 0.0-1.0: Connection to physical form
+    "self_coherence",  # 0.0-1.0: Stability of self-concept
+    "self_complexity",  # 0.0-1.0: Richness of self-understanding
+    "esteem_stability",  # 0.0-1.0: Stability of self-esteem
+    "narcissism",  # 0.0-1.0: Self-focus/grandiosity
+    "self_verification",  # 0.0-1.0: Need for self-consistency
+    "identity_clarity",  # 0.0-1.0: Clarity of identity
+    "authenticity_drive",  # 0.0-1.0: Need to be genuine
+    "self_expansion",  # 0.0-1.0: Drive to grow/change
+    "narrative_identity",  # 0.0-1.0: Coherence of life story
+    "temporal_continuity",  # 0.0-1.0: Sense of continuity over time
+    "agency_sense",  # 0.0-1.0: Sense of personal control
+    "body_ownership",  # 0.0-1.0: Connection to physical form
 ]
 
 # Realm-specific dimensions (modified by environment)
 REALM_DIMENSIONS = [
     "complementarity_awareness",  # Peregrine: Awareness of dual states
-    "temporal_displacement",      # Spleen Towns: Unstuck in time
-    "corporeal_certainty",        # Ministry: Certainty of being alive
-    "parameter_rigidity",         # City of Constants: Adherence to rules
-    "corruption",                 # Hollow Reaches: Degree of assimilation
+    "temporal_displacement",  # Spleen Towns: Unstuck in time
+    "corporeal_certainty",  # Ministry: Certainty of being alive
+    "parameter_rigidity",  # City of Constants: Adherence to rules
+    "corruption",  # Hollow Reaches: Degree of assimilation
 ]
 
 # Dimension range specifications
@@ -169,6 +169,7 @@ class SoulMap:
     def from_archetype(cls, archetype: str, variance: float = 0.1) -> "SoulMap":
         """Create a Soul Map from a predefined archetype with random variance."""
         from .npcs.archetypes import ARCHETYPES
+
         if archetype not in ARCHETYPES:
             raise ValueError(f"Unknown archetype: {archetype}")
 
@@ -176,7 +177,7 @@ class SoulMap:
         soul_map = cls()
 
         # Apply archetype values with variance
-        for cluster_name in ['cognitive', 'emotional', 'motivational', 'social', 'self']:
+        for cluster_name in ["cognitive", "emotional", "motivational", "social", "self"]:
             cluster = getattr(soul_map, cluster_name)
             archetype_cluster = base.get(cluster_name, {})
 
@@ -201,7 +202,7 @@ class SoulMap:
         if "soul_map" in json_data:
             json_data = json_data["soul_map"]
 
-        for cluster_name in ['cognitive', 'emotional', 'motivational', 'social', 'self']:
+        for cluster_name in ["cognitive", "emotional", "motivational", "social", "self"]:
             if cluster_name in json_data:
                 cluster = getattr(soul_map, cluster_name)
                 for dim, value in json_data[cluster_name].items():
@@ -219,8 +220,7 @@ class SoulMap:
         """Convert Soul Map to a 65-dimensional tensor (60 + 5 realm mods)."""
         values = []
 
-        for cluster in [self.cognitive, self.emotional, self.motivational,
-                       self.social, self.self]:
+        for cluster in [self.cognitive, self.emotional, self.motivational, self.social, self.self]:
             for dim_name in self._get_dimension_list(cluster):
                 values.append(cluster.get(dim_name, 0.5))
 
@@ -254,11 +254,11 @@ class SoulMap:
 
         idx = 0
         for cluster_name, dim_list in [
-            ('cognitive', COGNITIVE_DIMENSIONS),
-            ('emotional', EMOTIONAL_DIMENSIONS),
-            ('motivational', MOTIVATIONAL_DIMENSIONS),
-            ('social', SOCIAL_DIMENSIONS),
-            ('self', SELF_DIMENSIONS)
+            ("cognitive", COGNITIVE_DIMENSIONS),
+            ("emotional", EMOTIONAL_DIMENSIONS),
+            ("motivational", MOTIVATIONAL_DIMENSIONS),
+            ("social", SOCIAL_DIMENSIONS),
+            ("self", SELF_DIMENSIONS),
         ]:
             cluster = getattr(soul_map, cluster_name)
             for dim in dim_list:
@@ -338,19 +338,19 @@ class SoulMap:
     def compute_threat_response(self) -> float:
         """Compute expected threat response intensity (0-1)."""
         return (
-            self.emotional["threat_sensitivity"] * 0.4 +
-            self.emotional["anxiety_baseline"] * 0.3 +
-            (1.0 - self.cognitive["uncertainty_tolerance"]) * 0.2 +
-            (1.0 - self.motivational["risk_tolerance"]) * 0.1
+            self.emotional["threat_sensitivity"] * 0.4
+            + self.emotional["anxiety_baseline"] * 0.3
+            + (1.0 - self.cognitive["uncertainty_tolerance"]) * 0.2
+            + (1.0 - self.motivational["risk_tolerance"]) * 0.1
         )
 
     def compute_social_openness(self) -> float:
         """Compute social openness/approachability (0-1)."""
         return (
-            self.social["trust_default"] * 0.3 +
-            self.social["cooperation_tendency"] * 0.25 +
-            self.social["empathy_capacity"] * 0.25 +
-            self.motivational["affiliation_drive"] * 0.2
+            self.social["trust_default"] * 0.3
+            + self.social["cooperation_tendency"] * 0.25
+            + self.social["empathy_capacity"] * 0.25
+            + self.motivational["affiliation_drive"] * 0.2
         )
 
     def get_dominant_motivation(self) -> Tuple[str, float]:
@@ -391,8 +391,10 @@ class SoulMap:
         threat = self.compute_threat_response()
         social = self.compute_social_openness()
         dominant = self.get_dominant_motivation()
-        return (f"SoulMap(stability={stability:.2f}, threat_response={threat:.2f}, "
-                f"social_openness={social:.2f}, dominant_motivation={dominant[0]})")
+        return (
+            f"SoulMap(stability={stability:.2f}, threat_response={threat:.2f}, "
+            f"social_openness={social:.2f}, dominant_motivation={dominant[0]})"
+        )
 
 
 class SoulMapDelta:
@@ -477,15 +479,15 @@ class SoulMapDelta:
 
 # Export main classes and constants
 __all__ = [
-    'SoulMap',
-    'SoulMapCluster',
-    'SoulMapDelta',
-    'COGNITIVE_DIMENSIONS',
-    'EMOTIONAL_DIMENSIONS',
-    'MOTIVATIONAL_DIMENSIONS',
-    'SOCIAL_DIMENSIONS',
-    'SELF_DIMENSIONS',
-    'REALM_DIMENSIONS',
-    'DIMENSION_RANGES',
-    'DEFAULT_RANGE',
+    "SoulMap",
+    "SoulMapCluster",
+    "SoulMapDelta",
+    "COGNITIVE_DIMENSIONS",
+    "EMOTIONAL_DIMENSIONS",
+    "MOTIVATIONAL_DIMENSIONS",
+    "SOCIAL_DIMENSIONS",
+    "SELF_DIMENSIONS",
+    "REALM_DIMENSIONS",
+    "DIMENSION_RANGES",
+    "DEFAULT_RANGE",
 ]

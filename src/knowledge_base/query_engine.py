@@ -11,20 +11,21 @@ This is the "background hum" of cognition - the saturation of hyperlinked meanin
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Set, Tuple, Any, Callable
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 
+from .indras_net import IndrasNet
 from .schemas import (
-    SemanticNode,
-    SemanticEdge,
-    NodeType,
-    EdgeType,
     ActivationContext,
+    EdgeType,
+    NodeType,
     SemanticActivation,
+    SemanticEdge,
+    SemanticNode,
     StereotypeDimension,
 )
-from .indras_net import IndrasNet
-from .taxonomy import FullTaxonomy, TaxonomyLayer
+from .taxonomy import TaxonomyLayer
 
 
 @dataclass
@@ -35,8 +36,9 @@ class PerceptionResult:
     When an agent perceives something, this captures the full semantic
     expansion - all the activated meanings, norms, and priors.
     """
-    perceived_entity: str            # The entity that was perceived
-    godot_id: Optional[int] = None   # Physical ID if applicable
+
+    perceived_entity: str  # The entity that was perceived
+    godot_id: Optional[int] = None  # Physical ID if applicable
 
     # Semantic expansion
     primary_activation: Optional[SemanticActivation] = None
@@ -71,6 +73,7 @@ class InstitutionalQuery:
     """
     Query for institutional context and associated norms/roles.
     """
+
     institution_id: str
     include_sub_institutions: bool = True
     include_roles: bool = True
@@ -83,6 +86,7 @@ class ArchetypeQuery:
     """
     Query for archetype matching based on taxonomy position.
     """
+
     taxonomy_position: np.ndarray
     max_distance: float = 0.5
     top_k: int = 3
@@ -119,7 +123,7 @@ class SemanticQueryEngine:
         entity_id: str,
         context: ActivationContext,
         include_stereotypes: bool = True,
-        include_archetypes: bool = True
+        include_archetypes: bool = True,
     ) -> PerceptionResult:
         """
         Process perception of an entity through the semantic network.
@@ -155,18 +159,14 @@ class SemanticQueryEngine:
         result.dominant_layer = self._compute_dominant_layer(node.taxonomy_position)
 
         # Spread activation through the network
-        result.primary_activation = self.net.spread_activation(
-            entity_id,
-            context,
-            initial_activation=1.0
-        )
+        result.primary_activation = self.net.spread_activation(entity_id, context, initial_activation=1.0)
 
         # Extract institutional context
         if context.active_institution:
             inst_data = self._get_institution_data(context.active_institution)
             result.active_institution = context.active_institution
-            result.applicable_norms = inst_data.get('norms', [])
-            result.applicable_roles = inst_data.get('roles', [])
+            result.applicable_norms = inst_data.get("norms", [])
+            result.applicable_roles = inst_data.get("roles", [])
 
         # Add norms from activation
         result.applicable_norms.extend(result.primary_activation.activated_norms)
@@ -185,9 +185,7 @@ class SemanticQueryEngine:
 
         # Match archetypes
         if include_archetypes:
-            result.activated_archetypes = self._match_archetypes(
-                node.taxonomy_position
-            )
+            result.activated_archetypes = self._match_archetypes(node.taxonomy_position)
 
         # Get available actions (affordances)
         result.available_actions = self._get_afforded_actions(entity_id, context)
@@ -209,12 +207,12 @@ class SemanticQueryEngine:
             Dict with institutional data
         """
         result = {
-            'institution': query.institution_id,
-            'exists': False,
-            'norms': [],
-            'roles': [],
-            'power_structure': [],
-            'sub_institutions': [],
+            "institution": query.institution_id,
+            "exists": False,
+            "norms": [],
+            "roles": [],
+            "power_structure": [],
+            "sub_institutions": [],
         }
 
         # Get institution node
@@ -222,24 +220,24 @@ class SemanticQueryEngine:
         if not inst_node:
             return result
 
-        result['exists'] = True
-        result['taxonomy_position'] = inst_node.taxonomy_position.tolist()
+        result["exists"] = True
+        result["taxonomy_position"] = inst_node.taxonomy_position.tolist()
 
         # Get associated norms
         if query.include_norms:
-            result['norms'] = self._get_institution_norms(query.institution_id)
+            result["norms"] = self._get_institution_norms(query.institution_id)
 
         # Get associated roles
         if query.include_roles:
-            result['roles'] = self._get_institution_roles(query.institution_id)
+            result["roles"] = self._get_institution_roles(query.institution_id)
 
         # Get power structure
         if query.include_power_structure:
-            result['power_structure'] = self._get_power_structure(query.institution_id)
+            result["power_structure"] = self._get_power_structure(query.institution_id)
 
         # Get sub-institutions
         if query.include_sub_institutions:
-            result['sub_institutions'] = self._get_sub_institutions(query.institution_id)
+            result["sub_institutions"] = self._get_sub_institutions(query.institution_id)
 
         return result
 
@@ -253,18 +251,9 @@ class SemanticQueryEngine:
         Returns:
             List of (archetype_name, similarity) tuples
         """
-        return self._match_archetypes(
-            query.taxonomy_position,
-            max_distance=query.max_distance,
-            top_k=query.top_k
-        )
+        return self._match_archetypes(query.taxonomy_position, max_distance=query.max_distance, top_k=query.top_k)
 
-    def check_norm_applicability(
-        self,
-        norm_id: str,
-        agent_id: str,
-        context: ActivationContext
-    ) -> Dict[str, Any]:
+    def check_norm_applicability(self, norm_id: str, agent_id: str, context: ActivationContext) -> Dict[str, Any]:
         """
         Check if a norm applies to an agent in the current context.
 
@@ -277,11 +266,11 @@ class SemanticQueryEngine:
             Dict with applicability information
         """
         result = {
-            'norm_id': norm_id,
-            'applies': False,
-            'enforcement_strength': 0.0,
-            'agent_role': None,
-            'violation_consequence': None,
+            "norm_id": norm_id,
+            "applies": False,
+            "enforcement_strength": 0.0,
+            "agent_role": None,
+            "violation_consequence": None,
         }
 
         norm_node = self.net.get_node(norm_id)
@@ -291,13 +280,11 @@ class SemanticQueryEngine:
         # Check if norm is in the current institution
         if context.active_institution:
             inst_norms = self._get_institution_norms(context.active_institution)
-            if norm_id in [n['id'] for n in inst_norms]:
-                result['applies'] = True
-                result['enforcement_strength'] = norm_node.properties.get(
-                    'enforcement_strength', 0.5
-                )
-                result['violation_consequence'] = norm_node.properties.get(
-                    'violation_consequence', 'social_disapproval'
+            if norm_id in [n["id"] for n in inst_norms]:
+                result["applies"] = True
+                result["enforcement_strength"] = norm_node.properties.get("enforcement_strength", 0.5)
+                result["violation_consequence"] = norm_node.properties.get(
+                    "violation_consequence", "social_disapproval"
                 )
 
         # Check if agent has a role that is subject to this norm
@@ -306,17 +293,12 @@ class SemanticQueryEngine:
             for role_id in context.active_roles:
                 role_node = self.net.get_node(role_id)
                 if role_node and norm_id in role_node.associated_norms:
-                    result['applies'] = True
-                    result['agent_role'] = role_id
+                    result["applies"] = True
+                    result["agent_role"] = role_id
 
         return result
 
-    def compute_power_differential(
-        self,
-        agent1_id: str,
-        agent2_id: str,
-        context: ActivationContext
-    ) -> Dict[str, Any]:
+    def compute_power_differential(self, agent1_id: str, agent2_id: str, context: ActivationContext) -> Dict[str, Any]:
         """
         Compute power differential between two agents in context.
 
@@ -329,58 +311,52 @@ class SemanticQueryEngine:
             Dict with power analysis
         """
         result = {
-            'agent1': agent1_id,
-            'agent2': agent2_id,
-            'power_differential': 0.0,  # Positive = agent1 more powerful
-            'sources': [],
+            "agent1": agent1_id,
+            "agent2": agent2_id,
+            "power_differential": 0.0,  # Positive = agent1 more powerful
+            "sources": [],
         }
 
         # Get role-based power
         for role_id in context.active_roles:
             role_node = self.net.get_node(role_id)
             if role_node:
-                power_level = role_node.properties.get('power_level', 0.5)
+                power_level = role_node.properties.get("power_level", 0.5)
                 # Check if either agent holds this role
                 # (simplified - would need role assignment tracking)
-                result['sources'].append({
-                    'type': 'role',
-                    'role': role_id,
-                    'power_level': power_level,
-                })
+                result["sources"].append(
+                    {
+                        "type": "role",
+                        "role": role_id,
+                        "power_level": power_level,
+                    }
+                )
 
         # Get direct power edges
-        power_edges = self.net.get_edges(
-            source_id=agent1_id,
-            target_id=agent2_id,
-            edge_type=EdgeType.POWER_OVER
-        )
+        power_edges = self.net.get_edges(source_id=agent1_id, target_id=agent2_id, edge_type=EdgeType.POWER_OVER)
         for edge in power_edges:
-            result['power_differential'] += edge.weight
-            result['sources'].append({
-                'type': 'direct_power',
-                'weight': edge.weight,
-            })
+            result["power_differential"] += edge.weight
+            result["sources"].append(
+                {
+                    "type": "direct_power",
+                    "weight": edge.weight,
+                }
+            )
 
         # Check deference edges (inverse)
-        deference_edges = self.net.get_edges(
-            source_id=agent1_id,
-            target_id=agent2_id,
-            edge_type=EdgeType.DEFERS_TO
-        )
+        deference_edges = self.net.get_edges(source_id=agent1_id, target_id=agent2_id, edge_type=EdgeType.DEFERS_TO)
         for edge in deference_edges:
-            result['power_differential'] -= edge.weight
-            result['sources'].append({
-                'type': 'deference',
-                'weight': -edge.weight,
-            })
+            result["power_differential"] -= edge.weight
+            result["sources"].append(
+                {
+                    "type": "deference",
+                    "weight": -edge.weight,
+                }
+            )
 
         return result
 
-    def find_conflicts(
-        self,
-        entity_id: str,
-        context: ActivationContext
-    ) -> List[Dict[str, Any]]:
+    def find_conflicts(self, entity_id: str, context: ActivationContext) -> List[Dict[str, Any]]:
         """
         Find potential conflicts (cognitive dissonance, norm violations).
 
@@ -398,12 +374,14 @@ class SemanticQueryEngine:
 
         for edge in activation.activated_edges:
             if edge.edge_type == EdgeType.CONFLICTS_WITH:
-                conflicts.append({
-                    'type': 'conceptual_conflict',
-                    'source': edge.source_id,
-                    'target': edge.target_id,
-                    'weight': edge.weight,
-                })
+                conflicts.append(
+                    {
+                        "type": "conceptual_conflict",
+                        "source": edge.source_id,
+                        "target": edge.target_id,
+                        "weight": edge.weight,
+                    }
+                )
 
         # Check for norm violations based on affordances
         entity_node = self.net.get_node(entity_id)
@@ -414,25 +392,22 @@ class SemanticQueryEngine:
                     for norm_id in context.active_norms:
                         # Check if action conflicts with norm
                         conflict_edges = self.net.get_edges(
-                            source_id=action_node.id,
-                            target_id=norm_id,
-                            edge_type=EdgeType.CONFLICTS_WITH
+                            source_id=action_node.id, target_id=norm_id, edge_type=EdgeType.CONFLICTS_WITH
                         )
                         for edge in conflict_edges:
-                            conflicts.append({
-                                'type': 'norm_violation_risk',
-                                'action': affordance,
-                                'norm': norm_id,
-                                'weight': edge.weight,
-                            })
+                            conflicts.append(
+                                {
+                                    "type": "norm_violation_risk",
+                                    "action": affordance,
+                                    "norm": norm_id,
+                                    "weight": edge.weight,
+                                }
+                            )
 
         return conflicts
 
     def get_semantic_neighbors(
-        self,
-        entity_id: str,
-        n: int = 10,
-        filter_types: Optional[List[NodeType]] = None
+        self, entity_id: str, n: int = 10, filter_types: Optional[List[NodeType]] = None
     ) -> List[Tuple[str, float]]:
         """
         Get semantically similar entities based on taxonomy position.
@@ -449,11 +424,7 @@ class SemanticQueryEngine:
         if not node:
             return []
 
-        return self.net.find_by_taxonomy_position(
-            node.taxonomy_position,
-            max_distance=1.0,
-            node_types=filter_types
-        )[:n]
+        return self.net.find_by_taxonomy_position(node.taxonomy_position, max_distance=1.0, node_types=filter_types)[:n]
 
     # ==================== Private Helper Methods ====================
 
@@ -478,8 +449,8 @@ class SemanticQueryEngine:
             return self._institution_cache[institution_id]
 
         data = {
-            'norms': [n['id'] for n in self._get_institution_norms(institution_id)],
-            'roles': [r['id'] for r in self._get_institution_roles(institution_id)],
+            "norms": [n["id"] for n in self._get_institution_norms(institution_id)],
+            "roles": [r["id"] for r in self._get_institution_roles(institution_id)],
         }
 
         self._institution_cache[institution_id] = data
@@ -491,17 +462,17 @@ class SemanticQueryEngine:
 
         # Get norms linked by ENFORCED_BY edges
         for source, edge_type, weight in self.net.get_neighbors(
-            institution_id,
-            edge_types=[EdgeType.ENFORCED_BY],
-            direction="incoming"
+            institution_id, edge_types=[EdgeType.ENFORCED_BY], direction="incoming"
         ):
             norm_node = self.net.get_node(source)
             if norm_node and norm_node.node_type == NodeType.NORM:
-                norms.append({
-                    'id': norm_node.id,
-                    'name': norm_node.name,
-                    'enforcement_strength': norm_node.properties.get('enforcement_strength', 0.5),
-                })
+                norms.append(
+                    {
+                        "id": norm_node.id,
+                        "name": norm_node.name,
+                        "enforcement_strength": norm_node.properties.get("enforcement_strength", 0.5),
+                    }
+                )
 
         return norms
 
@@ -511,17 +482,17 @@ class SemanticQueryEngine:
 
         # Get roles linked by ROLE_IN edges
         for source, edge_type, weight in self.net.get_neighbors(
-            institution_id,
-            edge_types=[EdgeType.ROLE_IN],
-            direction="incoming"
+            institution_id, edge_types=[EdgeType.ROLE_IN], direction="incoming"
         ):
             role_node = self.net.get_node(source)
             if role_node and role_node.node_type == NodeType.ROLE:
-                roles.append({
-                    'id': role_node.id,
-                    'name': role_node.name,
-                    'power_level': role_node.properties.get('power_level', 0.5),
-                })
+                roles.append(
+                    {
+                        "id": role_node.id,
+                        "name": role_node.name,
+                        "power_level": role_node.properties.get("power_level", 0.5),
+                    }
+                )
 
         return roles
 
@@ -531,22 +502,22 @@ class SemanticQueryEngine:
 
         # Get all roles in institution
         roles = self._get_institution_roles(institution_id)
-        role_ids = [r['id'] for r in roles]
+        role_ids = [r["id"] for r in roles]
 
         # Find power relationships between roles
         for role_id in role_ids:
             for target, edge_type, weight in self.net.get_neighbors(
-                role_id,
-                edge_types=[EdgeType.POWER_OVER, EdgeType.DEFERS_TO],
-                direction="outgoing"
+                role_id, edge_types=[EdgeType.POWER_OVER, EdgeType.DEFERS_TO], direction="outgoing"
             ):
                 if target in role_ids:
-                    structure.append({
-                        'source_role': role_id,
-                        'target_role': target,
-                        'relationship': edge_type.name,
-                        'weight': weight,
-                    })
+                    structure.append(
+                        {
+                            "source_role": role_id,
+                            "target_role": target,
+                            "relationship": edge_type.name,
+                            "weight": weight,
+                        }
+                    )
 
         return structure
 
@@ -555,9 +526,7 @@ class SemanticQueryEngine:
         subs = []
 
         for source, edge_type, weight in self.net.get_neighbors(
-            institution_id,
-            edge_types=[EdgeType.PART_OF],
-            direction="incoming"
+            institution_id, edge_types=[EdgeType.PART_OF], direction="incoming"
         ):
             node = self.net.get_node(source)
             if node and node.node_type == NodeType.INSTITUTION:
@@ -565,16 +534,12 @@ class SemanticQueryEngine:
 
         return subs
 
-    def _compute_stereotype(
-        self,
-        node: SemanticNode,
-        context: ActivationContext
-    ) -> StereotypeDimension:
+    def _compute_stereotype(self, node: SemanticNode, context: ActivationContext) -> StereotypeDimension:
         """Compute stereotype dimensions for a node in context."""
         # Get base stereotype from node
-        warmth = node.stereotype_associations.get('warmth', 0.5)
-        competence = node.stereotype_associations.get('competence', 0.5)
-        status = node.stereotype_associations.get('status', 0.5)
+        warmth = node.stereotype_associations.get("warmth", 0.5)
+        competence = node.stereotype_associations.get("competence", 0.5)
+        status = node.stereotype_associations.get("status", 0.5)
 
         # Adjust based on institutional context
         if context.active_institution:
@@ -596,11 +561,7 @@ class SemanticQueryEngine:
             predicted_emotions=predicted_emotions,
         )
 
-    def _compute_predicted_emotions(
-        self,
-        warmth: float,
-        competence: float
-    ) -> Dict[str, float]:
+    def _compute_predicted_emotions(self, warmth: float, competence: float) -> Dict[str, float]:
         """
         Compute predicted emotions based on Stereotype Content Model.
 
@@ -612,24 +573,21 @@ class SemanticQueryEngine:
         emotions = {}
 
         # Admiration (HW + HC)
-        emotions['admiration'] = warmth * competence
+        emotions["admiration"] = warmth * competence
 
         # Pity (HW + LC)
-        emotions['pity'] = warmth * (1 - competence)
+        emotions["pity"] = warmth * (1 - competence)
 
         # Envy (LW + HC)
-        emotions['envy'] = (1 - warmth) * competence
+        emotions["envy"] = (1 - warmth) * competence
 
         # Contempt (LW + LC)
-        emotions['contempt'] = (1 - warmth) * (1 - competence)
+        emotions["contempt"] = (1 - warmth) * (1 - competence)
 
         return emotions
 
     def _match_archetypes(
-        self,
-        taxonomy_position: np.ndarray,
-        max_distance: float = 0.5,
-        top_k: int = 3
+        self, taxonomy_position: np.ndarray, max_distance: float = 0.5, top_k: int = 3
     ) -> List[Tuple[str, float]]:
         """Match a taxonomy position to archetypes."""
         matches = []
@@ -637,10 +595,7 @@ class SemanticQueryEngine:
         archetype_nodes = self.net.get_nodes_by_type(NodeType.ARCHETYPE)
 
         for node in archetype_nodes:
-            distance = self.taxonomy.compute_semantic_distance(
-                taxonomy_position,
-                node.taxonomy_position
-            )
+            distance = self.taxonomy.compute_semantic_distance(taxonomy_position, node.taxonomy_position)
 
             if distance <= max_distance:
                 # Convert distance to similarity
@@ -651,11 +606,7 @@ class SemanticQueryEngine:
         matches.sort(key=lambda x: x[1], reverse=True)
         return matches[:top_k]
 
-    def _get_afforded_actions(
-        self,
-        entity_id: str,
-        context: ActivationContext
-    ) -> List[str]:
+    def _get_afforded_actions(self, entity_id: str, context: ActivationContext) -> List[str]:
         """Get actions afforded by an entity in context."""
         actions = []
 
@@ -669,9 +620,7 @@ class SemanticQueryEngine:
 
         # Get actions linked by AFFORDS edges
         for target, edge_type, weight in self.net.get_neighbors(
-            entity_id,
-            edge_types=[EdgeType.AFFORDS],
-            direction="outgoing"
+            entity_id, edge_types=[EdgeType.AFFORDS], direction="outgoing"
         ):
             action_node = self.net.get_node(target)
             if action_node and action_node.node_type == NodeType.ACTION:
@@ -681,19 +630,13 @@ class SemanticQueryEngine:
 
         return list(set(actions))
 
-    def _action_permitted_in_context(
-        self,
-        action_node: SemanticNode,
-        context: ActivationContext
-    ) -> bool:
+    def _action_permitted_in_context(self, action_node: SemanticNode, context: ActivationContext) -> bool:
         """Check if an action is permitted in the current context."""
         # By default, all actions are permitted
         # Check for norm conflicts
         for norm_id in context.active_norms:
             conflict_edges = self.net.get_edges(
-                source_id=action_node.id,
-                target_id=norm_id,
-                edge_type=EdgeType.CONFLICTS_WITH
+                source_id=action_node.id, target_id=norm_id, edge_type=EdgeType.CONFLICTS_WITH
             )
             if conflict_edges:
                 # Action conflicts with an active norm
@@ -795,71 +738,89 @@ def build_default_knowledge_base() -> Tuple[IndrasNet, SemanticQueryEngine]:
     # ==================== Add Semantic Edges ====================
 
     # Objects and their institutional associations
-    net.add_edge(SemanticEdge(
-        source_id="obj_book",
-        target_id="inst_school",
-        edge_type=EdgeType.OCCURS_IN,
-        weight=0.9,
-    ))
+    net.add_edge(
+        SemanticEdge(
+            source_id="obj_book",
+            target_id="inst_school",
+            edge_type=EdgeType.OCCURS_IN,
+            weight=0.9,
+        )
+    )
 
-    net.add_edge(SemanticEdge(
-        source_id="obj_money",
-        target_id="inst_marketplace",
-        edge_type=EdgeType.OCCURS_IN,
-        weight=0.95,
-    ))
+    net.add_edge(
+        SemanticEdge(
+            source_id="obj_money",
+            target_id="inst_marketplace",
+            edge_type=EdgeType.OCCURS_IN,
+            weight=0.95,
+        )
+    )
 
     # Norms and their enforcement institutions
-    net.add_edge(SemanticEdge(
-        source_id="norm_silence_court",
-        target_id="inst_courtroom",
-        edge_type=EdgeType.ENFORCED_BY,
-        weight=0.9,
-    ))
+    net.add_edge(
+        SemanticEdge(
+            source_id="norm_silence_court",
+            target_id="inst_courtroom",
+            edge_type=EdgeType.ENFORCED_BY,
+            weight=0.9,
+        )
+    )
 
-    net.add_edge(SemanticEdge(
-        source_id="norm_truth_oath",
-        target_id="inst_courtroom",
-        edge_type=EdgeType.ENFORCED_BY,
-        weight=0.95,
-    ))
+    net.add_edge(
+        SemanticEdge(
+            source_id="norm_truth_oath",
+            target_id="inst_courtroom",
+            edge_type=EdgeType.ENFORCED_BY,
+            weight=0.95,
+        )
+    )
 
     # Archetype associations
-    net.add_edge(SemanticEdge(
-        source_id="archetype_sage",
-        target_id="role_teacher",
-        edge_type=EdgeType.ASSOCIATED_WITH,
-        weight=0.8,
-    ))
+    net.add_edge(
+        SemanticEdge(
+            source_id="archetype_sage",
+            target_id="role_teacher",
+            edge_type=EdgeType.ASSOCIATED_WITH,
+            weight=0.8,
+        )
+    )
 
-    net.add_edge(SemanticEdge(
-        source_id="archetype_hero",
-        target_id="role_judge",
-        edge_type=EdgeType.ASSOCIATED_WITH,
-        weight=0.6,
-    ))
+    net.add_edge(
+        SemanticEdge(
+            source_id="archetype_hero",
+            target_id="role_judge",
+            edge_type=EdgeType.ASSOCIATED_WITH,
+            weight=0.6,
+        )
+    )
 
     # Power relationships
-    net.add_edge(SemanticEdge(
-        source_id="role_judge",
-        target_id="role_defendant",
-        edge_type=EdgeType.POWER_OVER,
-        weight=0.9,
-    ))
+    net.add_edge(
+        SemanticEdge(
+            source_id="role_judge",
+            target_id="role_defendant",
+            edge_type=EdgeType.POWER_OVER,
+            weight=0.9,
+        )
+    )
 
-    net.add_edge(SemanticEdge(
-        source_id="role_teacher",
-        target_id="role_student",
-        edge_type=EdgeType.POWER_OVER,
-        weight=0.7,
-    ))
+    net.add_edge(
+        SemanticEdge(
+            source_id="role_teacher",
+            target_id="role_student",
+            edge_type=EdgeType.POWER_OVER,
+            weight=0.7,
+        )
+    )
 
-    net.add_edge(SemanticEdge(
-        source_id="role_doctor",
-        target_id="role_patient",
-        edge_type=EdgeType.POWER_OVER,
-        weight=0.6,
-    ))
+    net.add_edge(
+        SemanticEdge(
+            source_id="role_doctor",
+            target_id="role_patient",
+            edge_type=EdgeType.POWER_OVER,
+            weight=0.6,
+        )
+    )
 
     # Create query engine
     engine = SemanticQueryEngine(net)

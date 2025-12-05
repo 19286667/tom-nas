@@ -9,21 +9,21 @@ of this class, containing:
 - Beliefs: What they know/believe about others (ToM integration)
 """
 
-import torch
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Callable, TYPE_CHECKING
-from enum import Enum, auto
 import uuid
-import random
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+import torch
 
 if TYPE_CHECKING:
-    from ..soul_map import SoulMap, SoulMapDelta
     from ..realms import Realm, RealmType
+    from ..soul_map import SoulMap, SoulMapDelta
 
 
 class NPCState(Enum):
     """Current activity state of an NPC."""
+
     IDLE = "idle"
     WALKING = "walking"
     WORKING = "working"
@@ -40,6 +40,7 @@ class NPCState(Enum):
 
 class NPCBehavior(Enum):
     """Behavioral patterns NPCs can exhibit."""
+
     PATROL = "patrol"
     WANDER = "wander"
     STATIONARY = "stationary"
@@ -55,6 +56,7 @@ class NPCBehavior(Enum):
 @dataclass
 class NPCBelief:
     """A belief an NPC holds about another entity."""
+
     target_id: str  # Who/what the belief is about
     belief_type: str  # e.g., "location", "intention", "state"
     content: Any  # The actual belief content
@@ -66,6 +68,7 @@ class NPCBelief:
 @dataclass
 class NPCMemory:
     """Short-term memory for NPCs."""
+
     observations: List[Dict[str, Any]] = field(default_factory=list)
     interactions: List[Dict[str, Any]] = field(default_factory=list)
     max_observations: int = 20
@@ -153,20 +156,14 @@ class BaseNPC:
             self.npc_id = str(uuid.uuid4())[:8]
 
         # Update ToM depth from Soul Map
-        if hasattr(self.soul_map, 'get_tom_depth_int'):
+        if hasattr(self.soul_map, "get_tom_depth_int"):
             self.tom_depth = self.soul_map.get_tom_depth_int()
 
     @classmethod
     def create(cls, name: str, archetype: str, soul_map: "SoulMap", **kwargs) -> "BaseNPC":
         """Factory method to create an NPC."""
-        npc_id = kwargs.pop('npc_id', f"{archetype}_{str(uuid.uuid4())[:6]}")
-        return cls(
-            npc_id=npc_id,
-            name=name,
-            archetype=archetype,
-            soul_map=soul_map,
-            **kwargs
-        )
+        npc_id = kwargs.pop("npc_id", f"{archetype}_{str(uuid.uuid4())[:6]}")
+        return cls(npc_id=npc_id, name=name, archetype=archetype, soul_map=soul_map, **kwargs)
 
     def to_json(self) -> Dict[str, Any]:
         """Convert NPC to JSON format (matching MDD spec)."""
@@ -198,19 +195,29 @@ class BaseNPC:
         soul_tensor = self.soul_map.to_tensor()
 
         # Context tensor
-        context = torch.tensor([
-            self.awareness_of_player,
-            self.energy,
-            self.reputation_with_player,
-            float(self.current_state.value == NPCState.FLEEING.value),
-            float(self.is_zombie),
-        ], dtype=torch.float32)
+        context = torch.tensor(
+            [
+                self.awareness_of_player,
+                self.energy,
+                self.reputation_with_player,
+                float(self.current_state.value == NPCState.FLEEING.value),
+                float(self.is_zombie),
+            ],
+            dtype=torch.float32,
+        )
 
         # Combine
         return torch.cat([soul_tensor, context])
 
-    def update_belief(self, target_id: str, belief_type: str, content: Any,
-                      confidence: float, timestamp: int, source: str = "observation") -> None:
+    def update_belief(
+        self,
+        target_id: str,
+        belief_type: str,
+        content: Any,
+        confidence: float,
+        timestamp: int,
+        source: str = "observation",
+    ) -> None:
         """Update or add a belief about another entity."""
         if target_id not in self.beliefs:
             self.beliefs[target_id] = []
@@ -225,14 +232,16 @@ class BaseNPC:
                 return
 
         # Add new belief
-        self.beliefs[target_id].append(NPCBelief(
-            target_id=target_id,
-            belief_type=belief_type,
-            content=content,
-            confidence=confidence,
-            timestamp=timestamp,
-            source=source
-        ))
+        self.beliefs[target_id].append(
+            NPCBelief(
+                target_id=target_id,
+                belief_type=belief_type,
+                content=content,
+                confidence=confidence,
+                timestamp=timestamp,
+                source=source,
+            )
+        )
 
     def get_belief(self, target_id: str, belief_type: str) -> Optional[NPCBelief]:
         """Get a specific belief about a target."""
@@ -257,7 +266,7 @@ class BaseNPC:
             new_awareness = max(0.0, 1.0 - distance / 50.0)
 
             # Modulate by social monitoring
-            new_awareness *= (0.5 + 0.5 * self.soul_map.social["social_monitoring"])
+            new_awareness *= 0.5 + 0.5 * self.soul_map.social["social_monitoring"]
 
             self.awareness_of_player = max(self.awareness_of_player * 0.9, new_awareness)
 
@@ -290,23 +299,23 @@ class BaseNPC:
             output = self._nas_model(input_tensor)
 
         # Interpret output
-        beliefs = output.get('beliefs', torch.zeros(1, 60))
-        actions = output.get('actions', torch.zeros(1))
+        beliefs = output.get("beliefs", torch.zeros(1, 60))
+        actions = output.get("actions", torch.zeros(1))
 
         return {
-            'action_type': self._interpret_action(actions[0].item()),
-            'beliefs_update': beliefs[0],
-            'confidence': output.get('confidence', 0.5),
+            "action_type": self._interpret_action(actions[0].item()),
+            "beliefs_update": beliefs[0],
+            "confidence": output.get("confidence", 0.5),
         }
 
     def _encode_context(self, context: Dict[str, Any]) -> torch.Tensor:
         """Encode environmental context as tensor."""
         # Encode relevant context features
         features = [
-            context.get('threat_level', 0.0),
-            context.get('social_density', 0.0),
-            context.get('realm_vibe_match', 0.5),
-            context.get('time_of_day', 0.5),
+            context.get("threat_level", 0.0),
+            context.get("social_density", 0.0),
+            context.get("realm_vibe_match", 0.5),
+            context.get("time_of_day", 0.5),
         ]
 
         # Pad to consistent size
@@ -331,22 +340,19 @@ class BaseNPC:
     def _rule_based_action(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Simple rule-based action selection (for non-NAS NPCs)."""
         # High anxiety + threat = flee
-        if (self.soul_map.emotional["anxiety_baseline"] > 0.7 and
-            context.get('threat_level', 0.0) > 0.5):
-            return {'action_type': 'flee', 'confidence': 0.8}
+        if self.soul_map.emotional["anxiety_baseline"] > 0.7 and context.get("threat_level", 0.0) > 0.5:
+            return {"action_type": "flee", "confidence": 0.8}
 
         # Low trust + stranger = avoid
-        if (self.soul_map.social["trust_default"] < 0.3 and
-            self.awareness_of_player > 0.5):
-            return {'action_type': 'avoid', 'confidence': 0.6}
+        if self.soul_map.social["trust_default"] < 0.3 and self.awareness_of_player > 0.5:
+            return {"action_type": "avoid", "confidence": 0.6}
 
         # High novelty + unknown = investigate
-        if (self.soul_map.motivational["novelty_drive"] > 0.7 and
-            context.get('novel_stimulus', False)):
-            return {'action_type': 'investigate', 'confidence': 0.7}
+        if self.soul_map.motivational["novelty_drive"] > 0.7 and context.get("novel_stimulus", False):
+            return {"action_type": "investigate", "confidence": 0.7}
 
         # Default: continue current behavior
-        return {'action_type': 'continue', 'confidence': 0.5}
+        return {"action_type": "continue", "confidence": 0.5}
 
     def apply_intervention(self, delta: "SoulMapDelta", source: str = "player") -> Dict[str, Any]:
         """
@@ -366,12 +372,14 @@ class BaseNPC:
         post_threat = self.soul_map.compute_threat_response()
 
         # Record this intervention
-        self.memory.add_interaction({
-            'type': 'intervention',
-            'source': source,
-            'stability_change': post_stability - pre_stability,
-            'threat_change': post_threat - pre_threat,
-        })
+        self.memory.add_interaction(
+            {
+                "type": "intervention",
+                "source": source,
+                "stability_change": post_stability - pre_stability,
+                "threat_change": post_threat - pre_threat,
+            }
+        )
 
         # Update emotional state based on changes
         if post_threat > pre_threat + 0.2:
@@ -382,9 +390,9 @@ class BaseNPC:
             self.emotional_state = "calmed"
 
         return {
-            'stability_change': post_stability - pre_stability,
-            'threat_change': post_threat - pre_threat,
-            'new_emotional_state': self.emotional_state,
+            "stability_change": post_stability - pre_stability,
+            "threat_change": post_threat - pre_threat,
+            "new_emotional_state": self.emotional_state,
         }
 
     def update_from_realm(self, realm: "Realm", duration: float = 1.0) -> Dict[str, float]:
@@ -403,7 +411,9 @@ class BaseNPC:
             current = self.soul_map.realm_modifiers.get("corruption", 0.0)
             resistance = self.soul_map.motivational["survival_drive"]
             corruption_rate = realm.realm_variables.get("corruption_rate", 0.02)
-            self.soul_map.realm_modifiers["corruption"] = min(1.0, current + corruption_rate * (1 - resistance) * duration)
+            self.soul_map.realm_modifiers["corruption"] = min(
+                1.0, current + corruption_rate * (1 - resistance) * duration
+            )
 
         return changes
 
@@ -434,16 +444,18 @@ class BaseNPC:
         }
 
     def __repr__(self) -> str:
-        return (f"NPC({self.name}, {self.archetype}, "
-                f"state={self.current_state.value}, "
-                f"emotional={self.emotional_state})")
+        return (
+            f"NPC({self.name}, {self.archetype}, "
+            f"state={self.current_state.value}, "
+            f"emotional={self.emotional_state})"
+        )
 
 
 # Export
 __all__ = [
-    'BaseNPC',
-    'NPCState',
-    'NPCBehavior',
-    'NPCBelief',
-    'NPCMemory',
+    "BaseNPC",
+    "NPCState",
+    "NPCBehavior",
+    "NPCBelief",
+    "NPCMemory",
 ]

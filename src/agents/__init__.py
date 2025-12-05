@@ -9,15 +9,15 @@ Contains three main neural architectures:
 """
 
 from .architectures import (
-    TransparentRNN,
+    HybridArchitecture,
     RecursiveSelfAttention,
     TransformerToMAgent,
-    HybridArchitecture,
+    TransparentRNN,
 )
 
 __all__ = [
-    'TransparentRNN',
-    'RecursiveSelfAttention',
-    'TransformerToMAgent',
-    'HybridArchitecture',
+    "TransparentRNN",
+    "RecursiveSelfAttention",
+    "TransformerToMAgent",
+    "HybridArchitecture",
 ]

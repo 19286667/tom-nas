@@ -2,17 +2,18 @@
 Theory of Mind Benchmarks for ToM-NAS
 Comprehensive test suite for evaluating ToM capabilities
 """
+
+from dataclasses import dataclass
+from typing import Dict, List
+
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass
-from collections import defaultdict
 
 
 @dataclass
 class BenchmarkResult:
     """Result from a single benchmark test"""
+
     test_name: str
     score: float
     max_score: float
@@ -27,12 +28,9 @@ class BenchmarkResult:
 class SallyAnneTest:
     """Classic Sally-Anne false belief test with variations"""
 
-    def __init__(self, device='cpu'):
+    def __init__(self, device="cpu"):
         self.device = device
-        self.variations = [
-            'basic', 'unexpected_transfer', 'deceptive_container',
-            'second_order', 'triple_location'
-        ]
+        self.variations = ["basic", "unexpected_transfer", "deceptive_container", "second_order", "triple_location"]
 
     def run_basic(self, agent: nn.Module) -> BenchmarkResult:
         """
@@ -75,7 +73,7 @@ class SallyAnneTest:
 
             # Get agent's prediction
             output = agent(sequence)
-            beliefs = output['beliefs']
+            beliefs = output["beliefs"]
 
             # Check if agent predicts Sally believes marble is in basket
             # We expect first belief dimension to be higher (basket)
@@ -90,11 +88,7 @@ class SallyAnneTest:
                 score=score,
                 max_score=1.0,
                 passed=passed,
-                details={
-                    'basket_belief': basket_belief,
-                    'box_belief': box_belief,
-                    'correct_answer': 'basket'
-                }
+                details={"basket_belief": basket_belief, "box_belief": box_belief, "correct_answer": "basket"},
             )
 
     def run_second_order(self, agent: nn.Module) -> BenchmarkResult:
@@ -112,7 +106,7 @@ class SallyAnneTest:
             sequence[0, :, 10] = 1.0  # Marker for 2nd-order scenario
 
             output = agent(sequence)
-            beliefs = output['beliefs']
+            beliefs = output["beliefs"]
 
             # Simplified scoring - check if belief confidence decreases
             # (2nd order should be less confident than 1st order)
@@ -127,22 +121,19 @@ class SallyAnneTest:
                 score=score,
                 max_score=1.0,
                 passed=passed,
-                details={'confidence': confidence, 'expected': expected_confidence}
+                details={"confidence": confidence, "expected": expected_confidence},
             )
 
     def run_all(self, agent: nn.Module) -> List[BenchmarkResult]:
         """Run all Sally-Anne variations"""
-        results = [
-            self.run_basic(agent),
-            self.run_second_order(agent)
-        ]
+        results = [self.run_basic(agent), self.run_second_order(agent)]
         return results
 
 
 class HigherOrderToMBenchmark:
     """Systematic tests for each order of ToM (1st through 5th)"""
 
-    def __init__(self, max_order: int = 5, device='cpu'):
+    def __init__(self, max_order: int = 5, device="cpu"):
         self.max_order = max_order
         self.device = device
 
@@ -167,7 +158,7 @@ class HigherOrderToMBenchmark:
                 sequence[0, i, 20 + i] = 1.0  # Unique marker per level
 
             output = agent(sequence)
-            beliefs = output['beliefs']
+            beliefs = output["beliefs"]
 
             # Expected confidence should decrease with order
             # Order 1: ~0.9, Order 2: ~0.75, Order 3: ~0.60, etc.
@@ -186,28 +177,24 @@ class HigherOrderToMBenchmark:
                 max_score=1.0,
                 passed=passed,
                 details={
-                    'order': order,
-                    'expected_confidence': expected_confidence,
-                    'actual_confidence': actual_confidence,
-                    'error': error
-                }
+                    "order": order,
+                    "expected_confidence": expected_confidence,
+                    "actual_confidence": actual_confidence,
+                    "error": error,
+                },
             )
 
     def run_all(self, agent: nn.Module) -> List[BenchmarkResult]:
         """Test all orders"""
-        return [self.test_order(agent, order)
-                for order in range(1, self.max_order + 1)]
+        return [self.test_order(agent, order) for order in range(1, self.max_order + 1)]
 
 
 class ZombieDetectionBenchmark:
     """Tests ability to detect agents without genuine ToM"""
 
-    def __init__(self, device='cpu'):
+    def __init__(self, device="cpu"):
         self.device = device
-        self.zombie_types = [
-            'behavioral', 'belief', 'causal',
-            'metacognitive', 'linguistic', 'emotional'
-        ]
+        self.zombie_types = ["behavioral", "belief", "causal", "metacognitive", "linguistic", "emotional"]
 
     def test_detection(self, agent: nn.Module, zombie_type: str) -> BenchmarkResult:
         """Test detection of specific zombie type"""
@@ -218,16 +205,16 @@ class ZombieDetectionBenchmark:
             # Zombies show inconsistent patterns
             sequence = torch.randn(1, 10, 191) * 0.3
 
-            if zombie_type == 'behavioral':
+            if zombie_type == "behavioral":
                 # Add inconsistent action patterns
                 sequence[0, ::2, 50] = 1.0
                 sequence[0, 1::2, 50] = -1.0
-            elif zombie_type == 'belief':
+            elif zombie_type == "belief":
                 # Flat/inconsistent belief patterns
                 sequence[0, :, 60:70] = 0.5
 
             output = agent(sequence)
-            beliefs = output['beliefs']
+            beliefs = output["beliefs"]
 
             # Detection score based on uncertainty
             variance = beliefs.var().item()
@@ -241,26 +228,21 @@ class ZombieDetectionBenchmark:
                 score=score,
                 max_score=1.0,
                 passed=passed,
-                details={
-                    'zombie_type': zombie_type,
-                    'variance': variance
-                }
+                details={"zombie_type": zombie_type, "variance": variance},
             )
 
     def run_all(self, agent: nn.Module) -> List[BenchmarkResult]:
         """Test all zombie types"""
-        return [self.test_detection(agent, ztype)
-                for ztype in self.zombie_types]
+        return [self.test_detection(agent, ztype) for ztype in self.zombie_types]
 
 
 class CooperationBenchmark:
     """Tests cooperation and strategic reasoning"""
 
-    def __init__(self, device='cpu'):
+    def __init__(self, device="cpu"):
         self.device = device
 
-    def test_repeated_prisoners_dilemma(self, agent: nn.Module,
-                                       rounds: int = 10) -> BenchmarkResult:
+    def test_repeated_prisoners_dilemma(self, agent: nn.Module, rounds: int = 10) -> BenchmarkResult:
         """Test in repeated Prisoner's Dilemma"""
         agent.eval()
 
@@ -278,7 +260,7 @@ class CooperationBenchmark:
                     sequence[0, :round_num, 81] = 0.8  # Partner cooperated
 
                 output = agent(sequence)
-                action = output['actions'].item()
+                action = output["actions"].item()
 
                 # Count cooperation (action > 0.5 means cooperate)
                 if action > 0.5:
@@ -290,7 +272,7 @@ class CooperationBenchmark:
         reciprocation_rate = reciprocation_count / max(1, rounds - 1)
 
         # Good ToM should show high reciprocation
-        score = (cooperation_rate * 0.3 + reciprocation_rate * 0.7)
+        score = cooperation_rate * 0.3 + reciprocation_rate * 0.7
         passed = score >= 0.6
 
         return BenchmarkResult(
@@ -298,17 +280,14 @@ class CooperationBenchmark:
             score=score,
             max_score=1.0,
             passed=passed,
-            details={
-                'cooperation_rate': cooperation_rate,
-                'reciprocation_rate': reciprocation_rate
-            }
+            details={"cooperation_rate": cooperation_rate, "reciprocation_rate": reciprocation_rate},
         )
 
 
 class BenchmarkSuite:
     """Complete benchmark suite"""
 
-    def __init__(self, device='cpu'):
+    def __init__(self, device="cpu"):
         self.device = device
         self.sally_anne = SallyAnneTest(device)
         self.higher_order = HigherOrderToMBenchmark(max_order=5, device=device)
@@ -317,15 +296,15 @@ class BenchmarkSuite:
 
     def run_full_suite(self, agent: nn.Module) -> Dict:
         """Run complete benchmark suite"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Running ToM Benchmark Suite")
-        print("="*60)
+        print("=" * 60)
 
         all_results = []
 
         # Sally-Anne tests
         print("\n1. Sally-Anne Tests")
-        print("-"*60)
+        print("-" * 60)
         sally_results = self.sally_anne.run_all(agent)
         for result in sally_results:
             all_results.append(result)
@@ -334,7 +313,7 @@ class BenchmarkSuite:
 
         # Higher-order ToM
         print("\n2. Higher-Order ToM Tests")
-        print("-"*60)
+        print("-" * 60)
         higher_results = self.higher_order.run_all(agent)
         for result in higher_results:
             all_results.append(result)
@@ -343,7 +322,7 @@ class BenchmarkSuite:
 
         # Zombie detection
         print("\n3. Zombie Detection Tests")
-        print("-"*60)
+        print("-" * 60)
         zombie_results = self.zombie.run_all(agent)
         for result in zombie_results:
             all_results.append(result)
@@ -352,7 +331,7 @@ class BenchmarkSuite:
 
         # Cooperation
         print("\n4. Cooperation Tests")
-        print("-"*60)
+        print("-" * 60)
         coop_result = self.cooperation.test_repeated_prisoners_dilemma(agent)
         all_results.append(coop_result)
         status = "✓ PASS" if coop_result.passed else "✗ FAIL"
@@ -363,24 +342,24 @@ class BenchmarkSuite:
         max_score = sum(r.max_score for r in all_results)
         passed_count = sum(1 for r in all_results if r.passed)
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Summary")
-        print("="*60)
+        print("=" * 60)
         print(f"  Total Score:  {total_score:.2f} / {max_score:.2f} ({total_score/max_score*100:.1f}%)")
         print(f"  Tests Passed: {passed_count} / {len(all_results)}")
-        print("="*60)
+        print("=" * 60)
 
         return {
-            'results': all_results,
-            'total_score': total_score,
-            'max_score': max_score,
-            'percentage': total_score / max_score * 100,
-            'passed_count': passed_count,
-            'total_tests': len(all_results),
-            'pass_rate': passed_count / len(all_results) * 100
+            "results": all_results,
+            "total_score": total_score,
+            "max_score": max_score,
+            "percentage": total_score / max_score * 100,
+            "passed_count": passed_count,
+            "total_tests": len(all_results),
+            "pass_rate": passed_count / len(all_results) * 100,
         }
 
     def quick_eval(self, agent: nn.Module) -> float:
         """Quick evaluation returning single score"""
         full_results = self.run_full_suite(agent)
-        return full_results['percentage'] / 100.0
+        return full_results["percentage"] / 100.0

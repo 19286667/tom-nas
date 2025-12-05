@@ -15,22 +15,21 @@ These systems are critical for creating genuine co-evolutionary dynamics
 that develop sophisticated Theory of Mind in agents.
 """
 
-import pytest
-import torch
-import numpy as np
 import random
 import sys
-import os
 
-sys.path.insert(0, '.')
+import pytest
+import torch
 
+sys.path.insert(0, ".")
+
+from src.liminal.npcs.base_npc import BaseNPC
 from src.liminal.soul_map import SoulMap
-from src.liminal.npcs.base_npc import BaseNPC, NPCState
-
 
 # =============================================================================
 # PSYCHOSOCIAL CO-EVOLUTION TESTS
 # =============================================================================
+
 
 class TestTheoreticalConstants:
     """Test theoretical constants are properly defined."""
@@ -52,7 +51,7 @@ class TestTheoreticalConstants:
 
         # Each level should have higher or equal cost
         for i in range(1, len(costs)):
-            assert costs[i] >= costs[i-1]
+            assert costs[i] >= costs[i - 1]
 
 
 class TestSocialEdge:
@@ -72,25 +71,36 @@ class TestSocialEdge:
 
     def test_relationship_type_stranger(self):
         """Test stranger classification."""
-        from src.liminal.psychosocial_coevolution import SocialEdge, RelationshipType
+        from src.liminal.psychosocial_coevolution import RelationshipType, SocialEdge
 
         edge = SocialEdge(source_id="a", target_id="b")
         assert edge.get_relationship_type() == RelationshipType.STRANGER
 
     def test_relationship_type_ally(self):
         """Test ally classification."""
-        from src.liminal.psychosocial_coevolution import SocialEdge, RelationshipType
+        from src.liminal.psychosocial_coevolution import RelationshipType, SocialEdge
 
         edge = SocialEdge(source_id="a", target_id="b")
         edge.trust = 0.8
-        edge.affect = 0.5
+        edge.affect = 0.2  # Positive but below COALITION threshold (0.3)
         edge.familiarity = 0.5
 
         assert edge.get_relationship_type() == RelationshipType.ALLY
 
+    def test_relationship_type_coalition(self):
+        """Test coalition classification - highest trust tier with strong affect."""
+        from src.liminal.psychosocial_coevolution import RelationshipType, SocialEdge
+
+        edge = SocialEdge(source_id="a", target_id="b")
+        edge.trust = 0.8  # Above COALITION_FORMATION_THRESHOLD (0.6)
+        edge.affect = 0.5  # Above coalition affect threshold (0.3)
+        edge.familiarity = 0.5  # Above acquaintance threshold
+
+        assert edge.get_relationship_type() == RelationshipType.COALITION
+
     def test_relationship_type_enemy(self):
         """Test enemy classification."""
-        from src.liminal.psychosocial_coevolution import SocialEdge, RelationshipType
+        from src.liminal.psychosocial_coevolution import RelationshipType, SocialEdge
 
         edge = SocialEdge(source_id="a", target_id="b")
         edge.trust = 0.2
@@ -110,7 +120,7 @@ class TestSocialEdge:
 
         assert edge.familiarity > initial_familiarity
         assert edge.last_interaction_tick == 10
-        assert edge.cooperation_history[-1] == True
+        assert edge.cooperation_history[-1] is True
 
     def test_negative_interaction_erodes_trust(self):
         """Test that defection erodes trust faster than cooperation builds it."""
@@ -177,11 +187,7 @@ class TestSocialNetwork:
         from src.liminal.psychosocial_coevolution import SocialNetwork
 
         network = SocialNetwork()
-        network.record_interaction(
-            agent1="a", agent2="b",
-            outcome1_cooperated=True, outcome2_cooperated=False,
-            tick=10
-        )
+        network.record_interaction(agent1="a", agent2="b", outcome1_cooperated=True, outcome2_cooperated=False, tick=10)
 
         edge_a_to_b = network.edges.get(("a", "b"))
         edge_b_to_a = network.edges.get(("b", "a"))
@@ -252,9 +258,7 @@ class TestBeliefPropagation:
 
     def test_engine_creation(self):
         """Test creating belief propagation engine."""
-        from src.liminal.psychosocial_coevolution import (
-            SocialNetwork, BeliefPropagationEngine
-        )
+        from src.liminal.psychosocial_coevolution import BeliefPropagationEngine, SocialNetwork
 
         network = SocialNetwork()
         engine = BeliefPropagationEngine(network)
@@ -264,18 +268,13 @@ class TestBeliefPropagation:
 
     def test_introduce_belief(self):
         """Test introducing a new belief."""
-        from src.liminal.psychosocial_coevolution import (
-            SocialNetwork, BeliefPropagationEngine
-        )
+        from src.liminal.psychosocial_coevolution import BeliefPropagationEngine, SocialNetwork
 
         network = SocialNetwork()
         engine = BeliefPropagationEngine(network)
 
         belief = engine.introduce_belief(
-            belief_id="belief_1",
-            content={"fact": "something_happened"},
-            source_id="agent_a",
-            tick=10
+            belief_id="belief_1", content={"fact": "something_happened"}, source_id="agent_a", tick=10
         )
 
         assert belief.belief_id == "belief_1"
@@ -285,9 +284,7 @@ class TestBeliefPropagation:
 
     def test_belief_propagation(self):
         """Test beliefs propagate through interactions."""
-        from src.liminal.psychosocial_coevolution import (
-            SocialNetwork, BeliefPropagationEngine
-        )
+        from src.liminal.psychosocial_coevolution import BeliefPropagationEngine, SocialNetwork
 
         network = SocialNetwork()
 
@@ -298,12 +295,7 @@ class TestBeliefPropagation:
         engine = BeliefPropagationEngine(network)
 
         # Introduce belief to A
-        engine.introduce_belief(
-            belief_id="secret",
-            content={"info": "classified"},
-            source_id="a",
-            tick=1
-        )
+        engine.introduce_belief(belief_id="secret", content={"info": "classified"}, source_id="a", tick=1)
 
         # Propagate through interaction
         engine.propagate(tick=2, interactions=[("a", "b")])
@@ -311,16 +303,14 @@ class TestBeliefPropagation:
         # With high trust, B should likely have the belief now
         # (probabilistic, so we check after multiple propagations)
         for _ in range(10):
-            engine.propagate(tick=2+_, interactions=[("a", "b")])
+            engine.propagate(tick=2 + _, interactions=[("a", "b")])
 
         b_knowledge = engine.get_agent_knowledge("b")
         # Should have some knowledge (probabilistic)
 
     def test_knowledge_asymmetry_tensor(self):
         """Test knowledge asymmetry tensor creation."""
-        from src.liminal.psychosocial_coevolution import (
-            SocialNetwork, BeliefPropagationEngine
-        )
+        from src.liminal.psychosocial_coevolution import BeliefPropagationEngine, SocialNetwork
 
         network = SocialNetwork()
         engine = BeliefPropagationEngine(network)
@@ -341,13 +331,9 @@ class TestEnvironmentalEvolution:
 
     def test_evolution_creation(self):
         """Test creating environmental evolution engine."""
-        from src.liminal.psychosocial_coevolution import (
-            PsychosocialEnvironmentEvolution, EnvironmentEvolutionStrategy
-        )
+        from src.liminal.psychosocial_coevolution import EnvironmentEvolutionStrategy, PsychosocialEnvironmentEvolution
 
-        evolution = PsychosocialEnvironmentEvolution(
-            strategy=EnvironmentEvolutionStrategy.ECOLOGICAL
-        )
+        evolution = PsychosocialEnvironmentEvolution(strategy=EnvironmentEvolutionStrategy.ECOLOGICAL)
 
         assert evolution.strategy == EnvironmentEvolutionStrategy.ECOLOGICAL
         assert evolution.generation == 0
@@ -355,13 +341,9 @@ class TestEnvironmentalEvolution:
 
     def test_static_strategy_no_change(self):
         """Test static strategy doesn't change environment."""
-        from src.liminal.psychosocial_coevolution import (
-            PsychosocialEnvironmentEvolution, EnvironmentEvolutionStrategy
-        )
+        from src.liminal.psychosocial_coevolution import EnvironmentEvolutionStrategy, PsychosocialEnvironmentEvolution
 
-        evolution = PsychosocialEnvironmentEvolution(
-            strategy=EnvironmentEvolutionStrategy.STATIC
-        )
+        evolution = PsychosocialEnvironmentEvolution(strategy=EnvironmentEvolutionStrategy.STATIC)
 
         initial_params = dict(evolution.npc_base_parameters)
 
@@ -372,13 +354,10 @@ class TestEnvironmentalEvolution:
 
     def test_ecological_evolution_increases_complexity(self):
         """Test ecological evolution increases complexity when agents perform well."""
-        from src.liminal.psychosocial_coevolution import (
-            PsychosocialEnvironmentEvolution, EnvironmentEvolutionStrategy
-        )
+        from src.liminal.psychosocial_coevolution import EnvironmentEvolutionStrategy, PsychosocialEnvironmentEvolution
 
         evolution = PsychosocialEnvironmentEvolution(
-            strategy=EnvironmentEvolutionStrategy.ECOLOGICAL,
-            evolution_rate=0.2
+            strategy=EnvironmentEvolutionStrategy.ECOLOGICAL, evolution_rate=0.2
         )
 
         # High fitness agents
@@ -393,13 +372,9 @@ class TestEnvironmentalEvolution:
 
     def test_scaffolding_evolution(self):
         """Test scaffolding evolution gradual difficulty increase."""
-        from src.liminal.psychosocial_coevolution import (
-            PsychosocialEnvironmentEvolution, EnvironmentEvolutionStrategy
-        )
+        from src.liminal.psychosocial_coevolution import EnvironmentEvolutionStrategy, PsychosocialEnvironmentEvolution
 
-        evolution = PsychosocialEnvironmentEvolution(
-            strategy=EnvironmentEvolutionStrategy.SCAFFOLDING
-        )
+        evolution = PsychosocialEnvironmentEvolution(strategy=EnvironmentEvolutionStrategy.SCAFFOLDING)
 
         # Moderate performance
         changes = evolution.evolve_environment({"a": 0.5, "b": 0.5})
@@ -408,9 +383,7 @@ class TestEnvironmentalEvolution:
 
     def test_fitness_recording(self):
         """Test fitness history recording."""
-        from src.liminal.psychosocial_coevolution import (
-            PsychosocialEnvironmentEvolution, EnvironmentEvolutionStrategy
-        )
+        from src.liminal.psychosocial_coevolution import PsychosocialEnvironmentEvolution
 
         evolution = PsychosocialEnvironmentEvolution()
 
@@ -440,14 +413,12 @@ class TestPsychosocialCoevolutionEngine:
 
     def test_engine_creation(self):
         """Test creating the main engine."""
-        from src.liminal.psychosocial_coevolution import (
-            PsychosocialCoevolutionEngine, EnvironmentEvolutionStrategy
-        )
+        from src.liminal.psychosocial_coevolution import EnvironmentEvolutionStrategy, PsychosocialCoevolutionEngine
 
         engine = PsychosocialCoevolutionEngine(
             evolution_strategy=EnvironmentEvolutionStrategy.ECOLOGICAL,
             enable_belief_propagation=True,
-            enable_social_dynamics=True
+            enable_social_dynamics=True,
         )
 
         assert engine.social_network is not None
@@ -477,7 +448,7 @@ class TestPsychosocialCoevolutionEngine:
             agent1_id="a",
             agent2_id="b",
             agent1_action={"type": "interact", "agent_id": "a"},
-            agent2_action={"type": "interact", "agent_id": "b"}
+            agent2_action={"type": "interact", "agent_id": "b"},
         )
 
         assert "competitive" in outcome
@@ -492,12 +463,7 @@ class TestPsychosocialCoevolutionEngine:
         # Create mock NPCs
         npcs = []
         for i in range(3):
-            npc = BaseNPC(
-                npc_id=f"npc_{i}",
-                name=f"NPC {i}",
-                archetype="neutral",
-                soul_map=SoulMap()
-            )
+            npc = BaseNPC(npc_id=f"npc_{i}", name=f"NPC {i}", archetype="neutral", soul_map=SoulMap())
             npcs.append(npc)
 
         initial_tick = engine.tick
@@ -529,9 +495,7 @@ class TestPsychosocialCoevolutionEngine:
 
         # Create some relationships
         engine.process_interaction(
-            "a", "b",
-            {"type": "interact", "agent_id": "a"},
-            {"type": "interact", "agent_id": "b"}
+            "a", "b", {"type": "interact", "agent_id": "a"}, {"type": "interact", "agent_id": "b"}
         )
 
         obs = engine.get_social_observation("a")
@@ -569,6 +533,7 @@ class TestPsychosocialCoevolutionEngine:
 # NARRATIVE EMERGENCE TESTS
 # =============================================================================
 
+
 class TestNarrativeArchetypes:
     """Test narrative archetype definitions."""
 
@@ -593,9 +558,7 @@ class TestEmergentNarrative:
 
     def test_narrative_creation(self):
         """Test creating an emergent narrative."""
-        from src.liminal.narrative_emergence import (
-            EmergentNarrative, NarrativeArchetype
-        )
+        from src.liminal.narrative_emergence import EmergentNarrative, NarrativeArchetype
 
         narrative = EmergentNarrative(
             narrative_id="test_1",
@@ -604,7 +567,7 @@ class TestEmergentNarrative:
             description="Trust is tested...",
             protagonists=["npc_1"],
             antagonists=["npc_2"],
-            supporting_cast=["npc_3"]
+            supporting_cast=["npc_3"],
         )
 
         assert narrative.narrative_id == "test_1"
@@ -615,9 +578,7 @@ class TestEmergentNarrative:
 
     def test_dramatic_summary(self):
         """Test generating dramatic summary."""
-        from src.liminal.narrative_emergence import (
-            EmergentNarrative, NarrativeArchetype
-        )
+        from src.liminal.narrative_emergence import EmergentNarrative, NarrativeArchetype
 
         narrative = EmergentNarrative(
             narrative_id="test_1",
@@ -626,7 +587,7 @@ class TestEmergentNarrative:
             description="Two rivals clash",
             protagonists=["a"],
             antagonists=["b"],
-            supporting_cast=[]
+            supporting_cast=[],
         )
 
         summary = narrative.get_dramatic_summary()
@@ -661,12 +622,7 @@ class TestNarrativeDetector:
         # Create some NPCs
         npcs = {}
         for i in range(5):
-            npc = BaseNPC(
-                npc_id=f"npc_{i}",
-                name=f"NPC {i}",
-                archetype="neutral",
-                soul_map=SoulMap()
-            )
+            npc = BaseNPC(npc_id=f"npc_{i}", name=f"NPC {i}", archetype="neutral", soul_map=SoulMap())
             npcs[f"npc_{i}"] = npc
 
         # Scan (might not detect anything with empty state)
@@ -680,9 +636,7 @@ class TestNarrativeProgressionEngine:
 
     def test_progression_engine_creation(self):
         """Test creating progression engine."""
-        from src.liminal.narrative_emergence import (
-            NarrativeDetector, NarrativeProgressionEngine
-        )
+        from src.liminal.narrative_emergence import NarrativeDetector, NarrativeProgressionEngine
         from src.liminal.psychosocial_coevolution import PsychosocialCoevolutionEngine
 
         coev = PsychosocialCoevolutionEngine()
@@ -694,9 +648,7 @@ class TestNarrativeProgressionEngine:
 
     def test_update_narratives(self):
         """Test updating narratives."""
-        from src.liminal.narrative_emergence import (
-            NarrativeDetector, NarrativeProgressionEngine
-        )
+        from src.liminal.narrative_emergence import NarrativeDetector, NarrativeProgressionEngine
         from src.liminal.psychosocial_coevolution import PsychosocialCoevolutionEngine
 
         coev = PsychosocialCoevolutionEngine()
@@ -736,12 +688,7 @@ class TestNarrativeEmergenceSystem:
 
         npcs = {}
         for i in range(5):
-            npc = BaseNPC(
-                npc_id=f"npc_{i}",
-                name=f"NPC {i}",
-                archetype="neutral",
-                soul_map=SoulMap()
-            )
+            npc = BaseNPC(npc_id=f"npc_{i}", name=f"NPC {i}", archetype="neutral", soul_map=SoulMap())
             npcs[f"npc_{i}"] = npc
 
         results = system.tick(npcs, current_tick=10)
@@ -796,6 +743,7 @@ class TestNarrativeEmergenceSystem:
 # INTEGRATION TESTS
 # =============================================================================
 
+
 class TestCoevolutionNarrativeIntegration:
     """Test integration between co-evolution and narrative systems."""
 
@@ -815,7 +763,7 @@ class TestCoevolutionNarrativeIntegration:
                 npc_id=f"npc_{i}",
                 name=f"NPC {i}",
                 archetype=random.choice(["trusting", "suspicious", "neutral"]),
-                soul_map=SoulMap()
+                soul_map=SoulMap(),
             )
             npcs[f"npc_{i}"] = npc
 
@@ -829,9 +777,10 @@ class TestCoevolutionNarrativeIntegration:
             for _ in range(3):
                 a1, a2 = random.sample(agent_ids, 2)
                 coev.process_interaction(
-                    a1, a2,
+                    a1,
+                    a2,
                     {"type": "interact", "agent_id": a1, "cooperate": random.random() > 0.5},
-                    {"type": "interact", "agent_id": a2, "cooperate": random.random() > 0.5}
+                    {"type": "interact", "agent_id": a2, "cooperate": random.random() > 0.5},
                 )
 
             # Tick world
@@ -851,9 +800,7 @@ class TestCoevolutionNarrativeIntegration:
     def test_narrative_detection_with_coalitions(self):
         """Test narrative detection when coalitions form."""
         from src.liminal.narrative_emergence import NarrativeEmergenceSystem
-        from src.liminal.psychosocial_coevolution import (
-            PsychosocialCoevolutionEngine, TheoreticalConstants
-        )
+        from src.liminal.psychosocial_coevolution import PsychosocialCoevolutionEngine, TheoreticalConstants
 
         coev = PsychosocialCoevolutionEngine()
         narrative = NarrativeEmergenceSystem(coev)
@@ -875,12 +822,7 @@ class TestCoevolutionNarrativeIntegration:
         # Create NPCs (needed for narrative detection)
         npcs = {}
         for agent_id in agents:
-            npc = BaseNPC(
-                npc_id=agent_id,
-                name=agent_id.upper(),
-                archetype="neutral",
-                soul_map=SoulMap()
-            )
+            npc = BaseNPC(npc_id=agent_id, name=agent_id.upper(), archetype="neutral", soul_map=SoulMap())
             npcs[agent_id] = npc
 
         # Scan for narratives
@@ -893,6 +835,7 @@ class TestCoevolutionNarrativeIntegration:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def run_tests():
     """Run all tests."""

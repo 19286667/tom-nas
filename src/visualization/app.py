@@ -10,34 +10,27 @@ This application provides visualization for:
 - Experiment configuration and running
 """
 
-import streamlit as st
-import sys
 import os
+import sys
+
+import streamlit as st
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-import torch
+
 import numpy as np
-from typing import Optional
+import torch
 
 
 def main():
     """Main application entry point."""
-    st.set_page_config(
-        page_title="Liminal Architectures: ToM-NAS",
-        page_icon="brain",
-        layout="wide"
-    )
+    st.set_page_config(page_title="Liminal Architectures: ToM-NAS", page_icon="brain", layout="wide")
 
     # Sidebar navigation
-    page = st.sidebar.selectbox("Navigate", [
-        "Liminal World",
-        "Belief Inspector",
-        "NAS Evolution",
-        "Run Experiment",
-        "About"
-    ])
+    page = st.sidebar.selectbox(
+        "Navigate", ["Liminal World", "Belief Inspector", "NAS Evolution", "Run Experiment", "About"]
+    )
 
     if page == "Liminal World":
         render_liminal_world()
@@ -55,6 +48,7 @@ def main():
 def get_environment():
     """Get cached Liminal environment."""
     from src.liminal import LiminalEnvironment
+
     return LiminalEnvironment(population_size=200, include_heroes=True)
 
 
@@ -63,8 +57,8 @@ def render_liminal_world():
     st.title("Liminal Architectures")
     st.markdown("*Grand Theft Ontology*")
 
-    from src.visualization.world_renderer import WorldRenderer
     from src.liminal.realms import RealmType
+    from src.visualization.world_renderer import WorldRenderer
 
     # Initialize environment
     try:
@@ -83,7 +77,7 @@ def render_liminal_world():
             "Spleen Towns (The Loop)",
             "Ministry Districts (The Bureaucracy)",
             "City of Constants (The Machine)",
-            "Hollow Reaches (The Shadow)"
+            "Hollow Reaches (The Shadow)",
         ]
         realm = st.selectbox("Select Realm", realm_options)
 
@@ -116,13 +110,13 @@ def render_liminal_world():
     npcs = env.get_npcs_in_realm(selected_realm)[:20]
 
     if npcs:
-        npc_names = [getattr(npc, 'name', npc.npc_id) for npc in npcs]
+        npc_names = [getattr(npc, "name", npc.npc_id) for npc in npcs]
         selected_npc_name = st.selectbox("Select NPC", npc_names)
 
         # Find selected NPC
         selected_npc = None
         for npc in npcs:
-            if getattr(npc, 'name', npc.npc_id) == selected_npc_name:
+            if getattr(npc, "name", npc.npc_id) == selected_npc_name:
                 selected_npc = npc
                 break
 
@@ -136,17 +130,17 @@ def render_liminal_world():
                 st.markdown(f"- Emotional State: {getattr(selected_npc, 'emotional_state', 'neutral')}")
 
                 # Active goal if available
-                if hasattr(selected_npc, 'active_goal') and selected_npc.active_goal:
+                if hasattr(selected_npc, "active_goal") and selected_npc.active_goal:
                     st.markdown(f"- Active Goal: {selected_npc.active_goal}")
 
                 # Stability score
-                if hasattr(selected_npc, 'soul_map'):
+                if hasattr(selected_npc, "soul_map"):
                     stability = selected_npc.soul_map.compute_stability()
                     st.markdown(f"- Psychological Stability: {stability:.2f}")
 
             with col2:
                 # Soul Map radar
-                if hasattr(selected_npc, 'soul_map'):
+                if hasattr(selected_npc, "soul_map"):
                     soul_fig = renderer.render_soul_map_radar(selected_npc.soul_map)
                     st.plotly_chart(soul_fig, use_container_width=True)
     else:
@@ -170,19 +164,16 @@ def render_belief_inspector():
     st.title("Belief Inspector")
     st.markdown("*Visualize information asymmetry and false beliefs*")
 
-    from src.visualization.belief_inspector import BeliefInspector
     from src.core.events import create_sally_anne_scenario, verify_information_asymmetry
+    from src.visualization.belief_inspector import BeliefInspector
 
     inspector = BeliefInspector()
 
-    scenario_type = st.selectbox("Scenario", [
-        "Sally-Anne Classic",
-        "Custom Scenario"
-    ])
+    scenario_type = st.selectbox("Scenario", ["Sally-Anne Classic", "Custom Scenario"])
 
     if scenario_type == "Sally-Anne Classic":
         events, questions = create_sally_anne_scenario()
-        tracker = questions[0]['_tracker']
+        tracker = questions[0]["_tracker"]
         inspector.set_tracker(tracker)
 
         # Verification results
@@ -192,13 +183,13 @@ def render_belief_inspector():
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.metric("Sally believes marble in", results['sally_marble_belief'])
+            st.metric("Sally believes marble in", results["sally_marble_belief"])
         with col2:
-            st.metric("Anne believes marble in", results['anne_marble_belief'])
+            st.metric("Anne believes marble in", results["anne_marble_belief"])
         with col3:
-            st.metric("Reality", results['reality'])
+            st.metric("Reality", results["reality"])
 
-        if results['sally_has_false_belief']:
+        if results["sally_has_false_belief"]:
             st.success("Sally has FALSE BELIEF - Information asymmetry working!")
         else:
             st.error("Information asymmetry not working correctly")
@@ -209,14 +200,13 @@ def render_belief_inspector():
         highlight = st.selectbox("Show perspective of:", ["All"] + agents)
 
         timeline_fig = inspector.render_event_timeline(
-            events,
-            highlight_agent=highlight if highlight != "All" else None
+            events, highlight_agent=highlight if highlight != "All" else None
         )
         st.plotly_chart(timeline_fig, use_container_width=True)
 
         # Belief comparison
         st.subheader("Agent Beliefs")
-        comparison_fig = inspector.render_belief_comparison(agents, 'marble')
+        comparison_fig = inspector.render_belief_comparison(agents, "marble")
         st.plotly_chart(comparison_fig, use_container_width=True)
 
         # False belief analysis
@@ -244,11 +234,12 @@ def render_nas_dashboard():
     dashboard = NASDashboard()
 
     # Check for saved history
-    history_file = st.sidebar.file_uploader("Upload evolution history (optional)", type=['pt', 'json'])
+    history_file = st.sidebar.file_uploader("Upload evolution history (optional)", type=["pt", "json"])
 
     if history_file:
         try:
             import json
+
             history = json.load(history_file)
             dashboard.set_history(history)
             st.success("History loaded!")
@@ -259,17 +250,17 @@ def render_nas_dashboard():
         np.random.seed(42)
         n_gens = 50
         mock_history = {
-            'best_fitness': [0.3 + i * 0.01 + np.random.randn() * 0.02 for i in range(n_gens)],
-            'avg_fitness': [0.25 + i * 0.008 + np.random.randn() * 0.03 for i in range(n_gens)],
-            'diversity': [0.8 - i * 0.005 + np.random.randn() * 0.02 for i in range(n_gens)],
-            'species_count': [max(1, 5 - i // 15 + np.random.randint(-1, 2)) for i in range(n_gens)],
-            'best_genes': [
+            "best_fitness": [0.3 + i * 0.01 + np.random.randn() * 0.02 for i in range(n_gens)],
+            "avg_fitness": [0.25 + i * 0.008 + np.random.randn() * 0.03 for i in range(n_gens)],
+            "diversity": [0.8 - i * 0.005 + np.random.randn() * 0.02 for i in range(n_gens)],
+            "species_count": [max(1, 5 - i // 15 + np.random.randint(-1, 2)) for i in range(n_gens)],
+            "best_genes": [
                 {
-                    'arch_type': np.random.choice(['TRN', 'RSAN', 'Transformer']),
-                    'hidden_dim': np.random.choice([64, 128, 256]),
-                    'num_layers': np.random.randint(1, 5),
-                    'num_heads': np.random.choice([2, 4, 8]),
-                    'dropout_rate': np.random.uniform(0, 0.3),
+                    "arch_type": np.random.choice(["TRN", "RSAN", "Transformer"]),
+                    "hidden_dim": np.random.choice([64, 128, 256]),
+                    "num_layers": np.random.randint(1, 5),
+                    "num_heads": np.random.choice([2, 4, 8]),
+                    "dropout_rate": np.random.uniform(0, 0.3),
                 }
                 for _ in range(n_gens)
             ],
@@ -338,18 +329,17 @@ def render_experiment_runner():
         mutation_rate = st.slider("Mutation Rate", 0.01, 0.5, 0.1)
 
     with col2:
-        benchmarks = st.multiselect("Benchmarks", [
-            "ToMi (False Belief)",
-            "SocialIQA (Social Reasoning)",
-            "Social Games (Multi-Agent)",
-            "Liminal NPCs"
-        ], default=["ToMi (False Belief)"])
+        benchmarks = st.multiselect(
+            "Benchmarks",
+            ["ToMi (False Belief)", "SocialIQA (Social Reasoning)", "Social Games (Multi-Agent)", "Liminal NPCs"],
+            default=["ToMi (False Belief)"],
+        )
 
-        arch_types = st.multiselect("Architecture Types", [
-            "TRN (Transparent RNN)",
-            "RSAN (Recursive Self-Attention)",
-            "Transformer"
-        ], default=["TRN (Transparent RNN)", "RSAN (Recursive Self-Attention)"])
+        arch_types = st.multiselect(
+            "Architecture Types",
+            ["TRN (Transparent RNN)", "RSAN (Recursive Self-Attention)", "Transformer"],
+            default=["TRN (Transparent RNN)", "RSAN (Recursive Self-Attention)"],
+        )
 
         device = st.selectbox("Device", ["cpu", "cuda"])
 
@@ -372,6 +362,7 @@ def render_experiment_runner():
         for gen in range(min(num_generations, 20)):  # Cap at 20 for demo
             # Simulate progress
             import time
+
             time.sleep(0.1)
 
             progress.progress((gen + 1) / min(num_generations, 20))

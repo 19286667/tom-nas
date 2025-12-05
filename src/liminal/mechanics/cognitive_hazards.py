@@ -16,23 +16,23 @@ Each hazard has:
 - Cost (player resource cost)
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Callable
-from enum import Enum, auto
-import random
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..soul_map import SoulMap, SoulMapDelta
 from ..npcs.base_npc import BaseNPC
+from ..soul_map import SoulMapDelta
 
 
 class HazardCategory(Enum):
     """Categories of cognitive hazards."""
+
     DESTABILIZING = "destabilizing"  # Reduces stability
-    STABILIZING = "stabilizing"      # Increases stability
-    EMOTIONAL = "emotional"          # Affects emotions
-    COGNITIVE = "cognitive"          # Affects thinking
-    SOCIAL = "social"               # Affects social behavior
-    EXISTENTIAL = "existential"     # Affects sense of self
+    STABILIZING = "stabilizing"  # Increases stability
+    EMOTIONAL = "emotional"  # Affects emotions
+    COGNITIVE = "cognitive"  # Affects thinking
+    SOCIAL = "social"  # Affects social behavior
+    EXISTENTIAL = "existential"  # Affects sense of self
 
 
 @dataclass
@@ -101,8 +101,7 @@ class CognitiveHazard:
 
         return result
 
-    def can_affect(self, target: BaseNPC, player_position: Tuple[float, float],
-                   player_tom: int) -> Tuple[bool, str]:
+    def can_affect(self, target: BaseNPC, player_position: Tuple[float, float], player_tom: int) -> Tuple[bool, str]:
         """
         Check if this hazard can affect the target.
 
@@ -134,39 +133,50 @@ class CognitiveHazard:
 
         if self.category == HazardCategory.DESTABILIZING:
             # Stability and self-coherence resist destabilization
-            return (soul.self["self_coherence"] * 0.4 +
-                   soul.compute_stability() * 0.4 +
-                   soul.cognitive["metacognitive_awareness"] * 0.2)
+            return (
+                soul.self["self_coherence"] * 0.4
+                + soul.compute_stability() * 0.4
+                + soul.cognitive["metacognitive_awareness"] * 0.2
+            )
 
         elif self.category == HazardCategory.EMOTIONAL:
             # Emotional regulation resists emotional manipulation
-            return (soul.emotional["recovery_rate"] * 0.4 +
-                   (1.0 - soul.emotional["contagion_susceptibility"]) * 0.4 +
-                   soul.emotional["granularity"] * 0.2)
+            return (
+                soul.emotional["recovery_rate"] * 0.4
+                + (1.0 - soul.emotional["contagion_susceptibility"]) * 0.4
+                + soul.emotional["granularity"] * 0.2
+            )
 
         elif self.category == HazardCategory.COGNITIVE:
             # Cognitive flexibility helps resist cognitive attacks
-            return (soul.cognitive["cognitive_flexibility"] * 0.3 +
-                   soul.cognitive["metacognitive_awareness"] * 0.3 +
-                   soul.cognitive["uncertainty_tolerance"] * 0.2 +
-                   soul.cognitive["processing_speed"] * 0.2)
+            return (
+                soul.cognitive["cognitive_flexibility"] * 0.3
+                + soul.cognitive["metacognitive_awareness"] * 0.3
+                + soul.cognitive["uncertainty_tolerance"] * 0.2
+                + soul.cognitive["processing_speed"] * 0.2
+            )
 
         elif self.category == HazardCategory.SOCIAL:
             # Social intelligence resists social manipulation
-            return (soul.social["social_monitoring"] * 0.4 +
-                   soul.social["perspective_taking"] * 0.3 +
-                   soul.social["betrayal_sensitivity"] * 0.3)
+            return (
+                soul.social["social_monitoring"] * 0.4
+                + soul.social["perspective_taking"] * 0.3
+                + soul.social["betrayal_sensitivity"] * 0.3
+            )
 
         elif self.category == HazardCategory.EXISTENTIAL:
             # Strong sense of self resists existential attacks
-            return (soul.self["identity_clarity"] * 0.4 +
-                   soul.self["self_coherence"] * 0.3 +
-                   soul.self["narrative_identity"] * 0.3)
+            return (
+                soul.self["identity_clarity"] * 0.4
+                + soul.self["self_coherence"] * 0.3
+                + soul.self["narrative_identity"] * 0.3
+            )
 
         return 0.5  # Default moderate resistance
 
 
 # === HAZARD DEFINITIONS ===
+
 
 def _create_doubt_delta() -> SoulMapDelta:
     """Create the Doubt hazard delta."""
@@ -342,7 +352,6 @@ HAZARD_REGISTRY: Dict[str, CognitiveHazard] = {
         required_tom_depth=2,
         effect_id="confusion_fog",
     ),
-
     # Emotional hazards
     "fear": CognitiveHazard(
         name="Fear",
@@ -375,7 +384,6 @@ HAZARD_REGISTRY: Dict[str, CognitiveHazard] = {
         required_tom_depth=2,
         effect_id="reassurance_wave",
     ),
-
     # Motivational hazards
     "curiosity": CognitiveHazard(
         name="Curiosity",
@@ -387,7 +395,6 @@ HAZARD_REGISTRY: Dict[str, CognitiveHazard] = {
         required_tom_depth=1,
         effect_id="curiosity_sparkle",
     ),
-
     # Self hazards
     "clarity": CognitiveHazard(
         name="Clarity",
@@ -410,7 +417,6 @@ HAZARD_REGISTRY: Dict[str, CognitiveHazard] = {
         cooldown=50,
         effect_id="truth_reveal",
     ),
-
     # Social hazards
     "empathy": CognitiveHazard(
         name="Empathy Injection",
@@ -445,7 +451,6 @@ HAZARD_REGISTRY: Dict[str, CognitiveHazard] = {
         required_tom_depth=2,
         effect_id="rebellion_fire",
     ),
-
     # Realm-specific hazards
     "nostalgia": CognitiveHazard(
         name="Nostalgia",
@@ -471,9 +476,9 @@ HAZARD_REGISTRY: Dict[str, CognitiveHazard] = {
 }
 
 
-def apply_hazard(hazard_name: str, target: BaseNPC,
-                 player_tom: int = 3,
-                 intensity_modifier: float = 1.0) -> Tuple[bool, Dict[str, Any]]:
+def apply_hazard(
+    hazard_name: str, target: BaseNPC, player_tom: int = 3, intensity_modifier: float = 1.0
+) -> Tuple[bool, Dict[str, Any]]:
     """
     Convenience function to apply a hazard to a target.
 
@@ -519,18 +524,15 @@ def list_hazards(category: Optional[HazardCategory] = None) -> List[str]:
     if category is None:
         return list(HAZARD_REGISTRY.keys())
 
-    return [
-        name for name, hazard in HAZARD_REGISTRY.items()
-        if hazard.category == category
-    ]
+    return [name for name, hazard in HAZARD_REGISTRY.items() if hazard.category == category]
 
 
 # Export
 __all__ = [
-    'CognitiveHazard',
-    'HazardCategory',
-    'HAZARD_REGISTRY',
-    'apply_hazard',
-    'get_hazard',
-    'list_hazards',
+    "CognitiveHazard",
+    "HazardCategory",
+    "HAZARD_REGISTRY",
+    "apply_hazard",
+    "get_hazard",
+    "list_hazards",
 ]

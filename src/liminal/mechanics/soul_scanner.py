@@ -12,21 +12,22 @@ Features:
 - Prediction Display: Show predicted behaviors based on state
 """
 
-import torch
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
-from enum import Enum, auto
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from ..soul_map import SoulMap, SoulMapCluster
+
 from ..npcs.base_npc import BaseNPC
+from ..soul_map import SoulMap
 
 
 class AnalysisDepth(Enum):
     """Levels of analysis depth."""
-    PASSIVE = "passive"      # Just hovering - basic info
-    SHALLOW = "shallow"      # Quick scan - emotional state
-    MODERATE = "moderate"    # Standard analysis - main clusters
-    DEEP = "deep"           # Full analysis - all 60 dimensions
+
+    PASSIVE = "passive"  # Just hovering - basic info
+    SHALLOW = "shallow"  # Quick scan - emotional state
+    MODERATE = "moderate"  # Standard analysis - main clusters
+    DEEP = "deep"  # Full analysis - all 60 dimensions
     PREDICTIVE = "predictive"  # Analysis + behavior prediction
 
 
@@ -247,9 +248,9 @@ class SoulScanner:
     def _calculate_aura_intensity(self, soul: SoulMap) -> float:
         """Calculate aura brightness/intensity."""
         return (
-            soul.emotional["intensity"] * 0.5 +
-            (1.0 - soul.emotional["recovery_rate"]) * 0.3 +
-            abs(soul.emotional["baseline_valence"]) * 0.2
+            soul.emotional["intensity"] * 0.5
+            + (1.0 - soul.emotional["recovery_rate"]) * 0.3
+            + abs(soul.emotional["baseline_valence"]) * 0.2
         )
 
     def _estimate_threat(self, npc: BaseNPC) -> float:
@@ -295,8 +296,7 @@ class SoulScanner:
     def _summarize_cognitive(self, soul: SoulMap) -> Dict[str, Any]:
         """Summarize cognitive cluster."""
         return {
-            "intelligence": (soul.cognitive["processing_speed"] +
-                           soul.cognitive["pattern_recognition"]) / 2,
+            "intelligence": (soul.cognitive["processing_speed"] + soul.cognitive["pattern_recognition"]) / 2,
             "flexibility": soul.cognitive["cognitive_flexibility"],
             "metacognition": soul.cognitive["metacognitive_awareness"],
             "tom_potential": soul.cognitive["tom_depth"],
@@ -395,7 +395,7 @@ class SoulScanner:
         volatile = []
 
         # Check for extreme values
-        for cluster_name in ['cognitive', 'emotional', 'motivational', 'social', 'self']:
+        for cluster_name in ["cognitive", "emotional", "motivational", "social", "self"]:
             cluster = getattr(soul, cluster_name)
             for dim, value in cluster.items():
                 if value > 0.85 or value < 0.15:
@@ -417,8 +417,7 @@ class SoulScanner:
         # Each level of ToM gap reduces accuracy by 15%
         return max(0.3, 1.0 - tom_gap * 0.15)
 
-    def _get_soul_map_with_accuracy(self, soul: SoulMap,
-                                     accuracy: float) -> Dict[str, Any]:
+    def _get_soul_map_with_accuracy(self, soul: SoulMap, accuracy: float) -> Dict[str, Any]:
         """Get Soul Map data with accuracy-based noise for limited ToM."""
         import random
 
@@ -444,13 +443,11 @@ class SoulScanner:
         soul = npc.soul_map
 
         # High anxiety + threat = flee
-        if (soul.emotional["anxiety_baseline"] > 0.6 and
-            context.get("threat_present", False)):
+        if soul.emotional["anxiety_baseline"] > 0.6 and context.get("threat_present", False):
             predictions.append("likely to flee or hide")
 
         # Low trust + stranger = avoidance
-        if (soul.social["trust_default"] < 0.3 and
-            context.get("stranger_present", False)):
+        if soul.social["trust_default"] < 0.3 and context.get("stranger_present", False):
             predictions.append("will avoid interaction")
 
         # High order drive = rule-following
@@ -462,8 +459,7 @@ class SoulScanner:
             predictions.append("curious - will investigate anomalies")
 
         # High empathy + distressed nearby = help
-        if (soul.social["empathy_capacity"] > 0.7 and
-            context.get("distressed_npc_nearby", False)):
+        if soul.social["empathy_capacity"] > 0.7 and context.get("distressed_npc_nearby", False):
             predictions.append("will try to help others")
 
         # High competition = challenge
@@ -500,10 +496,10 @@ class SoulScanner:
 
         # More predictable NPCs = higher confidence
         predictability = (
-            (1.0 - npc.soul_map.emotional["volatility"]) * 0.3 +
-            npc.soul_map.self["self_coherence"] * 0.3 +
-            (1.0 - npc.soul_map.cognitive["cognitive_flexibility"]) * 0.2 +
-            0.2  # Base confidence
+            (1.0 - npc.soul_map.emotional["volatility"]) * 0.3
+            + npc.soul_map.self["self_coherence"] * 0.3
+            + (1.0 - npc.soul_map.cognitive["cognitive_flexibility"]) * 0.2
+            + 0.2  # Base confidence
         )
 
         return min(1.0, base * predictability)
@@ -521,7 +517,7 @@ class SoulScanner:
 
 # Export
 __all__ = [
-    'SoulScanner',
-    'AnalysisResult',
-    'AnalysisDepth',
+    "SoulScanner",
+    "AnalysisResult",
+    "AnalysisDepth",
 ]

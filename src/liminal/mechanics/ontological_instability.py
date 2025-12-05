@@ -21,25 +21,26 @@ Instability Effects:
 - Level 5: Total reality collapse (game over condition)
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Callable
-from enum import Enum, auto
-import random
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 class InstabilityLevel(Enum):
     """Levels of ontological instability (like GTA wanted stars)."""
-    STABLE = 0          # No instability
-    RIPPLES = 1         # Minor disturbances
-    DISTORTION = 2      # Noticeable reality warping
-    FRACTURING = 3      # Active environmental damage
-    MANIFESTATION = 4   # The Nothing is here
-    COLLAPSE = 5        # Reality failure (game over)
+
+    STABLE = 0  # No instability
+    RIPPLES = 1  # Minor disturbances
+    DISTORTION = 2  # Noticeable reality warping
+    FRACTURING = 3  # Active environmental damage
+    MANIFESTATION = 4  # The Nothing is here
+    COLLAPSE = 5  # Reality failure (game over)
 
 
 @dataclass
 class InstabilityEvent:
     """Record of an event that caused instability."""
+
     timestamp: int
     source: str
     amount: float
@@ -50,6 +51,7 @@ class InstabilityEvent:
 @dataclass
 class InstabilityEffect:
     """An effect triggered by instability level."""
+
     level: InstabilityLevel
     effect_type: str
     intensity: float
@@ -101,10 +103,14 @@ class OntologicalInstability:
         # How long until collapse at level 5
         self.collapse_timer: Optional[int] = None
 
-    def add_instability(self, amount: float, source: str,
-                        description: str = "",
-                        timestamp: int = 0,
-                        location: Optional[Tuple[float, float]] = None) -> None:
+    def add_instability(
+        self,
+        amount: float,
+        source: str,
+        description: str = "",
+        timestamp: int = 0,
+        location: Optional[Tuple[float, float]] = None,
+    ) -> None:
         """
         Add instability from an action.
 
@@ -147,7 +153,7 @@ class OntologicalInstability:
         # Natural decay
         decay = self.decay_rate * delta_time
         # Decay is slower at higher levels
-        decay *= (1.0 - self.current_level.value * 0.1)
+        decay *= 1.0 - self.current_level.value * 0.1
         self.instability = max(0, self.instability - decay)
 
         # Update level
@@ -212,54 +218,66 @@ class OntologicalInstability:
 
         if level.value >= InstabilityLevel.RIPPLES.value:
             # Visual glitches
-            effects.append(InstabilityEffect(
-                level=level,
-                effect_type="visual_glitch",
-                intensity=self.instability / 100,
-                description="Reality ripples at the edges of vision",
-            ))
+            effects.append(
+                InstabilityEffect(
+                    level=level,
+                    effect_type="visual_glitch",
+                    intensity=self.instability / 100,
+                    description="Reality ripples at the edges of vision",
+                )
+            )
 
         if level.value >= InstabilityLevel.DISTORTION.value:
             # Audio distortion, NPC awareness
-            effects.append(InstabilityEffect(
-                level=level,
-                effect_type="audio_distortion",
-                intensity=(self.instability - 35) / 65,
-                description="Sounds echo strangely, NPCs sense wrongness",
-            ))
-            effects.append(InstabilityEffect(
-                level=level,
-                effect_type="npc_awareness",
-                intensity=(self.instability - 35) / 65,
-                description="NPCs become uneasy, may become hostile",
-            ))
+            effects.append(
+                InstabilityEffect(
+                    level=level,
+                    effect_type="audio_distortion",
+                    intensity=(self.instability - 35) / 65,
+                    description="Sounds echo strangely, NPCs sense wrongness",
+                )
+            )
+            effects.append(
+                InstabilityEffect(
+                    level=level,
+                    effect_type="npc_awareness",
+                    intensity=(self.instability - 35) / 65,
+                    description="NPCs become uneasy, may become hostile",
+                )
+            )
 
         if level.value >= InstabilityLevel.FRACTURING.value:
             # Environmental damage
-            effects.append(InstabilityEffect(
-                level=level,
-                effect_type="environment_damage",
-                intensity=(self.instability - 55) / 45,
-                description="The world cracks, paths may close",
-            ))
+            effects.append(
+                InstabilityEffect(
+                    level=level,
+                    effect_type="environment_damage",
+                    intensity=(self.instability - 55) / 45,
+                    description="The world cracks, paths may close",
+                )
+            )
 
         if level.value >= InstabilityLevel.MANIFESTATION.value:
             # The Nothing appears
-            effects.append(InstabilityEffect(
-                level=level,
-                effect_type="nothing_manifestation",
-                intensity=(self.instability - 75) / 25,
-                description="The Nothing manifests, actively erasing reality",
-            ))
+            effects.append(
+                InstabilityEffect(
+                    level=level,
+                    effect_type="nothing_manifestation",
+                    intensity=(self.instability - 75) / 25,
+                    description="The Nothing manifests, actively erasing reality",
+                )
+            )
 
         if level.value >= InstabilityLevel.COLLAPSE.value:
             # Collapse imminent
-            effects.append(InstabilityEffect(
-                level=level,
-                effect_type="collapse_imminent",
-                intensity=1.0,
-                description="Reality is collapsing. Seek shelter in stable zones.",
-            ))
+            effects.append(
+                InstabilityEffect(
+                    level=level,
+                    effect_type="collapse_imminent",
+                    intensity=1.0,
+                    description="Reality is collapsing. Seek shelter in stable zones.",
+                )
+            )
 
         return effects
 
@@ -321,12 +339,10 @@ INSTABILITY_AMOUNTS = {
     "hazard_social": 3.0,
     "hazard_existential": 8.0,
     "hazard_stabilizing": -1.0,  # Actually reduces instability
-
     # NPC reactions
     "npc_psychological_break": 10.0,
     "npc_death": 15.0,
     "npc_awakening": 5.0,  # Revealing truth
-
     # Realm violations
     "ministry_no_paperwork": 3.0,
     "ministry_running": 2.0,
@@ -334,7 +350,6 @@ INSTABILITY_AMOUNTS = {
     "city_excessive_rigidity": 4.0,
     "hollow_corruption_spread": 6.0,
     "nothing_prolonged_stay": 8.0,
-
     # Player actions
     "rapid_interventions": 2.0,  # Per intervention above threshold
     "area_violation": 5.0,
@@ -357,10 +372,10 @@ def calculate_hazard_instability(hazard_category: str) -> float:
 
 # Export
 __all__ = [
-    'OntologicalInstability',
-    'InstabilityLevel',
-    'InstabilityEvent',
-    'InstabilityEffect',
-    'INSTABILITY_AMOUNTS',
-    'calculate_hazard_instability',
+    "OntologicalInstability",
+    "InstabilityLevel",
+    "InstabilityEvent",
+    "InstabilityEffect",
+    "INSTABILITY_AMOUNTS",
+    "calculate_hazard_instability",
 ]

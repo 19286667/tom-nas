@@ -7,10 +7,10 @@ Contains the social simulation environment:
 - Agent: Agent data structure with resources, energy, and reputation
 """
 
-from .social_world import Agent, ZombieGame, SocialWorld4
+from .social_world import Agent, SocialWorld4, ZombieGame
 
 __all__ = [
-    'Agent',
-    'ZombieGame',
-    'SocialWorld4',
+    "Agent",
+    "ZombieGame",
+    "SocialWorld4",
 ]

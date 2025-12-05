@@ -3,20 +3,21 @@
 Comprehensive Test Suite for ToM-NAS
 Tests all major components
 """
-import unittest
-import torch
-import numpy as np
-import sys
+
 import os
+import sys
+import unittest
+
+import torch
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from src.agents.architectures import RecursiveSelfAttention, TransformerToMAgent, TransparentRNN
+from src.core.beliefs import BeliefNetwork, RecursiveBeliefState
 from src.core.ontology import SoulMapOntology
-from src.core.beliefs import RecursiveBeliefState, BeliefNetwork
-from src.agents.architectures import TransparentRNN, RecursiveSelfAttention, TransformerToMAgent
-from src.world.social_world import SocialWorld4
+from src.evaluation.benchmarks import HigherOrderToMBenchmark, SallyAnneTest
 from src.evolution.operators import ArchitectureGene, WeightMutation
-from src.evaluation.benchmarks import SallyAnneTest, HigherOrderToMBenchmark
+from src.world.social_world import SocialWorld4
 
 
 class TestOntology(unittest.TestCase):
@@ -39,7 +40,7 @@ class TestOntology(unittest.TestCase):
 
     def test_encoding(self):
         """Test state encoding"""
-        test_state = {'bio.vision': 0.8, 'bio.hunger': 0.3}
+        test_state = {"bio.vision": 0.8, "bio.hunger": 0.3}
         encoded = self.ontology.encode(test_state)
         self.assertEqual(encoded.shape[0], 181)
 
@@ -48,19 +49,14 @@ class TestBeliefs(unittest.TestCase):
     """Test Belief System"""
 
     def setUp(self):
-        self.belief_state = RecursiveBeliefState(
-            agent_id=0, ontology_dim=181, max_order=5
-        )
+        self.belief_state = RecursiveBeliefState(agent_id=0, ontology_dim=181, max_order=5)
 
     def test_belief_creation(self):
         """Test creating beliefs at different orders"""
         content = torch.randn(181)
 
         for order in range(6):
-            self.belief_state.update_belief(
-                order=order, target=1, content=content,
-                confidence=1.0, source="test"
-            )
+            self.belief_state.update_belief(order=order, target=1, content=content, confidence=1.0, source="test")
 
         # Check beliefs exist
         for order in range(6):
@@ -74,10 +70,7 @@ class TestBeliefs(unittest.TestCase):
         content = torch.randn(181)
 
         for order in range(4):
-            self.belief_state.update_belief(
-                order=order, target=1, content=content,
-                confidence=1.0
-            )
+            self.belief_state.update_belief(order=order, target=1, content=content, confidence=1.0)
 
         # Higher orders should have lower confidence
         belief1 = self.belief_state.get_belief(1, 1)
@@ -108,33 +101,31 @@ class TestArchitectures(unittest.TestCase):
 
         output = model(test_input)
 
-        self.assertIn('beliefs', output)
-        self.assertIn('actions', output)
-        self.assertEqual(output['beliefs'].shape, (self.batch_size, self.output_dim))
+        self.assertIn("beliefs", output)
+        self.assertIn("actions", output)
+        self.assertEqual(output["beliefs"].shape, (self.batch_size, self.output_dim))
 
     def test_rsan_forward(self):
         """Test RSAN forward pass"""
-        model = RecursiveSelfAttention(self.input_dim, self.hidden_dim,
-                                       self.output_dim, num_heads=4)
+        model = RecursiveSelfAttention(self.input_dim, self.hidden_dim, self.output_dim, num_heads=4)
         test_input = torch.randn(self.batch_size, self.seq_len, self.input_dim)
 
         output = model(test_input)
 
-        self.assertIn('beliefs', output)
-        self.assertIn('actions', output)
-        self.assertEqual(output['beliefs'].shape, (self.batch_size, self.output_dim))
+        self.assertIn("beliefs", output)
+        self.assertIn("actions", output)
+        self.assertEqual(output["beliefs"].shape, (self.batch_size, self.output_dim))
 
     def test_transformer_forward(self):
         """Test Transformer forward pass"""
-        model = TransformerToMAgent(self.input_dim, self.hidden_dim,
-                                    self.output_dim, num_layers=3)
+        model = TransformerToMAgent(self.input_dim, self.hidden_dim, self.output_dim, num_layers=3)
         test_input = torch.randn(self.batch_size, self.seq_len, self.input_dim)
 
         output = model(test_input)
 
-        self.assertIn('beliefs', output)
-        self.assertIn('actions', output)
-        self.assertEqual(output['beliefs'].shape, (self.batch_size, self.output_dim))
+        self.assertIn("beliefs", output)
+        self.assertIn("actions", output)
+        self.assertEqual(output["beliefs"].shape, (self.batch_size, self.output_dim))
 
     def test_output_ranges(self):
         """Test outputs are in valid ranges"""
@@ -144,12 +135,12 @@ class TestArchitectures(unittest.TestCase):
         output = model(test_input)
 
         # Beliefs should be in [0, 1]
-        self.assertTrue(torch.all(output['beliefs'] >= 0.0))
-        self.assertTrue(torch.all(output['beliefs'] <= 1.0))
+        self.assertTrue(torch.all(output["beliefs"] >= 0.0))
+        self.assertTrue(torch.all(output["beliefs"] <= 1.0))
 
         # Actions should be in [0, 1]
-        self.assertTrue(torch.all(output['actions'] >= 0.0))
-        self.assertTrue(torch.all(output['actions'] <= 1.0))
+        self.assertTrue(torch.all(output["actions"] >= 0.0))
+        self.assertTrue(torch.all(output["actions"] <= 1.0))
 
 
 class TestSocialWorld(unittest.TestCase):
@@ -169,19 +160,19 @@ class TestSocialWorld(unittest.TestCase):
 
     def test_cooperation_game(self):
         """Test cooperation game"""
-        result = self.world.play_cooperation_game(0, 1, 'cooperate', 'cooperate')
+        result = self.world.play_cooperation_game(0, 1, "cooperate", "cooperate")
 
-        self.assertEqual(result['game_type'], 'cooperation')
-        self.assertIn('payoffs', result)
-        self.assertEqual(len(result['payoffs']), 2)
+        self.assertEqual(result["game_type"], "cooperation")
+        self.assertIn("payoffs", result)
+        self.assertEqual(len(result["payoffs"]), 2)
 
     def test_resource_sharing(self):
         """Test resource sharing"""
         initial_resources = self.world.agents[0].resources
         result = self.world.play_resource_sharing_game(0, 1, 10.0)
 
-        self.assertEqual(result['game_type'], 'resource_sharing')
-        self.assertEqual(result['amount'], 10.0)
+        self.assertEqual(result["game_type"], "resource_sharing")
+        self.assertEqual(result["amount"], 10.0)
 
         # Giver should have less
         self.assertLess(self.world.agents[0].resources, initial_resources)
@@ -197,21 +188,19 @@ class TestSocialWorld(unittest.TestCase):
 
         if zombie_id is not None:
             result = self.world.attempt_zombie_detection(0, zombie_id)
-            self.assertEqual(result['game_type'], 'zombie_detection')
-            self.assertTrue(result['is_zombie'])
+            self.assertEqual(result["game_type"], "zombie_detection")
+            self.assertTrue(result["is_zombie"])
 
     def test_world_step(self):
         """Test world step function"""
-        actions = [
-            {'type': 'cooperate'} for _ in range(self.world.num_agents)
-        ]
+        actions = [{"type": "cooperate"} for _ in range(self.world.num_agents)]
 
         result = self.world.step(actions)
 
-        self.assertIn('timestep', result)
-        self.assertIn('games', result)
-        self.assertIn('agent_states', result)
-        self.assertEqual(result['timestep'], 1)
+        self.assertIn("timestep", result)
+        self.assertIn("games", result)
+        self.assertIn("agent_states", result)
+        self.assertEqual(result["timestep"], 1)
 
     def test_coalition_formation(self):
         """Test coalition formation"""
@@ -250,7 +239,7 @@ class TestEvolution(unittest.TestCase):
     def test_architecture_gene_mutation(self):
         """Test gene mutation"""
         gene = ArchitectureGene()
-        original_hidden = gene.gene_dict['hidden_dim']
+        original_hidden = gene.gene_dict["hidden_dim"]
 
         mutated = gene.mutate(mutation_rate=1.0)  # High rate for testing
 
@@ -266,10 +255,10 @@ class TestEvolution(unittest.TestCase):
     def test_architecture_gene_crossover(self):
         """Test gene crossover"""
         gene1 = ArchitectureGene()
-        gene1.gene_dict['hidden_dim'] = 128
+        gene1.gene_dict["hidden_dim"] = 128
 
         gene2 = ArchitectureGene()
-        gene2.gene_dict['hidden_dim'] = 256
+        gene2.gene_dict["hidden_dim"] = 256
 
         child1, child2 = gene1.crossover(gene2)
 
@@ -327,21 +316,21 @@ class TestIntegration(unittest.TestCase):
 
         # Generate data
         obs = world.get_observation(0)
-        self.assertIn('own_resources', obs)
+        self.assertIn("own_resources", obs)
 
         # Forward pass
         test_input = torch.randn(1, 10, 191)
         output = agent(test_input)
 
         # Check outputs
-        self.assertIn('beliefs', output)
-        self.assertIn('actions', output)
+        self.assertIn("beliefs", output)
+        self.assertIn("actions", output)
 
         # Step world
-        actions = [{'type': 'cooperate'} for _ in range(6)]
+        actions = [{"type": "cooperate"} for _ in range(6)]
         result = world.step(actions, beliefs)
 
-        self.assertIn('timestep', result)
+        self.assertIn("timestep", result)
 
 
 def run_tests():
@@ -364,14 +353,14 @@ def run_tests():
     result = runner.run(suite)
 
     # Print summary
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST SUMMARY")
-    print("="*80)
+    print("=" * 80)
     print(f"Tests run:     {result.testsRun}")
     print(f"Successes:     {result.testsRun - len(result.failures) - len(result.errors)}")
     print(f"Failures:      {len(result.failures)}")
     print(f"Errors:        {len(result.errors)}")
-    print("="*80)
+    print("=" * 80)
 
     return result.wasSuccessful()
 

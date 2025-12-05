@@ -11,26 +11,32 @@ that affect NPC behavior and player interactions:
 5. Hollow Reaches (The Shadow) - Cosmic Horror, Consumption/Corruption
 """
 
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Dict, List, Optional, Tuple, Any, Callable
-import random
+from __future__ import annotations
+
 import math
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    from .soul_map import SoulMap
 
 
 class RealmType(Enum):
     """The five realms of the Liminal world."""
-    PEREGRINE = "peregrine"           # The Hub - Golden hour, Gothic Absurdist
-    SPLEEN_TOWNS = "spleen_towns"     # The Loop - Sepia, Melancholic
-    MINISTRY = "ministry"              # The Bureaucracy - Fluorescent, Kafkaesque
-    CITY_OF_CONSTANTS = "city"        # The Machine - Chrome, Philosophical Sci-Fi
-    HOLLOW_REACHES = "hollow"          # The Shadow - Industrial decay, Cosmic Horror
-    THE_NOTHING = "nothing"           # The Edge - Glitched, Incomplete
+
+    PEREGRINE = "peregrine"  # The Hub - Golden hour, Gothic Absurdist
+    SPLEEN_TOWNS = "spleen_towns"  # The Loop - Sepia, Melancholic
+    MINISTRY = "ministry"  # The Bureaucracy - Fluorescent, Kafkaesque
+    CITY_OF_CONSTANTS = "city"  # The Machine - Chrome, Philosophical Sci-Fi
+    HOLLOW_REACHES = "hollow"  # The Shadow - Industrial decay, Cosmic Horror
+    THE_NOTHING = "nothing"  # The Edge - Glitched, Incomplete
 
 
 @dataclass
 class RealmLocation:
     """A specific location within a realm."""
+
     name: str
     realm_type: RealmType
     position: Tuple[float, float]  # x, y coordinates
@@ -41,10 +47,7 @@ class RealmLocation:
 
     def distance_to(self, other: "RealmLocation") -> float:
         """Calculate distance to another location."""
-        return math.sqrt(
-            (self.position[0] - other.position[0]) ** 2 +
-            (self.position[1] - other.position[1]) ** 2
-        )
+        return math.sqrt((self.position[0] - other.position[0]) ** 2 + (self.position[1] - other.position[1]) ** 2)
 
 
 @dataclass
@@ -87,7 +90,6 @@ class Realm:
 
         Returns the actual changes applied (for logging/display).
         """
-        from .soul_map import SoulMap
 
         changes_applied = {}
         for cluster, dimensions in self.ambient_modifiers.items():
@@ -176,13 +178,13 @@ PEREGRINE = Realm(
     realm_type=RealmType.PEREGRINE,
     description="The Hub. A place where the awakened dwell, aware of their fictional nature.",
     aesthetic="Gothic Absurdist Horror-Comedy. Victorian architecture that breathes. "
-              "Rolling hills, thatched cottages that blink, weather that rains tea. Golden-hour lighting.",
+    "Rolling hills, thatched cottages that blink, weather that rains tea. Golden-hour lighting.",
     key_mechanic="Complementarity",
     mechanic_description="Objects exist in two states (Narrative vs. Quantum) until observed. "
-                        "NPCs here realize they are in a simulation/story.",
+    "NPCs here realize they are in a simulation/story.",
     population_name="The Aware",
     population_description="Characters who suspect or know they are in a simulation. "
-                          "Philosophers, ontological investigators, sentient objects.",
+    "Philosophers, ontological investigators, sentient objects.",
     traversal_methods=["Walking", "Bicycle", "The Sentient Cottage (Fast Travel)"],
     ambient_modifiers={
         "cognitive": {
@@ -211,7 +213,7 @@ PEREGRINE = Realm(
             position=(50.0, 30.0),
             description="An ancient oak tree that inhales and exhales with the wind.",
         ),
-    ]
+    ],
 )
 
 SPLEEN_TOWNS = Realm(
@@ -219,13 +221,13 @@ SPLEEN_TOWNS = Realm(
     realm_type=RealmType.SPLEEN_TOWNS,
     description="The Loop. A place of eternal melancholy where time is subjective.",
     aesthetic="Melancholic Absurdism. Sepia tones, dust motes, fog, clocks that disagree. "
-              "Victorian London, damp cobblestones, gaslight, perpetual twilight.",
+    "Victorian London, damp cobblestones, gaslight, perpetual twilight.",
     key_mechanic="Temporal Displacement",
     mechanic_description="NPCs are unstuck in time. The past, present, and future blur together. "
-                        "Distances are subjective - walking may take moments or eons.",
+    "Distances are subjective - walking may take moments or eons.",
     population_name="The Remainers",
     population_description="Philosophers of loss, people waiting for trains that never arrive, "
-                          "ghosts, poets, those stuck in loops.",
+    "ghosts, poets, those stuck in loops.",
     traversal_methods=["The Train (Platform 7½)", "Walking (subjective distance)", "Hearse", "Gondola on black canals"],
     ambient_modifiers={
         "emotional": {
@@ -257,7 +259,7 @@ SPLEEN_TOWNS = Realm(
             position=(120.0, -20.0),
             description="A bridge over a black canal. It rains here even when it doesn't.",
         ),
-    ]
+    ],
 )
 
 MINISTRY = Realm(
@@ -265,13 +267,13 @@ MINISTRY = Realm(
     realm_type=RealmType.MINISTRY,
     description="The Bureaucracy. An endless labyrinth of paperwork and procedure.",
     aesthetic="Dark Comedy Horror. Brutalist concrete, endless corridors, infinite filing cabinets. "
-              "Fluorescent flicker, beige walls, gray skies. Kafkaesque.",
+    "Fluorescent flicker, beige walls, gray skies. Kafkaesque.",
     key_mechanic="Corporeal Certainty",
     mechanic_description="You must maintain your 'Aliveness' score via paperwork or fade away. "
-                        "File the correct forms or cease to exist.",
+    "File the correct forms or cease to exist.",
     population_name="The Processors",
     population_description="Inspectors, faceless bureaucrats, lost souls, and those waiting to be filed. "
-                          "Are they dead? Processing? No one can say.",
+    "Are they dead? Processing? No one can say.",
     traversal_methods=["Elevators (that skip floors)", "Pneumatic Tubes", "Gray Sedan", "Walking corridors"],
     ambient_modifiers={
         "motivational": {
@@ -304,7 +306,7 @@ MINISTRY = Realm(
             position=(220.0, 50.0),
             description="Rows upon rows of filing cabinets. Some drawers contain screaming.",
         ),
-    ]
+    ],
 )
 
 CITY_OF_CONSTANTS = Realm(
@@ -312,13 +314,13 @@ CITY_OF_CONSTANTS = Realm(
     realm_type=RealmType.CITY_OF_CONSTANTS,
     description="The Machine. A city where physics and rules are in constant conflict.",
     aesthetic="Philosophical Sci-Fi. Rigid geometry vs. organic adaptation. Chrome vs. Vines. "
-              "A city divided between those who enforce constants and those who adapt.",
+    "A city divided between those who enforce constants and those who adapt.",
     key_mechanic="Parameter vs. Adaptation",
     mechanic_description="A slider controls the city's physics rigidity. Too rigid and you crystallize. "
-                        "Too adaptive and enforcement comes. Balance is survival.",
+    "Too adaptive and enforcement comes. Balance is survival.",
     population_name="The Optimizers",
     population_description="Parameter Enforcement officers who maintain rigid constants vs. "
-                          "Adaptive rebels who build organic structures and hide from Enforcers.",
+    "Adaptive rebels who build organic structures and hide from Enforcers.",
     traversal_methods=["High-speed transit pods (on rails)", "Edge Walking (parkour)", "Walking"],
     ambient_modifiers={
         "cognitive": {
@@ -346,7 +348,7 @@ CITY_OF_CONSTANTS = Realm(
             position=(350.0, -50.0),
             description="Where adaptation thrives, hidden from enforcement patrols.",
         ),
-    ]
+    ],
 )
 
 HOLLOW_REACHES = Realm(
@@ -354,13 +356,13 @@ HOLLOW_REACHES = Realm(
     realm_type=RealmType.HOLLOW_REACHES,
     description="The Shadow. A place of cosmic horror where identity is consumed.",
     aesthetic="Visceral Cosmic Horror. Industrial decay, body horror, organic corruption. "
-              "The environment tries to absorb your identity. Stealth is required.",
+    "The environment tries to absorb your identity. Stealth is required.",
     key_mechanic="Consumption",
     mechanic_description="The environment tries to assimilate you. Corruption increases over time. "
-                        "High corruption leads to joining the hive-mind.",
+    "High corruption leads to joining the hive-mind.",
     population_name="The Consumed",
     population_description="Hive-mind entities, survivors fighting assimilation, "
-                          "those in various stages of corruption.",
+    "those in various stages of corruption.",
     traversal_methods=["Stealth required", "No safe travel"],
     ambient_modifiers={
         "self": {
@@ -390,7 +392,7 @@ HOLLOW_REACHES = Realm(
             position=(500.0, 0.0),
             description="The center of the corruption. None who enter return unchanged.",
         ),
-    ]
+    ],
 )
 
 THE_NOTHING = Realm(
@@ -398,13 +400,13 @@ THE_NOTHING = Realm(
     realm_type=RealmType.THE_NOTHING,
     description="The Edge. Where reality breaks down and assets become incomplete.",
     aesthetic="Glitched geometry, white space, wireframes, incomplete textures. "
-              "The literal edge of the simulation where code is visible.",
+    "The literal edge of the simulation where code is visible.",
     key_mechanic="Ontological Instability",
     mechanic_description="Reality itself becomes unstable. You must project your mind to move. "
-                        "Physical form becomes unreliable.",
+    "Physical form becomes unreliable.",
     population_name="The Unfinished",
     population_description="T-posing entities, NPCs who clip through walls, "
-                          "those who speak in code, incomplete beings.",
+    "those who speak in code, incomplete beings.",
     traversal_methods=["Mind projection", "None - physical form unreliable"],
     ambient_modifiers={
         "self": {
@@ -427,7 +429,7 @@ THE_NOTHING = Realm(
             position=(600.0, 0.0),
             description="A beach where the water is untextured and the sky shows loading screens.",
         ),
-    ]
+    ],
 )
 
 # Master realm registry
@@ -492,10 +494,7 @@ class RealmTransition:
         effects = {}
 
         # Transition shock - entering very different realms causes disorientation
-        vibe_diff = abs(
-            from_realm.get_vibe_compatibility(soul_map) -
-            to_realm.get_vibe_compatibility(soul_map)
-        )
+        vibe_diff = abs(from_realm.get_vibe_compatibility(soul_map) - to_realm.get_vibe_compatibility(soul_map))
 
         if vibe_diff > 0.5:
             shock = SoulMapDelta()
@@ -509,18 +508,18 @@ class RealmTransition:
 
 # Export
 __all__ = [
-    'Realm',
-    'RealmType',
-    'RealmLocation',
-    'RealmTransition',
-    'REALMS',
-    'PEREGRINE',
-    'SPLEEN_TOWNS',
-    'MINISTRY',
-    'CITY_OF_CONSTANTS',
-    'HOLLOW_REACHES',
-    'THE_NOTHING',
-    'get_realm',
-    'get_all_realms',
-    'get_realm_by_name',
+    "Realm",
+    "RealmType",
+    "RealmLocation",
+    "RealmTransition",
+    "REALMS",
+    "PEREGRINE",
+    "SPLEEN_TOWNS",
+    "MINISTRY",
+    "CITY_OF_CONSTANTS",
+    "HOLLOW_REACHES",
+    "THE_NOTHING",
+    "get_realm",
+    "get_all_realms",
+    "get_realm_by_name",
 ]

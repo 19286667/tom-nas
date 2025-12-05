@@ -13,80 +13,84 @@ The schemas implement:
 """
 
 from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Dict, List, Optional, Set, Tuple, Any, Union
 from datetime import datetime
+from enum import Enum, auto
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 
 
 class NodeType(Enum):
     """Types of nodes in the semantic web."""
+
     # Physical entities (grounded in Godot)
-    OBJECT = auto()          # Physical objects (Chair, Hammer, Door)
-    AGENT = auto()           # Embodied agents
-    LOCATION = auto()        # Spatial locations (Room, Building)
+    OBJECT = auto()  # Physical objects (Chair, Hammer, Door)
+    AGENT = auto()  # Embodied agents
+    LOCATION = auto()  # Spatial locations (Room, Building)
 
     # Conceptual entities
-    CONCEPT = auto()         # Abstract concepts (Justice, Trust)
-    ARCHETYPE = auto()       # Jungian archetypes (Rebel, Sage, Hero)
-    ROLE = auto()            # Social roles (Judge, Teacher, Parent)
-    NORM = auto()            # Social norms and expectations
-    RITUAL = auto()          # Ritualized behavioral sequences
+    CONCEPT = auto()  # Abstract concepts (Justice, Trust)
+    ARCHETYPE = auto()  # Jungian archetypes (Rebel, Sage, Hero)
+    ROLE = auto()  # Social roles (Judge, Teacher, Parent)
+    NORM = auto()  # Social norms and expectations
+    RITUAL = auto()  # Ritualized behavioral sequences
 
     # Institutional entities
-    INSTITUTION = auto()     # Formal institutions (Court, Church, Market)
-    POWER_STRUCTURE = auto() # Power relationships and hierarchies
+    INSTITUTION = auto()  # Formal institutions (Court, Church, Market)
+    POWER_STRUCTURE = auto()  # Power relationships and hierarchies
 
     # Aesthetic entities
     AESTHETIC_MODE = auto()  # Aesthetic categories (Gothic, Minimalist)
     EMOTIONAL_VALENCE = auto()  # Emotional associations
 
     # Action/Event entities
-    ACTION = auto()          # Actions that can be performed
-    EVENT = auto()           # Events that can occur
-    UTTERANCE = auto()       # Speech acts and communication
+    ACTION = auto()  # Actions that can be performed
+    EVENT = auto()  # Events that can occur
+    UTTERANCE = auto()  # Speech acts and communication
 
 
 class EdgeType(Enum):
     """Types of edges connecting semantic nodes."""
+
     # Taxonomic relations
-    IS_A = auto()            # Hypernym/hyponym (Chair IS_A Furniture)
-    PART_OF = auto()         # Meronymy (Leg PART_OF Chair)
+    IS_A = auto()  # Hypernym/hyponym (Chair IS_A Furniture)
+    PART_OF = auto()  # Meronymy (Leg PART_OF Chair)
 
     # Semantic relations
-    ASSOCIATED_WITH = auto() # General semantic association
-    STEREOTYPE_OF = auto()   # Links to stereotype activation
-    PROTOTYPE_OF = auto()    # Links to prototype representation
+    ASSOCIATED_WITH = auto()  # General semantic association
+    STEREOTYPE_OF = auto()  # Links to stereotype activation
+    PROTOTYPE_OF = auto()  # Links to prototype representation
 
     # Institutional relations
-    OCCURS_IN = auto()       # Action/event occurs in institution
-    ENFORCED_BY = auto()     # Norm enforced by institution
-    ROLE_IN = auto()         # Role exists in institution
+    OCCURS_IN = auto()  # Action/event occurs in institution
+    ENFORCED_BY = auto()  # Norm enforced by institution
+    ROLE_IN = auto()  # Role exists in institution
 
     # Power relations
-    POWER_OVER = auto()      # Power differential
-    DEFERS_TO = auto()       # Deference relationship
+    POWER_OVER = auto()  # Power differential
+    DEFERS_TO = auto()  # Deference relationship
 
     # Causal/functional relations
-    AFFORDS = auto()         # Object affords action (Chair AFFORDS Sitting)
-    CAUSES = auto()          # Causal relationship
-    PRECEDES = auto()        # Temporal precedence
+    AFFORDS = auto()  # Object affords action (Chair AFFORDS Sitting)
+    CAUSES = auto()  # Causal relationship
+    PRECEDES = auto()  # Temporal precedence
 
     # Aesthetic relations
-    EVOKES = auto()          # Evokes emotional/aesthetic response
+    EVOKES = auto()  # Evokes emotional/aesthetic response
     CONTRASTS_WITH = auto()  # Aesthetic contrast
 
     # Cognitive relations
-    REMINDS_OF = auto()      # Associative memory link
+    REMINDS_OF = auto()  # Associative memory link
     CONFLICTS_WITH = auto()  # Cognitive dissonance potential
 
 
 class ActivationMode(Enum):
     """Modes of activation spreading through the semantic network."""
-    SPREADING = auto()       # Standard spreading activation
-    INHIBITORY = auto()      # Inhibits connected nodes
-    PRIMING = auto()         # Primes for faster future activation
-    CONTEXTUAL = auto()      # Context-dependent activation
+
+    SPREADING = auto()  # Standard spreading activation
+    INHIBITORY = auto()  # Inhibits connected nodes
+    PRIMING = auto()  # Primes for faster future activation
+    CONTEXTUAL = auto()  # Context-dependent activation
 
 
 @dataclass
@@ -97,17 +101,18 @@ class TaxonomyDimension:
     Each dimension represents a continuous spectrum upon which
     concepts and entities can be positioned.
     """
-    id: int                          # Unique dimension ID (1-80)
-    name: str                        # Human-readable name
-    layer: str                       # Which taxonomy layer (Mundane, Institutional, Aesthetic)
-    sublayer: str                    # Specific sublayer
+
+    id: int  # Unique dimension ID (1-80)
+    name: str  # Human-readable name
+    layer: str  # Which taxonomy layer (Mundane, Institutional, Aesthetic)
+    sublayer: str  # Specific sublayer
 
     # Dimension semantics
-    low_anchor: str                  # Low end description (e.g., "Chaotic")
-    high_anchor: str                 # High end description (e.g., "Orderly")
+    low_anchor: str  # Low end description (e.g., "Chaotic")
+    high_anchor: str  # High end description (e.g., "Orderly")
 
     # Theoretical grounding
-    theoretical_basis: str           # Reference to theoretical foundation
+    theoretical_basis: str  # Reference to theoretical foundation
     psychological_correlates: List[str] = field(default_factory=list)
 
     def __hash__(self):
@@ -122,9 +127,10 @@ class ConceptualDomain:
     Domains represent coherent areas of human experience
     (e.g., Social Relations, Physical Space, Temporal Flow).
     """
-    id: str                          # Unique domain ID
-    name: str                        # Human-readable name
-    description: str                 # What this domain covers
+
+    id: str  # Unique domain ID
+    name: str  # Human-readable name
+    description: str  # What this domain covers
 
     dimensions: List[int] = field(default_factory=list)  # Dimension IDs in this domain
     parent_domain: Optional[str] = None
@@ -150,12 +156,13 @@ class SemanticNode:
 
     The node is the atomic unit of meaning in the semiotic substrate.
     """
-    id: str                          # Unique identifier (e.g., "obj_chair_402")
+
+    id: str  # Unique identifier (e.g., "obj_chair_402")
     node_type: NodeType
-    name: str                        # Human-readable label
+    name: str  # Human-readable label
 
     # Physical grounding (for OBJECT, AGENT, LOCATION types)
-    godot_id: Optional[int] = None   # Links to Godot physics engine
+    godot_id: Optional[int] = None  # Links to Godot physics engine
     position_3d: Optional[Tuple[float, float, float]] = None
 
     # Taxonomy positioning (80-dimensional vector)
@@ -166,7 +173,7 @@ class SemanticNode:
     stereotype_associations: Dict[str, float] = field(default_factory=dict)
 
     # Activation state
-    activation_level: float = 0.0    # Current activation (0.0-1.0)
+    activation_level: float = 0.0  # Current activation (0.0-1.0)
     activation_history: List[Tuple[datetime, float]] = field(default_factory=list)
 
     # Conceptual content
@@ -178,8 +185,8 @@ class SemanticNode:
     associated_roles: List[str] = field(default_factory=list)
 
     # Emotional/aesthetic valence
-    emotional_valence: float = 0.0   # -1.0 (negative) to 1.0 (positive)
-    arousal_level: float = 0.5       # 0.0 (calm) to 1.0 (exciting)
+    emotional_valence: float = 0.0  # -1.0 (negative) to 1.0 (positive)
+    arousal_level: float = 0.5  # 0.0 (calm) to 1.0 (exciting)
 
     # Metadata
     created_at: datetime = field(default_factory=datetime.now)
@@ -201,9 +208,7 @@ class SemanticNode:
     def update_activation(self, new_activation: float, timestamp: Optional[datetime] = None):
         """Update activation level and log history."""
         self.activation_level = np.clip(new_activation, 0.0, 1.0)
-        self.activation_history.append(
-            (timestamp or datetime.now(), self.activation_level)
-        )
+        self.activation_history.append((timestamp or datetime.now(), self.activation_level))
         self.last_accessed = timestamp or datetime.now()
         self.access_count += 1
 
@@ -216,13 +221,14 @@ class SemanticEdge:
     Edges carry semantic weight that influences activation spreading
     and enable typed traversal through the knowledge graph.
     """
-    source_id: str                   # Source node ID
-    target_id: str                   # Target node ID
+
+    source_id: str  # Source node ID
+    target_id: str  # Target node ID
     edge_type: EdgeType
 
     # Edge properties
-    weight: float = 1.0              # Semantic weight (0.0-1.0)
-    bidirectional: bool = False      # Whether edge works both ways
+    weight: float = 1.0  # Semantic weight (0.0-1.0)
+    bidirectional: bool = False  # Whether edge works both ways
 
     # Context sensitivity
     context_conditions: Dict[str, Any] = field(default_factory=dict)
@@ -252,6 +258,7 @@ class ActivationContext:
     A "chair" in a "courtroom" activates different associations than
     a "chair" in a "living room".
     """
+
     # Spatial context
     current_location: Optional[str] = None
     perceiving_agent: Optional[str] = None
@@ -271,8 +278,8 @@ class ActivationContext:
     attention_focus: List[str] = field(default_factory=list)
 
     # Activation parameters
-    spreading_decay: float = 0.7     # Decay factor per hop
-    max_spread_depth: int = 3        # Maximum traversal depth
+    spreading_decay: float = 0.7  # Decay factor per hop
+    max_spread_depth: int = 3  # Maximum traversal depth
     activation_threshold: float = 0.1  # Minimum activation to propagate
 
     def matches_conditions(self, conditions: Dict[str, Any]) -> bool:
@@ -297,8 +304,9 @@ class SemanticActivation:
     When an agent perceives something, this represents the full
     "background hum" of activated associations, norms, and archetypes.
     """
-    trigger_node: str                # Node that triggered activation
-    context: ActivationContext       # Context that shaped activation
+
+    trigger_node: str  # Node that triggered activation
+    context: ActivationContext  # Context that shaped activation
 
     # Activated content
     activated_nodes: Dict[str, float] = field(default_factory=dict)
@@ -331,11 +339,7 @@ class SemanticActivation:
 
     def get_top_activations(self, n: int = 10) -> List[Tuple[str, float]]:
         """Get the N most strongly activated nodes."""
-        sorted_nodes = sorted(
-            self.activated_nodes.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sorted_nodes = sorted(self.activated_nodes.items(), key=lambda x: x[1], reverse=True)
         return sorted_nodes[:n]
 
     def get_nodes_by_type(self, node_type: NodeType) -> Dict[str, float]:
@@ -353,12 +357,13 @@ class StereotypeDimension:
     Following Fiske et al., stereotypes are structured along
     Warmth (intentions) and Competence (capability) dimensions.
     """
-    warmth: float = 0.5              # 0.0 (cold) to 1.0 (warm)
-    competence: float = 0.5          # 0.0 (incompetent) to 1.0 (competent)
+
+    warmth: float = 0.5  # 0.0 (cold) to 1.0 (warm)
+    competence: float = 0.5  # 0.0 (incompetent) to 1.0 (competent)
 
     # Extended dimensions
-    status: float = 0.5              # Perceived social status
-    competition: float = 0.5         # Perceived as competing for resources
+    status: float = 0.5  # Perceived social status
+    competition: float = 0.5  # Perceived as competing for resources
 
     # Emotional predictions (based on BIAS map)
     predicted_emotions: Dict[str, float] = field(default_factory=dict)
@@ -379,7 +384,8 @@ class PrototypeRepresentation:
     Prototypes are the "best examples" of a category, represented
     as weighted feature bundles.
     """
-    category: str                    # The category this is a prototype of
+
+    category: str  # The category this is a prototype of
 
     # Feature weights (feature -> typicality weight)
     features: Dict[str, float] = field(default_factory=dict)

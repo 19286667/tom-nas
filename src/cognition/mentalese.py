@@ -20,29 +20,31 @@ Theoretical Foundation:
 - Conceptual Semantics (Jackendoff)
 """
 
+import hashlib
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import Dict, List, Optional, Union, Any, TypeVar, Generic
+from typing import Any, Dict, List, Optional, Union
+
 import numpy as np
-from abc import ABC, abstractmethod
-import json
-import hashlib
 
 
 class BlockType(Enum):
     """The fundamental types of cognitive blocks."""
-    PERCEPT = auto()      # Raw sensory input
-    HYPOTHESIS = auto()   # Possible interpretation
-    BELIEF = auto()       # Accepted proposition
-    INTENT = auto()       # Goal or plan
-    MEMORY = auto()       # Compressed archetype
-    SIMULATION = auto()   # Nested simulation state
-    INFERENCE = auto()    # Derived conclusion
+
+    PERCEPT = auto()  # Raw sensory input
+    HYPOTHESIS = auto()  # Possible interpretation
+    BELIEF = auto()  # Accepted proposition
+    INTENT = auto()  # Goal or plan
+    MEMORY = auto()  # Compressed archetype
+    SIMULATION = auto()  # Nested simulation state
+    INFERENCE = auto()  # Derived conclusion
 
 
 class ConfidenceLevel(Enum):
     """Categorical confidence levels for beliefs."""
+
     CERTAIN = 0.95
     HIGHLY_CONFIDENT = 0.85
     CONFIDENT = 0.75
@@ -54,21 +56,23 @@ class ConfidenceLevel(Enum):
 
 class ModalityType(Enum):
     """Epistemic and deontic modalities."""
-    ACTUAL = auto()       # Is the case
-    POSSIBLE = auto()     # Could be the case
-    NECESSARY = auto()    # Must be the case
-    PROBABLE = auto()     # Likely the case
-    OBLIGATORY = auto()   # Should be the case (deontic)
-    PERMITTED = auto()    # May be the case (deontic)
-    FORBIDDEN = auto()    # Must not be the case (deontic)
+
+    ACTUAL = auto()  # Is the case
+    POSSIBLE = auto()  # Could be the case
+    NECESSARY = auto()  # Must be the case
+    PROBABLE = auto()  # Likely the case
+    OBLIGATORY = auto()  # Should be the case (deontic)
+    PERMITTED = auto()  # May be the case (deontic)
+    FORBIDDEN = auto()  # Must not be the case (deontic)
 
 
 @dataclass
 class Evidence:
     """Evidence supporting a cognitive block."""
-    source_id: str                # ID of evidence source
-    source_type: str              # "percept", "inference", "testimony", "memory"
-    strength: float               # 0.0 to 1.0
+
+    source_id: str  # ID of evidence source
+    source_type: str  # "percept", "inference", "testimony", "memory"
+    strength: float  # 0.0 to 1.0
     timestamp: datetime = field(default_factory=datetime.now)
     content: Optional[str] = None
 
@@ -82,10 +86,11 @@ class CognitiveBlock(ABC):
     It can be composed with other blocks, transformed through type-shifting,
     and recursively nested (beliefs about beliefs).
     """
+
     block_type: BlockType
     block_id: str = field(default_factory=lambda: "")
     created_at: datetime = field(default_factory=datetime.now)
-    confidence: float = 1.0       # 0.0 to 1.0
+    confidence: float = 1.0  # 0.0 to 1.0
     modality: ModalityType = ModalityType.ACTUAL
     evidence: List[Evidence] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -102,12 +107,10 @@ class CognitiveBlock(ABC):
     @abstractmethod
     def to_tensor(self) -> np.ndarray:
         """Convert block to tensor representation for neural processing."""
-        pass
 
     @abstractmethod
     def to_natural_language(self) -> str:
         """Compress to lossy natural language representation."""
-        pass
 
     def add_evidence(self, evidence: Evidence) -> None:
         """Add supporting evidence and update confidence."""
@@ -124,16 +127,17 @@ class PerceptBlock(CognitiveBlock):
     Percepts are directly linked to Godot physics engine objects,
     providing symbol grounding (Harnad's Symbol Grounding Problem).
     """
+
     block_type: BlockType = field(default=BlockType.PERCEPT, init=False)
 
     # Perceptual content
-    perceived_entity: str = ""           # Entity ID perceived
-    godot_id: Optional[int] = None       # Godot physics ID
+    perceived_entity: str = ""  # Entity ID perceived
+    godot_id: Optional[int] = None  # Godot physics ID
     position_3d: Optional[tuple] = None  # 3D position
     visual_features: Dict[str, float] = field(default_factory=dict)
 
     # Sensory modality
-    modality_type: str = "visual"        # visual, auditory, tactile, etc.
+    modality_type: str = "visual"  # visual, auditory, tactile, etc.
 
     # Semantic expansion (from Indra's Net)
     activated_concepts: List[str] = field(default_factory=list)
@@ -160,12 +164,13 @@ class HypothesisBlock(CognitiveBlock):
     Hypotheses represent the "superposition of meanings" before
     context collapses them into definite beliefs.
     """
+
     block_type: BlockType = field(default=BlockType.HYPOTHESIS, init=False)
 
     # Hypothesis content
-    proposition: str = ""                # What is being hypothesized
-    subject: str = ""                    # Subject of proposition
-    predicate: str = ""                  # Predicate being asserted
+    proposition: str = ""  # What is being hypothesized
+    subject: str = ""  # Subject of proposition
+    predicate: str = ""  # Predicate being asserted
 
     # Alternative hypotheses
     alternatives: List[str] = field(default_factory=list)
@@ -182,12 +187,15 @@ class HypothesisBlock(CognitiveBlock):
         """Convert hypothesis to tensor."""
         # Encode proposition as embedding (simplified)
         # In full implementation, would use semantic embeddings
-        return np.array([
-            self.confidence,
-            len(self.alternatives),
-            len(self.source_percepts),
-            len(self.testable_predictions),
-        ], dtype=np.float32)
+        return np.array(
+            [
+                self.confidence,
+                len(self.alternatives),
+                len(self.source_percepts),
+                len(self.testable_predictions),
+            ],
+            dtype=np.float32,
+        )
 
     def to_natural_language(self) -> str:
         """Generate natural language description."""
@@ -208,27 +216,28 @@ class BeliefBlock(CognitiveBlock):
     This is where transparent ToM happens - we can trace exactly
     what an agent believes about another agent's beliefs.
     """
+
     block_type: BlockType = field(default=BlockType.BELIEF, init=False)
 
     # Belief content
-    proposition: str = ""                # The believed proposition
-    subject: str = ""                    # Subject of belief
-    predicate: str = ""                  # What is believed about subject
+    proposition: str = ""  # The believed proposition
+    subject: str = ""  # Subject of belief
+    predicate: str = ""  # What is believed about subject
 
     # Belief target (for ToM)
-    about_agent: Optional[str] = None    # If about another agent
-    belief_order: int = 1                # 1 = first-order, 2 = second-order, etc.
+    about_agent: Optional[str] = None  # If about another agent
+    belief_order: int = 1  # 1 = first-order, 2 = second-order, etc.
 
     # Nested belief (for recursive ToM)
-    nested_belief: Optional['BeliefBlock'] = None
+    nested_belief: Optional["BeliefBlock"] = None
 
     # Temporal aspects
     belief_start: datetime = field(default_factory=datetime.now)
     last_updated: datetime = field(default_factory=datetime.now)
-    decay_rate: float = 0.01             # How fast confidence decays
+    decay_rate: float = 0.01  # How fast confidence decays
 
     # Source information
-    source_type: str = "inference"       # perception, inference, testimony, simulation
+    source_type: str = "inference"  # perception, inference, testimony, simulation
 
     def to_tensor(self) -> np.ndarray:
         """Convert belief to tensor."""
@@ -266,15 +275,16 @@ class IntentBlock(CognitiveBlock):
     Intents are crucial for ToM: understanding WHY an agent acts
     requires modeling their intentions, not just their actions.
     """
+
     block_type: BlockType = field(default=BlockType.INTENT, init=False)
 
     # Intent content
-    goal: str = ""                       # The desired end state
-    action_type: str = ""                # Type of action to achieve goal
+    goal: str = ""  # The desired end state
+    action_type: str = ""  # Type of action to achieve goal
 
     # Intent structure
     target_entity: Optional[str] = None  # What/who the intent targets
-    target_agent: Optional[str] = None   # If intent is social
+    target_agent: Optional[str] = None  # If intent is social
 
     # Preconditions and effects
     preconditions: List[str] = field(default_factory=list)
@@ -282,14 +292,14 @@ class IntentBlock(CognitiveBlock):
 
     # Intent about another's intent (ToM)
     about_agent: Optional[str] = None
-    nested_intent: Optional['IntentBlock'] = None
+    nested_intent: Optional["IntentBlock"] = None
 
     # Motivation
-    motivation: str = ""                 # Why this intent exists
-    urgency: float = 0.5                 # 0.0 to 1.0
+    motivation: str = ""  # Why this intent exists
+    urgency: float = 0.5  # 0.0 to 1.0
 
     # Domain classification
-    domain: str = "general"              # "EconomicTransaction", "SocialRelation", etc.
+    domain: str = "general"  # "EconomicTransaction", "SocialRelation", etc.
 
     def to_tensor(self) -> np.ndarray:
         """Convert intent to tensor."""
@@ -323,36 +333,39 @@ class MemoryBlock(CognitiveBlock):
     essential pattern of experiences. They serve as priors for
     future perception and reasoning.
     """
+
     block_type: BlockType = field(default=BlockType.MEMORY, init=False)
 
     # Memory content
-    archetype_label: str = ""            # High-level category
+    archetype_label: str = ""  # High-level category
     compressed_features: Dict[str, float] = field(default_factory=dict)
 
     # Compression metadata
     original_block_ids: List[str] = field(default_factory=list)
-    compression_ratio: float = 1.0       # How much compression occurred
-    information_loss: float = 0.0        # Estimated information loss
+    compression_ratio: float = 1.0  # How much compression occurred
+    information_loss: float = 0.0  # Estimated information loss
 
     # Retrieval cues
     retrieval_cues: List[str] = field(default_factory=list)
-    emotional_valence: float = 0.0       # -1.0 to 1.0
-    salience: float = 0.5                # How easily retrieved
+    emotional_valence: float = 0.0  # -1.0 to 1.0
+    salience: float = 0.5  # How easily retrieved
 
     # Episodic vs semantic
-    is_episodic: bool = False            # Specific event vs general knowledge
+    is_episodic: bool = False  # Specific event vs general knowledge
     temporal_context: Optional[str] = None
 
     def to_tensor(self) -> np.ndarray:
         """Convert memory to tensor."""
         features = list(self.compressed_features.values())
-        features.extend([
-            self.confidence,
-            self.compression_ratio,
-            self.information_loss,
-            self.emotional_valence,
-            self.salience,
-        ])
+        features.extend(
+            [
+                self.confidence,
+                self.compression_ratio,
+                self.information_loss,
+                self.emotional_valence,
+                self.salience,
+            ]
+        )
         return np.array(features, dtype=np.float32)
 
     def to_natural_language(self) -> str:
@@ -371,14 +384,15 @@ class RecursiveBelief:
     Implements B_a(B_b(B_a(p))) style recursive beliefs where
     each level can be explicitly traced and reasoned about.
     """
-    holder: str                          # Who holds this belief
-    about: Optional[str] = None          # Who the belief is about (if ToM)
-    content: Union[str, 'RecursiveBelief'] = ""  # Either proposition or nested belief
+
+    holder: str  # Who holds this belief
+    about: Optional[str] = None  # Who the belief is about (if ToM)
+    content: Union[str, "RecursiveBelief"] = ""  # Either proposition or nested belief
     confidence: float = 1.0
-    order: int = 1                       # Belief order
+    order: int = 1  # Belief order
 
     # Confidence decay with nesting (realistic uncertainty)
-    CONFIDENCE_DECAY = 0.7               # Multiply by this for each level
+    CONFIDENCE_DECAY = 0.7  # Multiply by this for each level
 
     def get_effective_confidence(self) -> float:
         """Get confidence accounting for recursive decay."""
@@ -411,11 +425,12 @@ class SimulationState(CognitiveBlock):
     When Agent A simulates Agent B, this captures the state
     of that simulation, including B's simulated beliefs about A.
     """
+
     block_type: BlockType = field(default=BlockType.SIMULATION, init=False)
 
     # Simulation identity
-    simulating_agent: str = ""           # Agent running the simulation
-    simulated_agent: str = ""            # Agent being simulated
+    simulating_agent: str = ""  # Agent running the simulation
+    simulated_agent: str = ""  # Agent being simulated
 
     # Simulated world state
     simulated_world_state: Dict[str, Any] = field(default_factory=dict)
@@ -426,8 +441,8 @@ class SimulationState(CognitiveBlock):
     simulated_intents: List[IntentBlock] = field(default_factory=list)
 
     # Simulation depth
-    recursion_depth: int = 1             # How deep we are
-    max_depth: int = 3                   # Maximum allowed depth
+    recursion_depth: int = 1  # How deep we are
+    max_depth: int = 3  # Maximum allowed depth
 
     # Results
     predicted_action: Optional[str] = None
@@ -435,13 +450,16 @@ class SimulationState(CognitiveBlock):
 
     def to_tensor(self) -> np.ndarray:
         """Convert simulation state to tensor."""
-        return np.array([
-            self.simulated_timestep,
-            self.recursion_depth,
-            len(self.simulated_beliefs),
-            len(self.simulated_intents),
-            self.prediction_confidence,
-        ], dtype=np.float32)
+        return np.array(
+            [
+                self.simulated_timestep,
+                self.recursion_depth,
+                len(self.simulated_beliefs),
+                len(self.simulated_intents),
+                self.prediction_confidence,
+            ],
+            dtype=np.float32,
+        )
 
     def to_natural_language(self) -> str:
         """Generate natural language description."""
@@ -454,6 +472,7 @@ class SimulationState(CognitiveBlock):
 
 # ==================== Block Operations ====================
 
+
 @dataclass
 class BlockTransition:
     """
@@ -462,11 +481,12 @@ class BlockTransition:
     Captures the type-shifting process that IS reasoning:
     Percept -> Hypothesis -> Belief -> Memory
     """
+
     source_block: CognitiveBlock
     target_block: CognitiveBlock
-    transition_type: str                 # "elaboration", "compression", "revision", etc.
-    transition_reason: str               # Why this transition happened
-    information_delta: float = 0.0       # Information gained/lost
+    transition_type: str  # "elaboration", "compression", "revision", etc.
+    transition_reason: str  # Why this transition happened
+    information_delta: float = 0.0  # Information gained/lost
 
     def __post_init__(self):
         # Validate transition
@@ -482,15 +502,11 @@ class BlockTransition:
         target_type = self.target_block.block_type
 
         if target_type not in valid_transitions.get(source_type, []):
-            raise ValueError(
-                f"Invalid transition: {source_type.name} -> {target_type.name}"
-            )
+            raise ValueError(f"Invalid transition: {source_type.name} -> {target_type.name}")
 
 
 def compress_to_memory(
-    blocks: List[CognitiveBlock],
-    archetype_label: str,
-    compression_method: str = "averaging"
+    blocks: List[CognitiveBlock], archetype_label: str, compression_method: str = "averaging"
 ) -> MemoryBlock:
     """
     Compress multiple cognitive blocks into a single memory archetype.
@@ -534,7 +550,7 @@ def compress_to_memory(
     # Compute emotional valence from source blocks
     valences = []
     for b in blocks:
-        if hasattr(b, 'emotional_valence'):
+        if hasattr(b, "emotional_valence"):
             valences.append(b.emotional_valence)
     emotional_valence = np.mean(valences) if valences else 0.0
 
@@ -549,10 +565,7 @@ def compress_to_memory(
     )
 
 
-def expand_from_memory(
-    memory: MemoryBlock,
-    context: Dict[str, Any]
-) -> List[HypothesisBlock]:
+def expand_from_memory(memory: MemoryBlock, context: Dict[str, Any]) -> List[HypothesisBlock]:
     """
     Expand a memory into hypotheses for the current context.
 
@@ -594,10 +607,7 @@ def expand_from_memory(
 
 
 def create_recursive_belief(
-    holder: str,
-    belief_chain: List[str],
-    proposition: str,
-    base_confidence: float = 0.9
+    holder: str, belief_chain: List[str], proposition: str, base_confidence: float = 0.9
 ) -> BeliefBlock:
     """
     Create a nested belief structure from a chain of agents.
