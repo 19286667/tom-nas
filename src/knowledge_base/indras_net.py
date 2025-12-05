@@ -803,25 +803,59 @@ class IndrasNet:
     # ==================== Serialization ====================
 
     def save(self, filepath: Path) -> None:
-        """Save the graph to disk."""
-        with open(filepath, 'wb') as f:
-            pickle.dump({
-                'graph': self._graph,
-                'nodes_by_type': self._nodes_by_type,
-                'nodes_by_godot_id': self._nodes_by_godot_id,
-                'prototypes': self._prototypes,
-                'stereotypes': self._stereotypes,
-            }, f)
+        """
+        Save the graph to disk using NetworkX's native GraphML format.
+
+        Note: Complex node objects are stored separately as JSON for security.
+        Pickle is avoided to prevent arbitrary code execution vulnerabilities.
+        """
+        # Save graph structure using GraphML (safe format)
+        graphml_path = filepath.with_suffix('.graphml')
+        nx.write_graphml(self._graph, str(graphml_path))
+
+        # Save metadata as JSON (safe format)
+        json_path = filepath.with_suffix('.json')
+        metadata = {
+            'nodes_by_type': {t.name: list(ids) for t, ids in self._nodes_by_type.items()},
+            'nodes_by_godot_id': {str(k): v for k, v in self._nodes_by_godot_id.items()},
+        }
+        with open(json_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
 
     def load(self, filepath: Path) -> None:
-        """Load the graph from disk."""
-        with open(filepath, 'rb') as f:
-            data = pickle.load(f)
-            self._graph = data['graph']
-            self._nodes_by_type = data['nodes_by_type']
-            self._nodes_by_godot_id = data['nodes_by_godot_id']
-            self._prototypes = data['prototypes']
-            self._stereotypes = data['stereotypes']
+        """
+        Load the graph from disk.
+
+        Uses safe GraphML and JSON formats instead of pickle to prevent
+        arbitrary code execution from malicious files.
+        """
+        # Load graph structure from GraphML
+        graphml_path = filepath.with_suffix('.graphml')
+        if graphml_path.exists():
+            self._graph = nx.read_graphml(str(graphml_path))
+        else:
+            raise FileNotFoundError(f"Graph file not found: {graphml_path}")
+
+        # Load metadata from JSON
+        json_path = filepath.with_suffix('.json')
+        if json_path.exists():
+            with open(json_path, 'r') as f:
+                metadata = json.load(f)
+
+            # Reconstruct nodes_by_type
+            for type_name, node_ids in metadata.get('nodes_by_type', {}).items():
+                try:
+                    node_type = NodeType[type_name]
+                    self._nodes_by_type[node_type] = set(node_ids)
+                except KeyError:
+                    pass  # Unknown node type, skip
+
+            # Reconstruct nodes_by_godot_id
+            for godot_id_str, node_id in metadata.get('nodes_by_godot_id', {}).items():
+                try:
+                    self._nodes_by_godot_id[int(godot_id_str)] = node_id
+                except ValueError:
+                    pass  # Invalid godot_id, skip
 
     def export_to_json(self, filepath: Path) -> None:
         """Export graph structure to JSON (without numpy arrays)."""

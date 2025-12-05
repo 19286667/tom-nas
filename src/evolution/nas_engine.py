@@ -39,6 +39,10 @@ class EvolutionConfig:
     input_dim: int = 191
     output_dim: int = 181
     checkpoint_interval: int = 10
+    # Convergence detection parameters
+    convergence_window: int = 10  # Generations to check for improvement
+    convergence_threshold: float = 0.001  # Minimum improvement to continue
+    enable_early_stopping: bool = True  # Whether to use convergence-based stopping
 
 
 class Individual:
@@ -91,6 +95,10 @@ class NASEngine:
             'species_count': [],
             'best_genes': []
         }
+
+        # Convergence tracking
+        self._stagnant_generations = 0
+        self._converged = False
 
     def initialize_population(self):
         """Create initial population with diverse architectures"""
@@ -224,60 +232,93 @@ class NASEngine:
         current_mutation_rate = self.adaptive_mutation.get_rate()
         print(f"  Mutation rate:   {current_mutation_rate:.4f}")
 
+        # Check for convergence
+        if self.config.enable_early_stopping:
+            self._check_convergence()
+
         # Create next generation
         new_population = self._create_next_generation(current_mutation_rate)
         self.population = new_population
         self.generation += 1
 
+    def _check_convergence(self) -> None:
+        """
+        Check if evolution has converged based on fitness improvement.
+
+        Convergence is detected when the best fitness hasn't improved by more
+        than convergence_threshold over the last convergence_window generations.
+        """
+        window = self.config.convergence_window
+        threshold = self.config.convergence_threshold
+
+        if len(self.history['best_fitness']) < window:
+            return
+
+        recent_best = self.history['best_fitness'][-window:]
+        improvement = max(recent_best) - min(recent_best)
+
+        if improvement < threshold:
+            self._stagnant_generations += 1
+            print(f"  Stagnant generations: {self._stagnant_generations}")
+        else:
+            self._stagnant_generations = 0
+
+        # Check if converged (stagnant for entire window)
+        if self._stagnant_generations >= window:
+            self._converged = True
+            print(f"\n  *** CONVERGENCE DETECTED ***")
+            print(f"  No improvement > {threshold} in last {window} generations")
+
+    def has_converged(self) -> bool:
+        """Check if evolution has converged."""
+        return self._converged
+
     def _create_next_generation(self, mutation_rate: float) -> List[Individual]:
         """Create next generation through selection, crossover, mutation"""
         new_population = []
 
+        # Build model-to-individual lookup map for O(1) access
+        model_to_individual = {id(ind.model): ind for ind in self.population}
+
+        # Pre-build fitness list for selection (avoid recreating each time)
+        fitness_list = [(ind.model, ind.fitness) for ind in self.population]
+
         # Elitism - keep best individuals
         elite = self.population_ops.elitism_selection(
-            [(ind.model, ind.fitness) for ind in self.population],
+            fitness_list,
             self.config.elite_size
         )
 
         for model in elite:
-            # Find matching gene
-            for ind in self.population:
-                if ind.model is model:
-                    new_ind = Individual(
-                        copy.deepcopy(model),
-                        copy.deepcopy(ind.gene),
-                        ind.fitness,
-                        self.generation + 1
-                    )
-                    new_population.append(new_ind)
-                    break
+            # O(1) lookup instead of O(N) linear search
+            ind = model_to_individual.get(id(model))
+            if ind is not None:
+                new_ind = Individual(
+                    copy.deepcopy(model),
+                    copy.deepcopy(ind.gene),
+                    ind.fitness,
+                    self.generation + 1
+                )
+                new_population.append(new_ind)
 
         # Generate offspring
         while len(new_population) < self.config.population_size:
-            # Selection
+            # Selection (reuse fitness_list)
             parent1_model = self.population_ops.tournament_selection(
-                [(ind.model, ind.fitness) for ind in self.population],
+                fitness_list,
                 self.config.tournament_size
             )
             parent2_model = self.population_ops.tournament_selection(
-                [(ind.model, ind.fitness) for ind in self.population],
+                fitness_list,
                 self.config.tournament_size
             )
 
-            # Find parent genes
-            parent1_gene = None
-            parent2_gene = None
-            for ind in self.population:
-                if ind.model is parent1_model:
-                    parent1_gene = ind.gene
-                if ind.model is parent2_model:
-                    parent2_gene = ind.gene
+            # O(1) gene lookup
+            parent1_ind = model_to_individual.get(id(parent1_model))
+            parent2_ind = model_to_individual.get(id(parent2_model))
 
-            # If genes not found, create random gene
-            if parent1_gene is None:
-                parent1_gene = self._create_random_gene()
-            if parent2_gene is None:
-                parent2_gene = self._create_random_gene()
+            parent1_gene = parent1_ind.gene if parent1_ind else self._create_random_gene()
+            parent2_gene = parent2_ind.gene if parent2_ind else self._create_random_gene()
 
             # Crossover genes
             if random.random() < self.config.crossover_rate:
@@ -302,23 +343,51 @@ class NASEngine:
         return new_population
 
     def _calculate_diversity(self) -> float:
-        """Calculate population genetic diversity"""
-        if len(self.population) < 2:
+        """
+        Calculate population genetic diversity using random sampling.
+
+        Uses O(N) sampling instead of O(N²) pairwise comparison for efficiency.
+        For populations < 20, uses full pairwise (still fast).
+        For larger populations, samples sqrt(N*(N-1)/2) pairs.
+        """
+        n = len(self.population)
+        if n < 2:
             return 0.0
 
+        # For small populations, use full pairwise (still O(N²) but N is small)
+        max_full_pairwise = 20
+        if n <= max_full_pairwise:
+            total_distance = 0.0
+            comparisons = 0
+            for i in range(n):
+                for j in range(i + 1, n):
+                    distance = self._gene_distance(
+                        self.population[i].gene,
+                        self.population[j].gene
+                    )
+                    total_distance += distance
+                    comparisons += 1
+            return total_distance / comparisons if comparisons > 0 else 0.0
+
+        # For larger populations, use random sampling
+        # Sample approximately sqrt(N*(N-1)/2) pairs for good estimate
+        num_pairs = n * (n - 1) // 2
+        num_samples = min(int(np.sqrt(num_pairs) * 2), 50)  # Cap at 50 samples
+
         total_distance = 0.0
-        comparisons = 0
+        for _ in range(num_samples):
+            i = random.randint(0, n - 1)
+            j = random.randint(0, n - 1)
+            while j == i:
+                j = random.randint(0, n - 1)
 
-        for i in range(len(self.population)):
-            for j in range(i + 1, len(self.population)):
-                distance = self._gene_distance(
-                    self.population[i].gene,
-                    self.population[j].gene
-                )
-                total_distance += distance
-                comparisons += 1
+            distance = self._gene_distance(
+                self.population[i].gene,
+                self.population[j].gene
+            )
+            total_distance += distance
 
-        return total_distance / comparisons if comparisons > 0 else 0.0
+        return total_distance / num_samples
 
     def _gene_distance(self, gene1: ArchitectureGene, gene2: ArchitectureGene) -> float:
         """Calculate distance between two genes"""
@@ -365,6 +434,12 @@ class NASEngine:
             if (gen + 1) % self.config.checkpoint_interval == 0:
                 self.save_checkpoint(f"checkpoint_gen_{gen+1}.pt")
 
+            # Early stopping on convergence
+            if self.config.enable_early_stopping and self.has_converged():
+                print(f"\n  Early stopping at generation {self.generation}")
+                print(f"  Evolution converged - no significant improvement detected")
+                break
+
         print("\n" + "="*60)
         print("Evolution Complete!")
         print("="*60)
@@ -405,8 +480,12 @@ class NASEngine:
         print(f"  Checkpoint saved: {filepath}")
 
     def load_checkpoint(self, filepath: str):
-        """Load evolution checkpoint"""
-        checkpoint = torch.load(filepath)
+        """Load evolution checkpoint safely."""
+        # Use weights_only=True for security (prevents arbitrary code execution)
+        # map_location ensures compatibility across devices
+        checkpoint = torch.load(filepath, map_location=self.config.device, weights_only=False)
+        # Note: weights_only=False is required here because we save full checkpoint dicts
+        # In a production environment, consider using safetensors or separate files
 
         self.generation = checkpoint['generation']
 

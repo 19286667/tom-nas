@@ -321,15 +321,19 @@ class CompositeFitnessFunction:
         }
 
     def evaluate(self, agent_model: nn.Module, num_episodes: int = 5) -> Dict[str, float]:
-        """Complete fitness evaluation"""
+        """
+        Complete fitness evaluation with proper normalization.
 
+        All fitness components are normalized to [0, 1] before weighted combination
+        to ensure fair contribution regardless of raw score magnitudes.
+        """
         # World performance
         world_fitness = self.tom_evaluator.evaluate_agent(agent_model, num_episodes)
 
-        # Sally-Anne test
+        # Sally-Anne test (already in [0, 1])
         sally_anne_score = self.sally_anne.evaluate(agent_model)
 
-        # Higher-order ToM
+        # Higher-order ToM (already in [0, 1])
         higher_order_scores = self.higher_order.evaluate_all_orders(agent_model)
         avg_higher_order = np.mean(list(higher_order_scores.values()))
 
@@ -337,20 +341,43 @@ class CompositeFitnessFunction:
         num_params = sum(p.numel() for p in agent_model.parameters())
         efficiency_score = 1.0 / (1.0 + num_params / 1e6)  # Penalty for >1M params
 
-        # Combine scores
+        # Normalize world fitness to [0, 1]
+        # World fitness components should already be normalized during episode evaluation
+        # but we clip to ensure bounds
+        normalized_world = np.clip(world_fitness['total_fitness'], 0.0, 1.0)
+
+        # Normalize higher-order ToM (already in [0, 1])
+        normalized_higher_order = np.clip(avg_higher_order, 0.0, 1.0)
+
+        # Normalize Sally-Anne (already in [0, 1])
+        normalized_sally_anne = np.clip(sally_anne_score, 0.0, 1.0)
+
+        # Efficiency is already in (0, 1]
+        normalized_efficiency = np.clip(efficiency_score, 0.0, 1.0)
+
+        # Combine normalized scores
         total_fitness = (
-            self.component_weights['world_performance'] * world_fitness['total_fitness'] +
-            self.component_weights['sally_anne'] * sally_anne_score +
-            self.component_weights['higher_order_tom'] * avg_higher_order +
-            self.component_weights['architectural_efficiency'] * efficiency_score
+            self.component_weights['world_performance'] * normalized_world +
+            self.component_weights['sally_anne'] * normalized_sally_anne +
+            self.component_weights['higher_order_tom'] * normalized_higher_order +
+            self.component_weights['architectural_efficiency'] * normalized_efficiency
         )
+
+        # Ensure final fitness is in [0, 1]
+        total_fitness = np.clip(total_fitness, 0.0, 1.0)
 
         return {
             'total_fitness': total_fitness,
-            'world_fitness': world_fitness['total_fitness'],
-            'sally_anne': sally_anne_score,
-            'higher_order_tom': avg_higher_order,
-            'efficiency': efficiency_score,
+            'world_fitness': normalized_world,
+            'sally_anne': normalized_sally_anne,
+            'higher_order_tom': normalized_higher_order,
+            'efficiency': normalized_efficiency,
             'world_components': world_fitness,
-            'higher_order_components': higher_order_scores
+            'higher_order_components': higher_order_scores,
+            'raw_scores': {
+                'world': world_fitness['total_fitness'],
+                'sally_anne': sally_anne_score,
+                'higher_order': avg_higher_order,
+                'efficiency': efficiency_score
+            }
         }

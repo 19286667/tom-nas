@@ -241,7 +241,8 @@ class ZeroCostProxy:
                     return logdet.item()
                 else:
                     return -1000.0  # Degenerate case
-            except:
+            except (RuntimeError, torch.linalg.LinAlgError) as e:
+                # Numerical issues with singular or ill-conditioned matrices
                 return -1000.0
 
         finally:
