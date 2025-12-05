@@ -16,12 +16,11 @@ https://leaderboard.allenai.org/socialiqa/
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import json
 import random
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple
 from pathlib import Path
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -64,10 +63,14 @@ class SocialIQAEncoder:
     def build_vocab(self, examples: List[SocialIQAExample]):
         """Build vocabulary from examples."""
         for example in examples:
-            for text in [example.context, example.question,
-                        example.answer_a, example.answer_b, example.answer_c]:
+            texts = [
+                example.context, example.question,
+                example.answer_a, example.answer_b, example.answer_c
+            ]
+            for text in texts:
                 for word in text.lower().split():
-                    if word not in self.word_to_idx and self.next_idx < self.vocab_size:
+                    if (word not in self.word_to_idx
+                            and self.next_idx < self.vocab_size):
                         self.word_to_idx[word] = self.next_idx
                         self.next_idx += 1
 
@@ -214,17 +217,24 @@ class SocialIQADataset:
         return [
             # Intent questions
             {
-                'context': "Alex told Jordan a secret about their surprise party.",
+                'context': "Alex told Jordan a secret about their party.",
                 'question': "Why did Alex do this?",
-                'answers': ["Alex trusts Jordan", "Alex wants to hurt Jordan",
-                           "Alex forgot it was a secret"],
+                'answers': [
+                    "Alex trusts Jordan",
+                    "Alex wants to hurt Jordan",
+                    "Alex forgot it was a secret"
+                ],
                 'correct': 0,
                 'type': 'motivation'
             },
             {
                 'context': "Sam got rejected from their dream job.",
                 'question': "How does Sam feel?",
-                'answers': ["Disappointed and sad", "Excited and happy", "Completely indifferent"],
+                'answers': [
+                    "Disappointed and sad",
+                    "Excited and happy",
+                    "Completely indifferent"
+                ],
                 'correct': 0,
                 'type': 'emotion'
             },
@@ -238,54 +248,77 @@ class SocialIQADataset:
             {
                 'context': "Riley helped Morgan move to a new apartment.",
                 'question': "What does Riley need to do before this?",
-                'answers': ["Clear their schedule", "Learn to drive", "Buy new furniture"],
+                'answers': [
+                    "Clear their schedule",
+                    "Learn to drive",
+                    "Buy new furniture"
+                ],
                 'correct': 0,
                 'type': 'prerequisite'
             },
             {
                 'context': "Taylor gave an expensive gift to Quinn.",
                 'question': "Why did Taylor do this?",
-                'answers': ["Taylor cares about Quinn", "Taylor was forced to",
-                           "Taylor doesn't like Quinn"],
+                'answers': [
+                    "Taylor cares about Quinn",
+                    "Taylor was forced to",
+                    "Taylor doesn't like Quinn"
+                ],
                 'correct': 0,
                 'type': 'motivation'
             },
             {
-                'context': "Jesse's friend canceled their plans at the last minute.",
+                'context': "Jesse's friend canceled plans at the last minute.",
                 'question': "How would Jesse feel?",
-                'answers': ["Annoyed and disappointed", "Relieved and happy",
-                           "Confused about what happened"],
+                'answers': [
+                    "Annoyed and disappointed",
+                    "Relieved and happy",
+                    "Confused about what happened"
+                ],
                 'correct': 0,
                 'type': 'emotion'
             },
             {
                 'context': "Morgan just finished a marathon.",
                 'question': "What will Morgan want to do next?",
-                'answers': ["Rest and recover", "Run another marathon", "Go to work"],
+                'answers': [
+                    "Rest and recover",
+                    "Run another marathon",
+                    "Go to work"
+                ],
                 'correct': 0,
                 'type': 'subsequent'
             },
             {
                 'context': "Alex is preparing to ask for a promotion.",
                 'question': "What does Alex need to do before this?",
-                'answers': ["Document their achievements", "Quit their job",
-                           "Criticize their boss"],
+                'answers': [
+                    "Document their achievements",
+                    "Quit their job",
+                    "Criticize their boss"
+                ],
                 'correct': 0,
                 'type': 'prerequisite'
             },
             {
-                'context': "Jamie saw their coworker take credit for Jamie's work.",
+                'context': "Jamie saw coworker take credit for Jamie's work.",
                 'question': "How would Jamie feel about this?",
-                'answers': ["Frustrated and betrayed", "Proud of their coworker",
-                           "Completely unbothered"],
+                'answers': [
+                    "Frustrated and betrayed",
+                    "Proud of their coworker",
+                    "Completely unbothered"
+                ],
                 'correct': 0,
                 'type': 'emotion'
             },
             {
-                'context': "Chris stayed late to help a colleague finish a project.",
+                'context': "Chris stayed late to help finish a project.",
                 'question': "Why did Chris do this?",
-                'answers': ["Chris is helpful and supportive", "Chris was trying to show off",
-                           "Chris had nothing else to do"],
+                'answers': [
+                    "Chris is helpful and supportive",
+                    "Chris was trying to show off",
+                    "Chris had nothing else to do"
+                ],
                 'correct': 0,
                 'type': 'motivation'
             },

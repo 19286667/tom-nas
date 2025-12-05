@@ -78,12 +78,16 @@ class TestSocialEdge:
         assert edge.get_relationship_type() == RelationshipType.STRANGER
 
     def test_relationship_type_ally(self):
-        """Test ally classification."""
+        """Test ally classification.
+
+        Note: ALLY requires trust > 0.6 and affect > 0 but not meeting
+        COALITION threshold (affect > 0.3).
+        """
         from src.liminal.psychosocial_coevolution import SocialEdge, RelationshipType
 
         edge = SocialEdge(source_id="a", target_id="b")
         edge.trust = 0.8
-        edge.affect = 0.5
+        edge.affect = 0.2  # Positive but below coalition threshold
         edge.familiarity = 0.5
 
         assert edge.get_relationship_type() == RelationshipType.ALLY

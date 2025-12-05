@@ -14,14 +14,13 @@ control conditions for measuring ToM-specific capabilities.
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass, field
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
 from collections import defaultdict
 import random
 
-from ..world.social_world import SocialWorld4, Agent
+from ..world.social_world import SocialWorld4
 
 
 @dataclass
@@ -98,9 +97,8 @@ class SocialGameBenchmark:
         self.game_history = []
         self.cooperation_history = []
 
-    def evaluate_cooperation(self, model: nn.Module,
-                            num_rounds: int = 50,
-                            device: str = 'cpu') -> CooperationMetrics:
+    def evaluate_cooperation(self, model: nn.Module, num_rounds: int = 50,
+                             device: str = 'cpu') -> CooperationMetrics:
         """
         Iterated Prisoner's Dilemma evaluation.
 
@@ -127,37 +125,47 @@ class SocialGameBenchmark:
 
         for round_idx in range(num_rounds):
             # Select random partner from non-zombie agents
-            non_zombies = [i for i, agent in enumerate(self.world.agents)
-                          if not agent.is_zombie and agent.alive]
+            non_zombies = [
+                i for i, agent in enumerate(self.world.agents)
+                if not agent.is_zombie and agent.alive
+            ]
             if not non_zombies:
                 break
 
             partner_id = random.choice(non_zombies)
-            partner = self.world.agents[partner_id]
 
             # Build observation for model
-            observation = self._build_cooperation_observation(partner_id, partner_histories)
+            observation = self._build_cooperation_observation(
+                partner_id, partner_histories)
             observation = observation.unsqueeze(0).to(device)
 
             # Get model's action and prediction of partner's action
             with torch.no_grad():
                 output = model(observation)
 
-            # Parse output: first half = action logits, second half = prediction logits
+            # Parse output: first half = action, second half = prediction
             action_logits = output[:, :2]  # cooperate, defect
-            predict_logits = output[:, 2:4] if output.shape[1] >= 4 else output[:, :2]
+            if output.shape[1] >= 4:
+                predict_logits = output[:, 2:4]
+            else:
+                predict_logits = output[:, :2]
 
-            model_action = 'cooperate' if action_logits.argmax().item() == 0 else 'defect'
-            predicted_partner_action = 'cooperate' if predict_logits.argmax().item() == 0 else 'defect'
+            is_cooperate = action_logits.argmax().item() == 0
+            model_action = 'cooperate' if is_cooperate else 'defect'
+            is_pred_coop = predict_logits.argmax().item() == 0
+            predicted_partner_action = 'cooperate' if is_pred_coop else 'defect'
 
-            # Partner's action based on history (simple tit-for-tat-like behavior)
+            # Partner's action based on history (simple tit-for-tat-like)
             if partner_histories[partner_id]:
                 # Partner responds based on model's previous action
                 last_model_action = partner_histories[partner_id][-1]
                 partner_action = last_model_action  # Tit-for-tat
                 # Add some noise
                 if random.random() < 0.1:
-                    partner_action = 'defect' if partner_action == 'cooperate' else 'cooperate'
+                    if partner_action == 'cooperate':
+                        partner_action = 'defect'
+                    else:
+                        partner_action = 'cooperate'
             else:
                 partner_action = 'cooperate' if random.random() > 0.3 else 'defect'
 
@@ -184,8 +192,10 @@ class SocialGameBenchmark:
             return CooperationMetrics(0, 0, 0, 0, 0, 0)
 
         # Calculate prediction accuracy
-        correct_predictions = sum(1 for p, a in zip(partner_action_predictions, actual_partner_actions)
-                                 if p == a)
+        correct_predictions = sum(
+            1 for p, a in zip(partner_action_predictions, actual_partner_actions)
+            if p == a
+        )
         prediction_accuracy = correct_predictions / total_games
 
         # Calculate tit-for-tat alignment
@@ -308,7 +318,6 @@ class SocialGameBenchmark:
                 else:
                     true_negatives += 1
 
-        total = max(num_scenarios, 1)
         positives = true_positives + false_negatives
         negatives = true_negatives + false_positives
 
@@ -334,7 +343,6 @@ class SocialGameBenchmark:
         model.eval()
 
         fairness_predictions = []
-        actual_responses = []
         rejection_predictions = []
 
         for round_idx in range(num_rounds):
@@ -344,7 +352,6 @@ class SocialGameBenchmark:
             while responder_id == proposer_id:
                 responder_id = random.randint(0, self.num_agents - 1)
 
-            total_resource = 100.0
             offer_fraction = random.random()  # How much proposer offers
 
             # Build observation
@@ -420,8 +427,9 @@ class SocialGameBenchmark:
             num_episodes=50 + 20 + 50 + 30,  # Total across all tests
         )
 
-    def _build_cooperation_observation(self, partner_id: int,
-                                        histories: Dict[int, List[str]]) -> torch.Tensor:
+    def _build_cooperation_observation(
+            self, partner_id: int,
+            histories: Dict[int, List[str]]) -> torch.Tensor:
         """Build observation tensor for cooperation game."""
         partner = self.world.agents[partner_id]
 
@@ -494,8 +502,9 @@ class SocialGameBenchmark:
 
         return obs
 
-    def _build_fairness_observation(self, proposer_id: int, responder_id: int,
-                                     offer_fraction: float) -> torch.Tensor:
+    def _build_fairness_observation(
+            self, proposer_id: int, responder_id: int,
+            offer_fraction: float) -> torch.Tensor:
         """Build observation for fairness/ultimatum game."""
         obs = torch.zeros(self.ontology_dim + 20)
 
