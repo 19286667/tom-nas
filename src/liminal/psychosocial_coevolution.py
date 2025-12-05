@@ -148,9 +148,12 @@ class SocialEdge:
             return RelationshipType.STRANGER
         elif self.familiarity < 0.3:
             return RelationshipType.ACQUAINTANCE
-        elif self.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and self.affect > 0.3:
-            return RelationshipType.COALITION
         elif self.trust > 0.6 and self.affect > 0:
+            # Check for ALLY first (trust > 0.6, affect > 0)
+            # Then check if it qualifies for the stronger COALITION
+            # COALITION requires higher trust AND affect than ALLY
+            if self.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD + 0.25 and self.affect > 0.6:
+                return RelationshipType.COALITION
             return RelationshipType.ALLY
         elif self.trust < 0.4 and self.affect < -0.3:
             return RelationshipType.ENEMY
