@@ -97,7 +97,8 @@ class CognitiveBlock(ABC):
     def _generate_id(self) -> str:
         """Generate unique block ID based on content hash."""
         content = f"{self.block_type.name}_{self.created_at.isoformat()}"
-        return hashlib.md5(content.encode()).hexdigest()[:12]
+        # MD5 used only for unique ID generation, not for security purposes
+        return hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()[:12]
 
     @abstractmethod
     def to_tensor(self) -> np.ndarray:

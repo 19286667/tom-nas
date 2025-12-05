@@ -83,7 +83,7 @@ class TestSocialEdge:
 
         edge = SocialEdge(source_id="a", target_id="b")
         edge.trust = 0.8
-        edge.affect = 0.5
+        edge.affect = 0.2  # > 0 for ALLY but <= 0.3 to not trigger COALITION
         edge.familiarity = 0.5
 
         assert edge.get_relationship_type() == RelationshipType.ALLY
