@@ -13,9 +13,12 @@ that affect NPC behavior and player interactions:
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Dict, List, Optional, Tuple, Any, Callable
+from typing import Dict, List, Optional, Tuple, Any, Callable, TYPE_CHECKING
 import random
 import math
+
+if TYPE_CHECKING:
+    from .soul_map import SoulMap
 
 
 class RealmType(Enum):

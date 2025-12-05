@@ -142,13 +142,16 @@ class SocialEdge:
     cooperation_history: List[bool] = field(default_factory=list)
     last_interaction_tick: int = 0
 
+    # Coalition membership (explicit agreement)
+    in_coalition: bool = False
+
     def get_relationship_type(self) -> RelationshipType:
         """Classify relationship based on current metrics."""
         if self.familiarity < 0.1:
             return RelationshipType.STRANGER
         elif self.familiarity < 0.3:
             return RelationshipType.ACQUAINTANCE
-        elif self.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and self.affect > 0.3:
+        elif self.in_coalition and self.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD:
             return RelationshipType.COALITION
         elif self.trust > 0.6 and self.affect > 0:
             return RelationshipType.ALLY
@@ -315,8 +318,14 @@ class SocialNetwork:
         Uses connected component analysis on positive relationships
         that exceed the coalition threshold.
         """
+        # Reset all coalition flags first
+        for edge in self.edges.values():
+            edge.in_coalition = False
+
         # Build adjacency for strong positive relationships
         adjacency: Dict[str, Set[str]] = defaultdict(set)
+        # Track which edges qualify for coalition membership
+        qualifying_edges: List[Tuple[str, str]] = []
 
         for (source, target), edge in self.edges.items():
             if (edge.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and
@@ -326,10 +335,12 @@ class SocialNetwork:
                 if reverse and reverse.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD:
                     adjacency[source].add(target)
                     adjacency[target].add(source)
+                    qualifying_edges.append((source, target))
 
         # Find connected components
         visited = set()
         coalitions = {}
+        agent_to_coalition: Dict[str, str] = {}  # Map agent to coalition name
         coalition_id = 0
 
         for agent in adjacency:
@@ -348,8 +359,21 @@ class SocialNetwork:
                             queue.append(neighbor)
 
                 if len(component) >= 2:  # Minimum coalition size
-                    coalitions[f"coalition_{coalition_id}"] = component
+                    coalition_name = f"coalition_{coalition_id}"
+                    coalitions[coalition_name] = component
                     coalition_id += 1
+                    # Map each member to their coalition
+                    for member in component:
+                        agent_to_coalition[member] = coalition_name
+
+        # Mark qualifying edges as in_coalition if both endpoints are in same coalition
+        for source, target in qualifying_edges:
+            source_coalition = agent_to_coalition.get(source)
+            target_coalition = agent_to_coalition.get(target)
+            if source_coalition and source_coalition == target_coalition:
+                edge = self.edges.get((source, target))
+                if edge:
+                    edge.in_coalition = True
 
         self.coalitions = coalitions
         return coalitions

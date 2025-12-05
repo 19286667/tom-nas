@@ -26,13 +26,14 @@ Author: ToM-NAS Project
 from .bridge import GodotBridge, BridgeConfig, ConnectionState
 from .symbol_grounding import SymbolGrounder, GroundedSymbol, GroundingContext
 from .perception import PerceptionProcessor, SensoryInput, PerceptualField
-from .action import ActionExecutor, GodotAction, ActionResult
+from .action import ActionExecutor, GodotAction, ActionResult, ActionType
 from .protocol import (
     GodotMessage,
     EntityUpdate,
     AgentCommand,
     WorldState,
     MessageType,
+    Vector3,
 )
 
 __all__ = [
@@ -52,10 +53,12 @@ __all__ = [
     "ActionExecutor",
     "GodotAction",
     "ActionResult",
+    "ActionType",
     # Protocol
     "GodotMessage",
     "EntityUpdate",
     "AgentCommand",
     "WorldState",
     "MessageType",
+    "Vector3",
 ]

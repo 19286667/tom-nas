@@ -27,6 +27,8 @@ from .schemas import (
     ConceptualDomain,
     ActivationContext,
     SemanticActivation,
+    NodeType,
+    EdgeType,
 )
 from .indras_net import IndrasNet
 from .taxonomy import (
@@ -46,6 +48,8 @@ __all__ = [
     "ConceptualDomain",
     "ActivationContext",
     "SemanticActivation",
+    "NodeType",
+    "EdgeType",
     # Graph database
     "IndrasNet",
     # Taxonomies
