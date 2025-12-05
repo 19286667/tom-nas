@@ -13,6 +13,14 @@ from .poet_controller import (
     AgentEnvironmentPair, create_preset_environment
 )
 
+# Enhanced POET Manager (from Constitution)
+from .poet_manager import (
+    AgentGenotype,
+    AgentEnvironmentPair as POETAgentEnvironmentPair,
+    NoveltyArchive,
+    POETManager,
+)
+
 # Advanced NAS components
 from .supernet import ElasticTransformer, ElasticConfig, ElasticTransparentRNN, ElasticLSTMCell
 from .zero_cost_proxies import ZeroCostProxy, ArchitectureFilter, ProxyScore, ProxyValidation
@@ -32,6 +40,8 @@ __all__ = [
     # POET
     'POETController', 'POETConfig', 'EnvironmentGenotype', 'EnvironmentType',
     'AgentEnvironmentPair', 'create_preset_environment',
+    # Enhanced POET Manager (Constitution)
+    'AgentGenotype', 'POETAgentEnvironmentPair', 'NoveltyArchive', 'POETManager',
     # Advanced NAS - Supernet
     'ElasticTransformer', 'ElasticConfig', 'ElasticTransparentRNN', 'ElasticLSTMCell',
     # Advanced NAS - Zero-cost proxies
