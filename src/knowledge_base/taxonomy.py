@@ -14,11 +14,12 @@ The taxonomy is the coordinate system of Indra's Net.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum, auto
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 
-from .schemas import TaxonomyDimension, ConceptualDomain
+from .schemas import ConceptualDomain, TaxonomyDimension
 
 
 class TaxonomyLayer(Enum):

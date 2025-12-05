@@ -14,12 +14,13 @@ Research has shown these proxies achieve ~0.82 correlation with trained accuracy
 sufficient to identify promising architectures without full training.
 """
 
+import time
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any, Union
-from dataclasses import dataclass
-import time
 
 
 @dataclass
@@ -542,7 +543,7 @@ class ProxyValidation:
 
 def quick_proxy_test():
     """Quick test of proxy computation."""
-    from src.agents.architectures import TransparentRNN, RecursiveSelfAttention, TransformerToMAgent
+    from src.agents.architectures import RecursiveSelfAttention, TransformerToMAgent, TransparentRNN
 
     print("=" * 60)
     print("ZERO-COST PROXY TEST")

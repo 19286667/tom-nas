@@ -22,7 +22,8 @@ Theoretical Foundation:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
+
 import numpy as np
 
 from .protocol import EntityUpdate, Vector3

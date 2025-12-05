@@ -3,11 +3,12 @@ Fitness Functions for ToM-NAS Evolution
 Evaluates agents on Theory of Mind capabilities
 """
 
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Dict, List, Tuple, Optional
-from collections import defaultdict
 
 
 class ToMFitnessEvaluator:

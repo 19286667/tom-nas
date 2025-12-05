@@ -30,23 +30,24 @@ Each source generates archetypal patterns that humans naturally
 recognize and find meaningful.
 """
 
-import torch
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Set, Callable
-from enum import Enum, auto
-from collections import defaultdict
-import random
 import math
+import random
+from collections import defaultdict
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
-from .soul_map import SoulMap
+import torch
+
 from .npcs.base_npc import BaseNPC
 from .psychosocial_coevolution import (
     PsychosocialCoevolutionEngine,
-    SocialNetwork,
-    SocialEdge,
     RelationshipType,
+    SocialEdge,
+    SocialNetwork,
     TheoreticalConstants,
 )
+from .soul_map import SoulMap
 
 # =============================================================================
 # NARRATIVE ARCHETYPES

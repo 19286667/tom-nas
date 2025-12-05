@@ -14,11 +14,12 @@ ToM specificity measures whether the model performs better on belief questions
 than on reality questions, indicating genuine mental state reasoning.
 """
 
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
 
 from ..benchmarks.tomi_loader import ToMiDataset, ToMiEvaluator
 

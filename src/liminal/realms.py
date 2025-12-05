@@ -13,11 +13,11 @@ that affect NPC behavior and player interactions:
 
 from __future__ import annotations
 
+import math
+import random
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Dict, List, Optional, Tuple, Any, Callable, TYPE_CHECKING
-import random
-import math
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from .soul_map import SoulMap

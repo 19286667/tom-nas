@@ -12,13 +12,14 @@ Features:
 - Prediction Display: Show predicted behaviors based on state
 """
 
-import torch
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum, auto
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..soul_map import SoulMap, SoulMapCluster
+import torch
+
 from ..npcs.base_npc import BaseNPC
+from ..soul_map import SoulMap, SoulMapCluster
 
 
 class AnalysisDepth(Enum):

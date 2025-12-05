@@ -21,20 +21,21 @@ Theoretical Foundation:
 - Mental Models (Johnson-Laird)
 """
 
+import logging
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Callable, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
-from copy import deepcopy
-import logging
 
 from .mentalese import (
-    CognitiveBlock,
     BeliefBlock,
-    IntentBlock,
-    SimulationState,
-    MemoryBlock,
     BlockType,
+    CognitiveBlock,
+    IntentBlock,
+    MemoryBlock,
+    SimulationState,
 )
 
 logger = logging.getLogger(__name__)

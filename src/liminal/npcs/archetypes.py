@@ -13,12 +13,12 @@ Population targets:
 - Glitches (The Nothing): 30 NPCs
 """
 
-from typing import Dict, List, Any, Optional
 import random
+from typing import Any, Dict, List, Optional
 
-from ..soul_map import SoulMap
 from ..realms import RealmType
-from .base_npc import BaseNPC, NPCState, NPCBehavior
+from ..soul_map import SoulMap
+from .base_npc import BaseNPC, NPCBehavior, NPCState
 
 # Archetype definitions - base Soul Map values for each type
 ARCHETYPES: Dict[str, Dict[str, Any]] = {

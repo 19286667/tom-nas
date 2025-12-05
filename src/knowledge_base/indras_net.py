@@ -18,25 +18,26 @@ import pickle
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Any, Iterator
-import numpy as np
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+
 import networkx as nx
+import numpy as np
 
 from .schemas import (
-    SemanticNode,
-    SemanticEdge,
-    NodeType,
-    EdgeType,
     ActivationContext,
-    SemanticActivation,
-    StereotypeDimension,
+    EdgeType,
+    NodeType,
     PrototypeRepresentation,
+    SemanticActivation,
+    SemanticEdge,
+    SemanticNode,
+    StereotypeDimension,
 )
 from .taxonomy import (
-    FullTaxonomy,
-    TaxonomyLayer,
     ARCHETYPE_TAXONOMY_POSITIONS,
     INSTITUTION_TAXONOMY_POSITIONS,
+    FullTaxonomy,
+    TaxonomyLayer,
 )
 
 

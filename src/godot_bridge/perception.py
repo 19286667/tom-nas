@@ -16,11 +16,12 @@ passive reception but active semantic construction.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Any, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
+
 import numpy as np
 
-from .protocol import EntityUpdate, AgentPerception, Vector3
-from .symbol_grounding import SymbolGrounder, GroundedSymbol, GroundingContext
+from .protocol import AgentPerception, EntityUpdate, Vector3
+from .symbol_grounding import GroundedSymbol, GroundingContext, SymbolGrounder
 
 
 @dataclass

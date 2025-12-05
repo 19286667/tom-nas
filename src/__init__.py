@@ -26,15 +26,7 @@ In Indra's Net, each pearl reflects all others.
 __version__ = "2.0.0"
 __author__ = "ToM-NAS Research Team"
 
-from . import core
-from . import agents
-from . import world
-from . import evolution
-from . import evaluation
-from . import knowledge_base
-from . import cognition
-from . import godot_bridge
-from . import simulation
+from . import agents, cognition, core, evaluation, evolution, godot_bridge, knowledge_base, simulation, world
 
 __all__ = [
     # Original modules

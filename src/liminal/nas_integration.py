@@ -10,20 +10,21 @@ and the existing ToM-NAS evolutionary system. It enables:
 4. Fitness evaluation based on ToM performance in-game
 """
 
+import os
+import sys
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Any, Callable
-import sys
-import os
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from .game_environment import LiminalEnvironment, ActionType, Observation
-from .soul_map import SoulMap
+from .game_environment import ActionType, LiminalEnvironment, Observation
 from .npcs.base_npc import BaseNPC
+from .soul_map import SoulMap
 
 
 @dataclass

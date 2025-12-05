@@ -25,20 +25,21 @@ Theoretical Foundation:
 Author: ToM-NAS Project
 """
 
+import json
+import random
+from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Callable
+from datetime import datetime
 from enum import Enum, auto
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
-import random
-from copy import deepcopy
-from datetime import datetime
-import json
 
-from .nas_engine import NASEngine, EvolutionConfig, Individual
-from .operators import ArchitectureGene
 from .fitness import CompositeFitnessFunction
+from .nas_engine import EvolutionConfig, Individual, NASEngine
+from .operators import ArchitectureGene
 
 
 class EnvironmentType(Enum):

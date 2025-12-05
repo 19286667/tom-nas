@@ -14,14 +14,15 @@ Sap et al. (2019) "SocialIQA: Commonsense Reasoning about Social Interactions"
 https://leaderboard.allenai.org/socialiqa/
 """
 
+import json
+import random
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import json
-import random
-from typing import List, Dict, Optional, Tuple, Any
-from pathlib import Path
-from dataclasses import dataclass, field
 
 
 @dataclass

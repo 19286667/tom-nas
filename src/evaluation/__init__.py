@@ -1,18 +1,18 @@
 # evaluation module
 from .benchmarks import (
     BenchmarkResult,
-    SallyAnneTest,
-    HigherOrderToMBenchmark,
-    ZombieDetectionBenchmark,
-    CooperationBenchmark,
     BenchmarkSuite,
+    CooperationBenchmark,
+    HigherOrderToMBenchmark,
+    SallyAnneTest,
+    ZombieDetectionBenchmark,
 )
 from .metrics import (
-    TrainingMetrics,
     EvaluationMetrics,
     MetricsTracker,
     PerformanceAnalyzer,
     ResultsAggregator,
+    TrainingMetrics,
     compute_confidence_interval,
 )
 

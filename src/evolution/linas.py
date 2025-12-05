@@ -14,14 +14,15 @@ DyNAS-T (Intel Labs) achieves ~4x greater sample efficiency than methods
 that evaluate every candidate fully.
 """
 
+import random
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any, Callable
-from dataclasses import dataclass, field
-from collections import defaultdict
-import random
 
 
 @dataclass
@@ -491,9 +492,9 @@ class EfficientNASPipeline:
         Stage 1: Generate candidates and filter with zero-cost proxies.
         """
         print("Stage 1: Zero-cost proxy filtering")
-        from .zero_cost_proxies import ZeroCostProxy, ArchitectureFilter
+        from ..agents.architectures import RecursiveSelfAttention, TransformerToMAgent, TransparentRNN
         from .supernet import SubnetConfig
-        from ..agents.architectures import TransparentRNN, RecursiveSelfAttention, TransformerToMAgent
+        from .zero_cost_proxies import ArchitectureFilter, ZeroCostProxy
 
         self.proxy_evaluator = ZeroCostProxy(
             input_dim=self.input_dim, device=self.device, target_params=self.param_budget
@@ -548,7 +549,7 @@ class EfficientNASPipeline:
         Stage 2: Train the supernet.
         """
         print("Stage 2: Supernet training")
-        from .supernet import ToMSupernet, SupernetTrainer, SupernetEvaluator
+        from .supernet import SupernetEvaluator, SupernetTrainer, ToMSupernet
 
         self.supernet = ToMSupernet(input_dim=self.input_dim, output_dim=self.output_dim).to(self.device)
 
@@ -625,7 +626,7 @@ def test_linas():
     eval_data = [(torch.randn(8, 10, 181), torch.rand(8, 181)) for _ in range(5)]
 
     # Create supernet and evaluator
-    from .supernet import ToMSupernet, SupernetEvaluator
+    from .supernet import SupernetEvaluator, ToMSupernet
 
     supernet = ToMSupernet(181, 181)
     evaluator = SupernetEvaluator(supernet)

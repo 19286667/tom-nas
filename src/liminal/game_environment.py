@@ -14,22 +14,23 @@ The environment follows a gym-like interface for compatibility with
 standard RL training frameworks.
 """
 
-import torch
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Union
-from enum import Enum, auto
-import random
 import json
+import random
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from .soul_map import SoulMap, SoulMapDelta, REALM_DIMENSIONS
-from .realms import Realm, RealmType, REALMS, get_realm, RealmTransition, RealmLocation
-from .npcs.base_npc import BaseNPC, NPCState, NPCBehavior
-from .npcs.heroes import HERO_NPCS, create_hero_npc
+import numpy as np
+import torch
+
+from .mechanics.cognitive_hazards import HAZARD_REGISTRY, CognitiveHazard, HazardCategory, apply_hazard
+from .mechanics.ontological_instability import InstabilityLevel, OntologicalInstability, calculate_hazard_instability
+from .mechanics.soul_scanner import AnalysisDepth, AnalysisResult, SoulScanner
 from .npcs.archetypes import ARCHETYPES, create_archetype_npc, populate_realm
-from .mechanics.soul_scanner import SoulScanner, AnalysisResult, AnalysisDepth
-from .mechanics.cognitive_hazards import CognitiveHazard, HAZARD_REGISTRY, apply_hazard, HazardCategory
-from .mechanics.ontological_instability import OntologicalInstability, InstabilityLevel, calculate_hazard_instability
+from .npcs.base_npc import BaseNPC, NPCBehavior, NPCState
+from .npcs.heroes import HERO_NPCS, create_hero_npc
+from .realms import REALMS, Realm, RealmLocation, RealmTransition, RealmType, get_realm
+from .soul_map import REALM_DIMENSIONS, SoulMap, SoulMapDelta
 
 
 class ActionType(Enum):

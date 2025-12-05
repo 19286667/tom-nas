@@ -11,12 +11,13 @@ Key features:
 - False belief detection through belief vs reality comparison
 """
 
-import torch
-from typing import Dict, List, Optional, Set, Any, Tuple
+import copy
+from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from collections import defaultdict
-import copy
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import torch
 
 
 class EventType(Enum):

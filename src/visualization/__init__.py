@@ -11,9 +11,9 @@ Components:
 - app: Main Streamlit application
 """
 
-from .world_renderer import WorldRenderer
 from .belief_inspector import BeliefInspector
 from .nas_dashboard import NASDashboard
+from .world_renderer import WorldRenderer
 
 __all__ = [
     "WorldRenderer",

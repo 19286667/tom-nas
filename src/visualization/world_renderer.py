@@ -9,11 +9,12 @@ Shows:
 - Belief bubbles showing what agents think
 """
 
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
 import numpy as np
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 if TYPE_CHECKING:
     from ..liminal import LiminalEnvironment, SoulMap

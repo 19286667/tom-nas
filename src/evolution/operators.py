@@ -3,12 +3,13 @@ Evolutionary Operators for ToM-NAS
 Mutation and crossover for neural architectures
 """
 
-import torch
-import torch.nn as nn
 import copy
 import random
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+import torch
+import torch.nn as nn
 
 
 class ArchitectureGene:

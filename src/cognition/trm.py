@@ -20,20 +20,21 @@ Theoretical Foundation:
 - Neural Turing Machines (Graves)
 """
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from abc import ABC, abstractmethod
 
 from .mentalese import (
-    CognitiveBlock,
     BeliefBlock,
+    BlockType,
+    CognitiveBlock,
     IntentBlock,
     PerceptBlock,
-    BlockType,
 )
 
 

@@ -10,16 +10,18 @@ This application provides visualization for:
 - Experiment configuration and running
 """
 
-import streamlit as st
-import sys
 import os
+import sys
+
+import streamlit as st
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-import torch
-import numpy as np
 from typing import Optional
+
+import numpy as np
+import torch
 
 
 def main():
@@ -56,8 +58,8 @@ def render_liminal_world():
     st.title("Liminal Architectures")
     st.markdown("*Grand Theft Ontology*")
 
-    from src.visualization.world_renderer import WorldRenderer
     from src.liminal.realms import RealmType
+    from src.visualization.world_renderer import WorldRenderer
 
     # Initialize environment
     try:
@@ -163,8 +165,8 @@ def render_belief_inspector():
     st.title("Belief Inspector")
     st.markdown("*Visualize information asymmetry and false beliefs*")
 
-    from src.visualization.belief_inspector import BeliefInspector
     from src.core.events import create_sally_anne_scenario, verify_information_asymmetry
+    from src.visualization.belief_inspector import BeliefInspector
 
     inspector = BeliefInspector()
 

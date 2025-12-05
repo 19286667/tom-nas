@@ -20,14 +20,15 @@ Theoretical Foundation:
 - Conceptual Semantics (Jackendoff)
 """
 
+import hashlib
+import json
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import Dict, List, Optional, Union, Any, TypeVar, Generic
+from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
+
 import numpy as np
-from abc import ABC, abstractmethod
-import json
-import hashlib
 
 
 class BlockType(Enum):

@@ -17,17 +17,17 @@ by connecting the mind (Python) to the body (Godot).
 import asyncio
 import json
 import logging
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import Dict, List, Optional, Callable, Any, Awaitable
-import threading
 from queue import Queue
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
-from .protocol import GodotMessage, MessageType, EntityUpdate, AgentPerception, WorldState, AgentCommand
-from .symbol_grounding import SymbolGrounder, GroundingContext
+from .action import ActionExecutor, ActionResult, GodotAction
 from .perception import PerceptionProcessor, PerceptualField
-from .action import ActionExecutor, GodotAction, ActionResult
+from .protocol import AgentCommand, AgentPerception, EntityUpdate, GodotMessage, MessageType, WorldState
+from .symbol_grounding import GroundingContext, SymbolGrounder
 
 logger = logging.getLogger(__name__)
 

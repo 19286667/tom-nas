@@ -15,14 +15,15 @@ The controller provides insights about what architectural features matter
 for Theory of Mind capability.
 """
 
+import random
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass, field
-from collections import defaultdict
-import random
 
 
 @dataclass

@@ -10,31 +10,32 @@ The UnifiedBenchmark class provides a single interface for running
 all benchmarks and computing aggregate ToM scores.
 """
 
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
 import torch
 import torch.nn as nn
-from typing import Dict, Any, Optional
-from dataclasses import dataclass
 
-from .tomi_loader import (
-    ToMiDataset,
-    ToMiParser,
-    ToMiEvaluator,
-    ToMiExample,
-    ToMiQuestion,
-    EventEncoder,
-)
 from .social_games import (
-    SocialGameBenchmark,
-    SocialGameResult,
     CooperationMetrics,
     DeceptionMetrics,
+    SocialGameBenchmark,
+    SocialGameResult,
 )
 from .socialIQA_loader import (
     SocialIQADataset,
-    SocialIQAExample,
     SocialIQAEncoder,
     SocialIQAEvaluator,
+    SocialIQAExample,
     SocialIQAMetrics,
+)
+from .tomi_loader import (
+    EventEncoder,
+    ToMiDataset,
+    ToMiEvaluator,
+    ToMiExample,
+    ToMiParser,
+    ToMiQuestion,
 )
 
 

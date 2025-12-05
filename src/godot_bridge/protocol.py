@@ -11,11 +11,11 @@ Message Flow:
 All messages are JSON-encoded with type headers for dispatch.
 """
 
-from dataclasses import dataclass, field, asdict
+import json
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import Dict, List, Optional, Any, Tuple, Union
-import json
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 
 class MessageType(Enum):

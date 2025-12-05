@@ -14,13 +14,14 @@ Additionally, realm-specific modifiers (5 dims) track how the environment
 affects the NPC's psychological state.
 """
 
-import torch
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any
-from enum import Enum
 import json
 import random
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import torch
 
 
 class SoulMapCluster(Enum):

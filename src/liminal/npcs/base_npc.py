@@ -9,17 +9,18 @@ of this class, containing:
 - Beliefs: What they know/believe about others (ToM integration)
 """
 
-import torch
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Any, Callable, TYPE_CHECKING
-from enum import Enum, auto
-import uuid
 import random
+import uuid
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+
+import numpy as np
+import torch
 
 if TYPE_CHECKING:
-    from ..soul_map import SoulMap, SoulMapDelta
     from ..realms import Realm, RealmType
+    from ..soul_map import SoulMap, SoulMapDelta
 
 
 class NPCState(Enum):

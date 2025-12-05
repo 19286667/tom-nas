@@ -5,11 +5,12 @@ This module provides a structured representation of psychological states
 across 9 layers covering biological, affective, and cognitive dimensions.
 """
 
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple, Union
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Dict, List, Tuple, Optional, Union
-from dataclasses import dataclass
 
 
 @dataclass

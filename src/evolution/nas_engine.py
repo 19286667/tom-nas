@@ -3,27 +3,28 @@ Neural Architecture Search Engine for ToM-NAS
 Main evolutionary algorithm coordinating architecture evolution
 """
 
+import copy
+import json
+import random
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
-import copy
-import random
-import numpy as np
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass
-from collections import defaultdict
-import json
 
-from .operators import (
-    ArchitectureGene,
-    WeightMutation,
-    ArchitectureCrossover,
-    PopulationOperators,
-    AdaptiveMutation,
-    SpeciesManager,
-    CoevolutionOperator,
-)
+from ..agents.architectures import HybridArchitecture, RecursiveSelfAttention, TransformerToMAgent, TransparentRNN
 from .fitness import CompositeFitnessFunction
-from ..agents.architectures import TransparentRNN, RecursiveSelfAttention, TransformerToMAgent, HybridArchitecture
+from .operators import (
+    AdaptiveMutation,
+    ArchitectureCrossover,
+    ArchitectureGene,
+    CoevolutionOperator,
+    PopulationOperators,
+    SpeciesManager,
+    WeightMutation,
+)
 
 
 @dataclass

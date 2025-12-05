@@ -3,13 +3,14 @@ Metrics Tracking and Analysis for ToM-NAS
 Comprehensive performance monitoring
 """
 
+import json
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
-from collections import defaultdict
-import json
-from datetime import datetime
 
 
 @dataclass

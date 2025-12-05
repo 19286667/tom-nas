@@ -13,9 +13,10 @@ The schemas implement:
 """
 
 from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Dict, List, Optional, Set, Tuple, Any, Union
 from datetime import datetime
+from enum import Enum, auto
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
+
 import numpy as np
 
 

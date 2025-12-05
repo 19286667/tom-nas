@@ -11,13 +11,14 @@ configured during NAS. Key components:
 The supernet architecture allows efficient weight sharing during search.
 """
 
+import math
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
-import math
 
 
 @dataclass

@@ -12,16 +12,17 @@ to solve. Others (pure resource optimization) don't. This creates natural
 control conditions for measuring ToM-specific capabilities.
 """
 
+import random
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass, field
-from collections import defaultdict
-import random
 
-from ..world.social_world import SocialWorld4, Agent
+from ..world.social_world import Agent, SocialWorld4
 
 
 @dataclass

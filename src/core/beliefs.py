@@ -8,11 +8,12 @@ This module provides recursive belief modeling for Theory of Mind:
 - 3rd-5th order: Higher-order nested beliefs
 """
 
-import torch
-import numpy as np
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
 from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import torch
 
 
 @dataclass

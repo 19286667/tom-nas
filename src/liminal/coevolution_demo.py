@@ -17,29 +17,30 @@ Usage:
 """
 
 import argparse
-import sys
 import os
 import random
+import sys
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 import torch
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
 
 # Add parent directory for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from src.liminal.game_environment import LiminalEnvironment, ActionType
-from src.liminal.soul_map import SoulMap
+from src.liminal.game_environment import ActionType, LiminalEnvironment
+from src.liminal.narrative_emergence import (
+    NarrativeArchetype,
+    NarrativeEmergenceSystem,
+)
 from src.liminal.npcs.base_npc import BaseNPC, NPCState
 from src.liminal.psychosocial_coevolution import (
-    PsychosocialCoevolutionEngine,
     EnvironmentEvolutionStrategy,
+    PsychosocialCoevolutionEngine,
     TheoreticalConstants,
 )
-from src.liminal.narrative_emergence import (
-    NarrativeEmergenceSystem,
-    NarrativeArchetype,
-)
+from src.liminal.soul_map import SoulMap
 
 # =============================================================================
 # DEMO AGENT (Simple ToM-like agent for demonstration)

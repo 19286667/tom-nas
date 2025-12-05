@@ -7,9 +7,9 @@ This module implements the core gameplay systems:
 - Ontological Instability: The "wanted" system based on reality disruption
 """
 
-from .soul_scanner import SoulScanner, AnalysisResult
-from .cognitive_hazards import CognitiveHazard, HAZARD_REGISTRY, apply_hazard
-from .ontological_instability import OntologicalInstability, InstabilityLevel
+from .cognitive_hazards import HAZARD_REGISTRY, CognitiveHazard, apply_hazard
+from .ontological_instability import InstabilityLevel, OntologicalInstability
+from .soul_scanner import AnalysisResult, SoulScanner
 
 __all__ = [
     "SoulScanner",
