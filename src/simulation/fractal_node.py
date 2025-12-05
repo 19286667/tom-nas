@@ -310,14 +310,27 @@ class SimulationNode:
             self.child_nodes[child_id] = child
             self._log_event("child_spawned", f"Agent {agent.agent_id} spawned {child_id}")
             
-            # Run simulation for requested horizon
+            # Run simulation for requested horizon with early termination
             horizon = simulation_request.get("horizon", 10)
             prediction_results = []
-            for _ in range(min(horizon, self.config.max_ticks_per_step)):
+            convergence_window = 3  # Check convergence over last N ticks
+            convergence_threshold = 0.01  # Entropy change threshold
+            
+            for i in range(min(horizon, self.config.max_ticks_per_step)):
                 tick_result = child.step()
                 prediction_results.append(tick_result)
+                
+                # Early termination conditions
                 if child.status != SimulationStatus.ACTIVE:
                     break
+                
+                # Check for convergence (entropy stable)
+                if len(child.entropy_history) >= convergence_window:
+                    recent = child.entropy_history[-convergence_window:]
+                    entropy_change = max(recent) - min(recent)
+                    if entropy_change < convergence_threshold:
+                        self._log_event("simulation_converged", f"{child_id} converged at tick {i}")
+                        break
             
             return {
                 "child_id": child_id,
