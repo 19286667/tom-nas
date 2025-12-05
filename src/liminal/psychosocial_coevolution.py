@@ -90,6 +90,13 @@ class TheoreticalConstants:
     # Source: Harcourt & de Waal (1992). Coalitions and Alliances
     COALITION_FORMATION_THRESHOLD = 0.6  # Mutual reputation required
     COALITION_DISSOLUTION_THRESHOLD = 0.3  # Below this, coalition breaks
+    
+    # COALITION vs ALLY DISTINCTION: Additional trust threshold for formal coalitions
+    # Coalitions represent explicitly agreed partnerships, requiring higher trust than
+    # informal alliances (ALLY). The offset represents the trust premium for formalization.
+    # Source: Derived from coalition detection algorithms in social network analysis
+    COALITION_TRUST_OFFSET = 0.25  # Added to COALITION_FORMATION_THRESHOLD for relationship type
+    COALITION_AFFECT_THRESHOLD = 0.6  # Minimum positive affect for coalition classification
 
     # STATUS HIERARCHY: Rate of dominance relationship crystallization
     # Source: Sapolsky (2005). The Influence of Social Hierarchy on Primate Health
@@ -148,9 +155,17 @@ class SocialEdge:
             return RelationshipType.STRANGER
         elif self.familiarity < 0.3:
             return RelationshipType.ACQUAINTANCE
-        elif self.trust > TheoreticalConstants.COALITION_FORMATION_THRESHOLD and self.affect > 0.3:
-            return RelationshipType.COALITION
         elif self.trust > 0.6 and self.affect > 0:
+            # Check for ALLY first (trust > 0.6, affect > 0)
+            # Then check if it qualifies for the stronger COALITION
+            # COALITION requires higher trust AND affect than ALLY
+            coalition_trust_threshold = (
+                TheoreticalConstants.COALITION_FORMATION_THRESHOLD +
+                TheoreticalConstants.COALITION_TRUST_OFFSET
+            )
+            if (self.trust > coalition_trust_threshold and
+                    self.affect > TheoreticalConstants.COALITION_AFFECT_THRESHOLD):
+                return RelationshipType.COALITION
             return RelationshipType.ALLY
         elif self.trust < 0.4 and self.affect < -0.3:
             return RelationshipType.ENEMY

@@ -8,3 +8,7 @@ __pycache__/
 checkpoints/*.json
 *.log
 venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
