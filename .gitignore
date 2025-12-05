@@ -11,3 +11,6 @@ venv/
 *.egg-info/
 build/
 dist/
+*.pt
+demo_checkpoints/
+.pytest_cache/
