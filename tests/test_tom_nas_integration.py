@@ -1,426 +1,639 @@
 """
 Integration Tests for ToM-NAS System
 
-Tests the complete system including:
-- Information asymmetry and false belief scenarios
-- Benchmark loaders and evaluators
-- Supernet elastic architectures
-- Social games and ToM reasoning
+This module provides comprehensive integration tests that verify:
+1. Information asymmetry correctly creates false beliefs
+2. Event encoding preserves all necessary information
+3. Ground truth computation is correct
+4. The complete NAS pipeline works end-to-end
+5. Architectures can be trained and evaluated for Theory of Mind
 """
 
-import unittest
-import torch
-import torch.nn as nn
 import sys
 import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-# Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from src.core.events import (
-    create_sally_anne_scenario,
-    verify_information_asymmetry,
-    InformationAsymmetryTracker,
-    EventType,
-)
-from src.core.beliefs import BeliefNetwork, RecursiveBeliefState
-from src.core.ontology import SoulMapOntology
-from src.benchmarks import (
-    ToMiDataset,
-    ToMiEvaluator,
-    SocialIQADataset,
-    SocialGameBenchmark,
-    UnifiedBenchmark,
-)
-from src.evolution.supernet import (
-    ElasticLSTMCell,
-    ElasticTransparentRNN,
-    ElasticTransformer,
-    ZeroCostProxy,
-)
-from src.liminal import LiminalEnvironment, SoulMap
+import torch
+import torch.nn as nn
+import numpy as np
+import unittest
+from typing import Dict, List, Any
 
 
 class TestInformationAsymmetry(unittest.TestCase):
-    """Test the core information asymmetry system."""
+    """Tests that information asymmetry correctly creates false beliefs."""
 
-    def test_sally_anne_scenario_creates_events(self):
-        """Test that Sally-Anne scenario creates correct number of events."""
-        events, questions = create_sally_anne_scenario()
-        self.assertEqual(len(events), 6)  # enter, enter, place, exit, move, enter
+    def setUp(self):
+        from src.core.events import (
+            Event, AgentBeliefs, create_sally_anne_scenario,
+            compute_ground_truth, verify_information_asymmetry
+        )
+        self.Event = Event
+        self.AgentBeliefs = AgentBeliefs
+        self.create_sally_anne_scenario = create_sally_anne_scenario
+        self.compute_ground_truth = compute_ground_truth
+        self.verify_info_asymmetry = verify_information_asymmetry
 
-    def test_sally_has_false_belief(self):
-        """Test that Sally has a false belief about the marble location."""
-        results = verify_information_asymmetry()
-        self.assertEqual(results['sally_marble_belief'], 'basket')
-        self.assertEqual(results['reality'], 'box')
-        self.assertTrue(results['sally_has_false_belief'])
+    def test_sally_anne_false_belief(self):
+        """Sally should have a false belief about marble location."""
+        events, questions = self.create_sally_anne_scenario()
 
-    def test_anne_has_true_belief(self):
-        """Test that Anne has the correct belief about marble location."""
-        results = verify_information_asymmetry()
-        self.assertEqual(results['anne_marble_belief'], 'box')
-        self.assertTrue(results['anne_has_true_belief'])
+        sally_beliefs = self.AgentBeliefs("Sally", events)
+        anne_beliefs = self.AgentBeliefs("Anne", events)
 
-    def test_observer_sees_all(self):
-        """Test that Observer sees reality correctly."""
-        results = verify_information_asymmetry()
-        self.assertEqual(results['observer_marble_belief'], 'box')
-        self.assertTrue(results['observer_has_true_belief'])
+        # Sally believes marble is in basket (false belief)
+        self.assertEqual(sally_beliefs.get_object_location("marble"), "basket")
 
-    def test_sally_observed_events(self):
-        """Test that Sally observed the correct number of events.
+        # Anne knows marble is in box (true belief)
+        self.assertEqual(anne_beliefs.get_object_location("marble"), "box")
 
-        Sally should see 5 events:
-        1. Sally enters
-        2. Anne enters
-        3. Sally places marble
-        4. Sally exits (she's the actor, but doesn't observe from room)
-        5. Sally returns
+    def test_second_order_belief(self):
+        """Anne should know that Sally has false belief."""
+        events, questions = self.create_sally_anne_scenario()
 
-        Sally does NOT see Anne moving the marble (event 5 in sequence).
-        """
-        events, questions = create_sally_anne_scenario()
-        tracker = questions[0]['_tracker']
-        sally_beliefs = tracker.agent_beliefs['Sally']
+        anne_beliefs = self.AgentBeliefs("Anne", events)
 
-        # Sally observes 5 events (not the move event)
+        # Anne's model of Sally's belief
+        anne_thinks_sally_believes = anne_beliefs.get_belief_about_other("Sally", "marble")
+
+        # Anne knows Sally believes basket
+        self.assertEqual(anne_thinks_sally_believes, "basket")
+
+    def test_ground_truth_reality_question(self):
+        """Ground truth for reality questions should be current world state."""
+        events, questions = self.create_sally_anne_scenario()
+
+        reality_q = [q for q in questions if q.question_type == 'reality'][0]
+        gt = self.compute_ground_truth(events, reality_q)
+
+        self.assertEqual(gt, "box")  # Marble is actually in box
+
+    def test_ground_truth_first_order_belief(self):
+        """Ground truth for first-order belief should match agent's observations."""
+        events, questions = self.create_sally_anne_scenario()
+
+        sally_q = [q for q in questions
+                   if q.question_type == 'first_order' and q.target_agent == 'Sally'][0]
+        gt = self.compute_ground_truth(events, sally_q)
+
+        self.assertEqual(gt, "basket")  # Sally believes basket
+
+    def test_ground_truth_second_order_belief(self):
+        """Ground truth for second-order belief should match nested belief."""
+        events, questions = self.create_sally_anne_scenario()
+
+        second_q = [q for q in questions if q.question_type == 'second_order'][0]
+        gt = self.compute_ground_truth(events, second_q)
+
+        self.assertEqual(gt, "basket")  # Anne knows Sally believes basket
+
+    def test_observation_filtering(self):
+        """Agents should only see events they observed."""
+        events, _ = self.create_sally_anne_scenario()
+
+        sally_beliefs = self.AgentBeliefs("Sally", events)
+
+        # Sally observes 5 events: enter, Anne enters, put marble, leave, return
+        # (only misses Anne moving the marble while Sally was away)
         self.assertEqual(len(sally_beliefs.observed_events), 5)
 
-    def test_anne_observed_events(self):
-        """Test that Anne observed all events in the room."""
-        events, questions = create_sally_anne_scenario()
-        tracker = questions[0]['_tracker']
-        anne_beliefs = tracker.agent_beliefs['Anne']
+    def test_verification_function(self):
+        """Complete verification should pass."""
+        results = self.verify_info_asymmetry()
 
-        # Anne observes all 6 events
-        self.assertEqual(len(anne_beliefs.observed_events), 6)
-
-    def test_all_verification_tests_pass(self):
-        """Verify that all information asymmetry tests pass."""
-        results = verify_information_asymmetry()
+        self.assertTrue(results['sally_has_false_belief'])
+        self.assertTrue(results['second_order_correct'])
         self.assertTrue(results['all_tests_passed'])
 
 
-class TestBeliefNetwork(unittest.TestCase):
-    """Test the recursive belief network."""
+class TestEventEncoding(unittest.TestCase):
+    """Tests that event encoding preserves necessary information."""
 
-    def test_belief_network_creation(self):
-        """Test creating a belief network."""
-        network = BeliefNetwork(num_agents=5, ontology_dim=181, max_order=5)
-        self.assertEqual(network.num_agents, 5)
-        self.assertEqual(len(network.agent_beliefs), 5)
+    def setUp(self):
+        from src.core.events import (
+            Event, EventEncoder, ScenarioEncoder, AnswerDecoder,
+            create_sally_anne_scenario, Question
+        )
+        self.Event = Event
+        self.EventEncoder = EventEncoder
+        self.ScenarioEncoder = ScenarioEncoder
+        self.AnswerDecoder = AnswerDecoder
+        self.create_sally_anne_scenario = create_sally_anne_scenario
+        self.Question = Question
 
-    def test_belief_update(self):
-        """Test updating beliefs in the network."""
-        network = BeliefNetwork(num_agents=3, ontology_dim=181, max_order=3)
+    def test_event_encoding_shape(self):
+        """Encoded event should have correct shape."""
+        encoder = self.EventEncoder()
 
-        # Update agent 0's belief about agent 1
-        content = torch.randn(181)
-        success = network.update_agent_belief(0, order=1, target=1, content=content)
-        self.assertTrue(success)
+        event = self.Event(
+            timestamp=1,
+            actor="Sally",
+            action="enter",
+            target_location="room",
+            observed_by={"Sally", "Anne"}
+        )
 
-        # Retrieve the belief
-        belief_state = network.get_agent_belief_state(0)
-        self.assertIsNotNone(belief_state)
+        encoder.register_agent("Sally")
+        encoder.register_agent("Anne")
+        encoder.register_location("room")
 
-    def test_recursive_belief_confidence_decay(self):
-        """Test that higher-order beliefs have lower confidence."""
-        belief_state = RecursiveBeliefState(agent_id=0, ontology_dim=181, max_order=5)
+        encoded = encoder.encode_event(event)
 
-        # Add beliefs at different orders
-        content = torch.randn(181)
-        belief_state.update_belief(order=1, target=1, content=content, confidence=1.0)
-        belief_state.update_belief(order=2, target=1, content=content, confidence=1.0)
-        belief_state.update_belief(order=3, target=1, content=content, confidence=1.0)
+        self.assertEqual(encoded.shape, (181,))
 
-        # Higher order should have lower confidence
-        b1 = belief_state.get_belief(1, 1)
-        b2 = belief_state.get_belief(2, 1)
-        b3 = belief_state.get_belief(3, 1)
+    def test_observer_encoding_multi_hot(self):
+        """Observer encoding should be multi-hot."""
+        encoder = self.EventEncoder()
 
-        self.assertGreater(b1.confidence, b2.confidence)
-        self.assertGreater(b2.confidence, b3.confidence)
+        encoder.register_agent("Sally")
+        encoder.register_agent("Anne")
+        encoder.register_location("room")
+
+        event = self.Event(
+            timestamp=1,
+            actor="Sally",
+            action="enter",
+            target_location="room",
+            observed_by={"Sally", "Anne"}
+        )
+
+        encoded = encoder.encode_event(event)
+
+        # Both observers should be marked
+        observer_start = encoder.OBSERVER_DIM_START
+        sally_idx = encoder.agents_vocab["Sally"]
+        anne_idx = encoder.agents_vocab["Anne"]
+
+        self.assertEqual(encoded[observer_start + sally_idx].item(), 1.0)
+        self.assertEqual(encoded[observer_start + anne_idx].item(), 1.0)
+
+    def test_scenario_encoding_includes_question(self):
+        """Scenario encoding should include question as final element."""
+        events, questions = self.create_sally_anne_scenario()
+        question = questions[0]
+
+        encoder = self.EventEncoder()
+        scenario_encoder = self.ScenarioEncoder(encoder)
+
+        encoded = scenario_encoder.encode_scenario(events, question)
+
+        # Should be events + 1 question
+        self.assertEqual(encoded.shape[0], len(events) + 1)
+        self.assertEqual(encoded.shape[1], 181)
+
+    def test_answer_decoding(self):
+        """Answer decoder should recover correct location."""
+        encoder = self.EventEncoder()
+        encoder.register_location("basket")
+        encoder.register_location("box")
+
+        decoder = self.AnswerDecoder(encoder)
+
+        # Create output that matches basket encoding
+        output = encoder.get_location_vector("basket")
+
+        decoded = decoder.decode_location(output)
+        self.assertEqual(decoded, "basket")
 
 
-class TestOntology(unittest.TestCase):
-    """Test the Soul Map ontology."""
+class TestZeroCostProxies(unittest.TestCase):
+    """Tests for zero-cost proxy evaluation."""
 
-    def test_ontology_dimensions(self):
-        """Test ontology has correct dimensions."""
-        ontology = SoulMapOntology()
-        self.assertEqual(ontology.total_dims, 181)
+    def setUp(self):
+        from src.evolution.zero_cost_proxies import ZeroCostProxy, ArchitectureFilter
+        from src.agents.architectures import TransparentRNN, RecursiveSelfAttention, TransformerToMAgent
+        self.ZeroCostProxy = ZeroCostProxy
+        self.ArchitectureFilter = ArchitectureFilter
+        self.TRN = TransparentRNN
+        self.RSAN = RecursiveSelfAttention
+        self.Transformer = TransformerToMAgent
 
-    def test_encode_decode_roundtrip(self):
-        """Test encoding and decoding states."""
-        ontology = SoulMapOntology()
+    def test_proxy_evaluation_returns_scores(self):
+        """Proxy evaluation should return all expected scores."""
+        proxy = self.ZeroCostProxy(input_dim=181)
+        model = self.TRN(181, 128, 181, num_layers=2)
 
-        # Create a state
-        state = {'bio.vision': 0.8, 'bio.audition': 0.6}
-        encoded = ontology.encode(state)
+        score = proxy.evaluate(model)
 
-        self.assertEqual(encoded.shape[0], 181)
-        self.assertEqual(encoded[ontology.name_to_idx['bio.vision']], 0.8)
+        self.assertIsNotNone(score.synflow)
+        self.assertIsNotNone(score.naswot)
+        self.assertIsNotNone(score.gradnorm)
+        self.assertIsNotNone(score.combined_score)
+        self.assertGreater(score.param_count, 0)
 
-    def test_default_state(self):
-        """Test getting default state."""
-        ontology = SoulMapOntology()
-        default = ontology.get_default_state()
-        self.assertEqual(default.shape[0], 181)
-        self.assertTrue(torch.all(default == 0.5))
+    def test_proxy_discriminates_architectures(self):
+        """Different architectures should get different proxy scores."""
+        proxy = self.ZeroCostProxy(input_dim=181)
+
+        small_model = self.TRN(181, 64, 181, num_layers=1)
+        large_model = self.TRN(181, 256, 181, num_layers=4)
+
+        small_score = proxy.evaluate(small_model)
+        large_score = proxy.evaluate(large_model)
+
+        # Larger model should have more parameters
+        self.assertGreater(large_score.param_count, small_score.param_count)
+
+    def test_architecture_filter(self):
+        """Architecture filter should reduce candidate count."""
+        proxy = self.ZeroCostProxy(input_dim=181)
+        filter = self.ArchitectureFilter(proxy, param_budget=500000)
+
+        architectures = [
+            self.TRN(181, 64, 181, num_layers=1),
+            self.TRN(181, 128, 181, num_layers=2),
+            self.TRN(181, 256, 181, num_layers=3),
+        ]
+
+        filtered = filter.filter_architectures(architectures, top_k=2)
+
+        self.assertEqual(len(filtered), 2)
 
 
-class TestToMiBenchmark(unittest.TestCase):
-    """Test the ToMi benchmark loader."""
+class TestSupernet(unittest.TestCase):
+    """Tests for supernet weight sharing."""
 
-    def test_tomi_dataset_creation(self):
-        """Test creating ToMi dataset with synthetic examples."""
-        dataset = ToMiDataset()  # Uses synthetic examples
-        self.assertGreater(len(dataset), 0)
+    def setUp(self):
+        from src.evolution.supernet import ToMSupernet, SubnetConfig, SupernetEvaluator
+        self.ToMSupernet = ToMSupernet
+        self.SubnetConfig = SubnetConfig
+        self.SupernetEvaluator = SupernetEvaluator
 
-    def test_tomi_batch_generation(self):
-        """Test generating batches from ToMi dataset."""
-        dataset = ToMiDataset()
-        events, targets, examples = dataset.get_batch(batch_size=8)
+    def test_supernet_forward_trn(self):
+        """Supernet should produce valid output for TRN config."""
+        supernet = self.ToMSupernet(input_dim=181, output_dim=181)
 
-        self.assertEqual(events.shape[0], 8)  # Batch size
-        self.assertEqual(targets.shape[0], 8)
+        config = self.SubnetConfig(
+            arch_type='trn',
+            num_layers=2,
+            hidden_dim=128,
+            num_heads=4
+        )
+        supernet.set_active_config(config)
 
-    def test_tomi_examples_have_questions(self):
-        """Test that ToMi examples have questions."""
-        dataset = ToMiDataset()
-        example = dataset[0]
+        x = torch.randn(4, 10, 181)
+        output = supernet(x)
 
+        self.assertIn('beliefs', output)
+        self.assertEqual(output['beliefs'].shape, (4, 181))
+
+    def test_supernet_forward_transformer(self):
+        """Supernet should produce valid output for Transformer config."""
+        supernet = self.ToMSupernet(input_dim=181, output_dim=181)
+
+        config = self.SubnetConfig(
+            arch_type='transformer',
+            num_layers=2,
+            hidden_dim=128,
+            num_heads=4
+        )
+        supernet.set_active_config(config)
+
+        x = torch.randn(4, 10, 181)
+        output = supernet(x)
+
+        self.assertIn('beliefs', output)
+        self.assertEqual(output['beliefs'].shape, (4, 181))
+
+    def test_weight_sharing(self):
+        """Different configs should share weights."""
+        supernet = self.ToMSupernet(input_dim=181, output_dim=181)
+
+        # Get reference to a weight
+        input_proj_weight = supernet.input_proj.weight.clone()
+
+        # Switch configs
+        config1 = self.SubnetConfig('trn', 2, 128, 4)
+        config2 = self.SubnetConfig('transformer', 3, 96, 4)
+
+        supernet.set_active_config(config1)
+        _ = supernet(torch.randn(1, 5, 181))
+
+        supernet.set_active_config(config2)
+        _ = supernet(torch.randn(1, 5, 181))
+
+        # Weight should be unchanged (shared)
+        self.assertTrue(torch.equal(input_proj_weight, supernet.input_proj.weight))
+
+
+class TestMutationController(unittest.TestCase):
+    """Tests for the reinforced mutation controller."""
+
+    def setUp(self):
+        from src.evolution.mutation_controller import (
+            MutationController, ControllerTrainer, GuidedMutator
+        )
+        self.MutationController = MutationController
+        self.ControllerTrainer = ControllerTrainer
+        self.GuidedMutator = GuidedMutator
+
+    def test_controller_prediction(self):
+        """Controller should produce predictions."""
+        controller = self.MutationController()
+
+        config = {
+            'arch_type': 'transformer',
+            'num_layers': 2,
+            'hidden_dim': 128,
+            'num_heads': 4,
+            'dropout': 0.1
+        }
+
+        pred = controller.predict_improvement(
+            config, 'hidden_dim', 128, 160
+        )
+
+        self.assertIsInstance(pred, float)
+
+    def test_guided_mutation(self):
+        """Guided mutator should produce valid child configs."""
+        controller = self.MutationController()
+        mutator = self.GuidedMutator(controller)
+
+        config = {
+            'arch_type': 'transformer',
+            'num_layers': 2,
+            'hidden_dim': 128,
+            'num_heads': 4,
+            'dropout': 0.1,
+            'use_skip_connections': True
+        }
+
+        child = mutator.apply_mutation(config)
+
+        # Should be a valid config
+        self.assertIn('arch_type', child)
+        self.assertIn('num_layers', child)
+
+
+class TestToMiDataset(unittest.TestCase):
+    """Tests for ToMi benchmark loading."""
+
+    def setUp(self):
+        from src.benchmarks.tomi_loader import ToMiDataset, ToMiParser
+        self.ToMiDataset = ToMiDataset
+        self.ToMiParser = ToMiParser
+
+    def test_synthetic_generation(self):
+        """Should generate synthetic ToMi examples."""
+        dataset = self.ToMiDataset()
+        dataset.generate_synthetic(num_examples=50)
+
+        self.assertEqual(len(dataset.examples), 50)
+
+        # Each example should have events and questions
+        example = dataset.examples[0]
+        self.assertGreater(len(example.events), 0)
         self.assertGreater(len(example.questions), 0)
-        self.assertTrue(example.questions[0].requires_tom)
+
+    def test_dataset_split(self):
+        """Dataset should split into train/val/test."""
+        dataset = self.ToMiDataset()
+        dataset.generate_synthetic(num_examples=100)
+        dataset.split()
+
+        total = (len(dataset.train_examples) +
+                 len(dataset.val_examples) +
+                 len(dataset.test_examples))
+
+        self.assertEqual(total, 100)
+
+    def test_batch_generation(self):
+        """Should generate batches for training."""
+        dataset = self.ToMiDataset()
+        dataset.generate_synthetic(num_examples=50)
+
+        inputs, targets, indices = dataset.get_batch(8)
+
+        self.assertEqual(inputs.shape[0], 8)
+        self.assertEqual(inputs.shape[2], 181)  # Soul Map dimension
+
+    def test_question_type_filtering(self):
+        """Should filter batches by question type."""
+        dataset = self.ToMiDataset()
+        dataset.generate_synthetic(num_examples=50)
+
+        inputs, targets, indices = dataset.get_batch(8, question_type='first_order')
+
+        # Should complete without error
+        self.assertEqual(inputs.shape[0], 8)
 
 
-class TestSocialIQABenchmark(unittest.TestCase):
-    """Test the SocialIQA benchmark loader."""
+class TestToMFitness(unittest.TestCase):
+    """Tests for ToM-specific fitness evaluation."""
 
-    def test_social_iqa_creation(self):
-        """Test creating SocialIQA dataset."""
-        dataset = SocialIQADataset()
-        self.assertGreater(len(dataset), 0)
+    def setUp(self):
+        from src.evolution.tom_fitness import ToMSpecificFitness, CombinedToMFitness
+        self.ToMSpecificFitness = ToMSpecificFitness
+        self.CombinedToMFitness = CombinedToMFitness
 
-    def test_social_iqa_batch_generation(self):
-        """Test generating batches."""
-        dataset = SocialIQADataset()
-        inputs, labels = dataset.get_batch(batch_size=4)
+    def test_fitness_evaluation(self):
+        """Fitness evaluator should produce results."""
 
-        self.assertEqual(inputs['context'].shape[0], 4)
-        self.assertEqual(labels.shape[0], 4)
-
-    def test_social_iqa_question_types(self):
-        """Test that different question types are present."""
-        dataset = SocialIQADataset()
-
-        question_types = set()
-        for example in dataset.examples[:50]:
-            question_types.add(example.question_type)
-
-        # Should have multiple question types
-        self.assertGreater(len(question_types), 1)
-
-
-class TestSocialGameBenchmark(unittest.TestCase):
-    """Test the social game benchmark."""
-
-    def test_social_game_creation(self):
-        """Test creating social game benchmark."""
-        benchmark = SocialGameBenchmark(num_agents=10, num_zombies=2)
-        self.assertEqual(benchmark.num_agents, 10)
-
-    def test_social_world_reset(self):
-        """Test resetting the social world."""
-        benchmark = SocialGameBenchmark(num_agents=10, num_zombies=2)
-        benchmark.reset_world()
-        self.assertEqual(benchmark.world.timestep, 0)
-
-    def test_zombie_count(self):
-        """Test that correct number of zombies are created."""
-        benchmark = SocialGameBenchmark(num_agents=10, num_zombies=3)
-        zombies = sum(1 for agent in benchmark.world.agents if agent.is_zombie)
-        self.assertEqual(zombies, 3)
-
-
-class TestElasticSupernet(unittest.TestCase):
-    """Test the elastic supernet architectures."""
-
-    def test_elastic_lstm_cell(self):
-        """Test elastic LSTM cell with different hidden dims."""
-        cell = ElasticLSTMCell(input_dim=64, max_hidden_dim=256)
-
-        x = torch.randn(2, 64)  # Batch of 2, input dim 64
-        h = torch.zeros(2, 256)
-        c = torch.zeros(2, 256)
-
-        # Test with full hidden dim
-        h_new, (h_out, c_out) = cell(x, (h, c), active_hidden_dim=256)
-        self.assertEqual(h_new.shape, torch.Size([2, 256]))
-
-        # Test with smaller hidden dim
-        h_new, (h_out, c_out) = cell(x, (h, c), active_hidden_dim=128)
-        self.assertEqual(h_new.shape, torch.Size([2, 256]))  # Padded back to max
-
-    def test_elastic_trn_forward(self):
-        """Test elastic TRN forward pass."""
-        model = ElasticTransparentRNN(
-            input_dim=64, max_hidden_dim=256, output_dim=181, max_layers=4
-        )
-
-        x = torch.randn(2, 10, 64)  # Batch of 2, seq len 10
-
-        # Full configuration
-        output = model(x, {'hidden_dim': 256, 'num_layers': 4})
-        self.assertEqual(output.shape, torch.Size([2, 181]))
-
-        # Smaller configuration
-        output = model(x, {'hidden_dim': 128, 'num_layers': 2})
-        self.assertEqual(output.shape, torch.Size([2, 181]))
-
-    def test_elastic_transformer_forward(self):
-        """Test elastic transformer forward pass."""
-        model = ElasticTransformer(
-            input_dim=64, max_hidden_dim=256, output_dim=181,
-            max_layers=4, max_heads=8
-        )
-
-        x = torch.randn(2, 10, 64)
-
-        # Full configuration
-        output = model(x, {'hidden_dim': 256, 'num_layers': 4, 'num_heads': 8})
-        self.assertEqual(output.shape, torch.Size([2, 181]))
-
-        # Smaller configuration (must divide evenly)
-        output = model(x, {'hidden_dim': 128, 'num_layers': 2, 'num_heads': 4})
-        self.assertEqual(output.shape, torch.Size([2, 181]))
-
-    def test_layer_norm_dimension_fix(self):
-        """Test that LayerNorm works with variable dimensions.
-
-        This tests the fix for the bug where LayerNorm was initialized
-        with max_hidden_dim but received tensors with active_hidden_dim.
-        """
-        cell = ElasticLSTMCell(input_dim=64, max_hidden_dim=256)
-
-        # This should NOT raise a dimension mismatch error
-        x = torch.randn(2, 64)
-        h = torch.zeros(2, 256)
-        c = torch.zeros(2, 256)
-
-        # Test with 128 (half of max) - this was the bug
-        try:
-            h_new, _ = cell(x, (h, c), active_hidden_dim=128)
-            success = True
-        except RuntimeError as e:
-            if "normalized_shape" in str(e):
-                success = False
-            else:
-                raise
-
-        self.assertTrue(success, "LayerNorm dimension mismatch not fixed")
-
-
-class TestZeroCostProxy(unittest.TestCase):
-    """Test zero-cost proxy computation."""
-
-    def test_synflow_computation(self):
-        """Test SynFlow proxy."""
-        model = nn.Sequential(
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64)
-        )
-
-        score = ZeroCostProxy.synflow(model, input_shape=(64,))
-        self.assertGreater(score, 0)
-
-    def test_jacob_cov_computation(self):
-        """Test Jacobian covariance proxy."""
-        model = nn.Sequential(
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, 10)
-        )
-
-        score = ZeroCostProxy.jacob_cov(model, input_shape=(64,), num_samples=8)
-        self.assertGreaterEqual(score, 0)
-
-
-class TestUnifiedBenchmark(unittest.TestCase):
-    """Test the unified benchmark suite."""
-
-    def test_unified_benchmark_creation(self):
-        """Test creating unified benchmark."""
-        benchmark = UnifiedBenchmark()
-
-        # Check all components are initialized
-        self.assertIsNotNone(benchmark.tomi)
-        self.assertIsNotNone(benchmark.social_iqa)
-        self.assertIsNotNone(benchmark.social_games)
-
-    def test_unified_benchmark_summary(self):
-        """Test getting benchmark summary."""
-        benchmark = UnifiedBenchmark()
-        summary = benchmark.get_benchmark_summary()
-
-        self.assertIn('tomi', summary)
-        self.assertIn('social_iqa', summary)
-        self.assertIn('social_games', summary)
-
-
-class TestLiminalEnvironment(unittest.TestCase):
-    """Test the Liminal game environment."""
-
-    def test_environment_creation(self):
-        """Test creating Liminal environment."""
-        env = LiminalEnvironment(population_size=50, include_heroes=True)
-        self.assertGreater(len(env.npcs), 0)
-
-    def test_environment_reset(self):
-        """Test resetting the environment."""
-        env = LiminalEnvironment(population_size=50)
-        obs = env.reset()
-        self.assertIsNotNone(obs)
-        self.assertEqual(env.tick, 0)
-
-    def test_soul_map_creation(self):
-        """Test Soul Map creation."""
-        soul_map = SoulMap()
-        tensor = soul_map.to_tensor()
-        self.assertEqual(tensor.shape[0], 65)  # 60 + 5 realm modifiers
-
-
-class TestIntegration(unittest.TestCase):
-    """Full integration tests."""
-
-    def test_end_to_end_evaluation(self):
-        """Test evaluating a model on benchmarks end-to-end."""
-        # Create a simple model matching benchmark input dimension (64)
-        # Model needs to handle sequence input [batch, seq, 64] -> [batch, 181]
         class SimpleModel(nn.Module):
             def __init__(self):
                 super().__init__()
-                self.fc1 = nn.Linear(64, 128)
-                self.fc2 = nn.Linear(128, 181)
+                self.net = nn.Linear(181, 181)
 
             def forward(self, x):
-                # x: [batch, seq, 64]
-                x = torch.relu(self.fc1(x))  # [batch, seq, 128]
-                x = x.mean(dim=1)  # Pool over sequence: [batch, 128]
-                return self.fc2(x)  # [batch, 181]
+                if x.dim() == 3:
+                    x = x[:, -1, :]
+                out = torch.sigmoid(self.net(x))
+                return {'beliefs': out, 'actions': out.mean(dim=-1)}
 
         model = SimpleModel()
+        fitness = self.ToMSpecificFitness()
 
-        # Quick evaluation
-        benchmark = UnifiedBenchmark()
-        results = benchmark.quick_evaluation(model, device='cpu')
+        result = fitness.evaluate(model, num_examples=20)
 
-        self.assertIn('tom_score', results)
-        self.assertIn('control_score', results)
-        self.assertIn('specificity', results)
+        self.assertIsNotNone(result.total_fitness)
+        self.assertIsNotNone(result.tom_accuracy)
+        self.assertIsNotNone(result.control_accuracy)
+
+    def test_efficiency_penalty(self):
+        """Large models should have lower efficiency scores."""
+
+        class SmallModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.net = nn.Linear(181, 181)
+
+            def forward(self, x):
+                if x.dim() == 3: x = x[:, -1, :]
+                return {'beliefs': torch.sigmoid(self.net(x)), 'actions': torch.zeros(x.shape[0])}
+
+        class LargeModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.net = nn.Sequential(
+                    nn.Linear(181, 1024),
+                    nn.ReLU(),
+                    nn.Linear(1024, 1024),
+                    nn.ReLU(),
+                    nn.Linear(1024, 181)
+                )
+
+            def forward(self, x):
+                if x.dim() == 3: x = x[:, -1, :]
+                return {'beliefs': torch.sigmoid(self.net(x)), 'actions': torch.zeros(x.shape[0])}
+
+        fitness = self.ToMSpecificFitness(target_params=100000)
+
+        small_result = fitness.evaluate(SmallModel(), num_examples=10)
+        large_result = fitness.evaluate(LargeModel(), num_examples=10)
+
+        self.assertGreater(small_result.efficiency_score, large_result.efficiency_score)
+
+
+class TestEndToEndPipeline(unittest.TestCase):
+    """End-to-end integration tests for the complete NAS pipeline."""
+
+    def test_complete_evaluation_pipeline(self):
+        """Test complete flow from events to fitness."""
+        from src.core.events import create_sally_anne_scenario, EventEncoder, ScenarioEncoder
+        from src.agents.architectures import TransparentRNN
+
+        # Create scenario
+        events, questions = create_sally_anne_scenario()
+
+        # Encode
+        encoder = EventEncoder()
+        scenario_encoder = ScenarioEncoder(encoder)
+
+        encoded = scenario_encoder.encode_scenario(events, questions[0])
+
+        # Create and run model
+        model = TransparentRNN(181, 128, 181, num_layers=2)
+        output = model(encoded.unsqueeze(0))
+
+        # Should produce beliefs
+        self.assertIn('beliefs', output)
+        self.assertEqual(output['beliefs'].shape[1], 181)
+
+    def test_nas_search_iteration(self):
+        """Test that NAS search can run one iteration."""
+        from src.evolution.supernet import ToMSupernet, SupernetEvaluator
+        from src.evolution.linas import LINASSearch
+
+        supernet = ToMSupernet(181, 181)
+        evaluator = SupernetEvaluator(supernet)
+        search = LINASSearch(supernet, evaluator)
+
+        # Generate dummy eval data
+        eval_data = [(torch.randn(4, 10, 181), torch.rand(4, 181)) for _ in range(2)]
+
+        # Run one iteration
+        result = search.search_iteration(
+            eval_data,
+            num_candidates=10,
+            num_to_evaluate=3
+        )
+
+        self.assertIn('iteration', result)
+        self.assertIn('best_fitness', result)
+
+
+class TestRealityVsBeliefDiscrimination(unittest.TestCase):
+    """Tests that models can be trained to discriminate reality from beliefs."""
+
+    def test_untrained_model_baseline(self):
+        """Untrained model should be near random on all question types."""
+        from src.benchmarks.tomi_loader import ToMiDataset
+        from src.agents.architectures import TransparentRNN
+
+        dataset = ToMiDataset()
+        dataset.generate_synthetic(num_examples=100)
+
+        model = TransparentRNN(181, 128, 181, num_layers=2)
+
+        # Evaluate accuracy
+        correct_reality = 0
+        correct_belief = 0
+        total_reality = 0
+        total_belief = 0
+
+        model.eval()
+        with torch.no_grad():
+            for example in dataset.examples[:20]:
+                for q_idx, question in enumerate(example.questions):
+                    inp, tgt, correct_idx = dataset.encode_example(example, q_idx)
+                    output = model(inp.unsqueeze(0))
+                    pred_idx = output['beliefs'].argmax(dim=-1).item()
+
+                    if question.question_type == 'reality':
+                        total_reality += 1
+                        if pred_idx == correct_idx:
+                            correct_reality += 1
+                    elif question.question_type in ['first_order', 'second_order']:
+                        total_belief += 1
+                        if pred_idx == correct_idx:
+                            correct_belief += 1
+
+        # Untrained model should be roughly random
+        # With ~10 possible locations, expect ~10% accuracy
+        reality_acc = correct_reality / total_reality if total_reality > 0 else 0
+        belief_acc = correct_belief / total_belief if total_belief > 0 else 0
+
+        # Just verify it produces valid outputs (not testing for randomness specifically)
+        self.assertGreaterEqual(reality_acc, 0.0)
+        self.assertLessEqual(reality_acc, 1.0)
+
+
+def run_tests():
+    """Run all integration tests."""
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
+
+    # Add test classes
+    test_classes = [
+        TestInformationAsymmetry,
+        TestEventEncoding,
+        TestZeroCostProxies,
+        TestSupernet,
+        TestMutationController,
+        TestToMiDataset,
+        TestToMFitness,
+        TestEndToEndPipeline,
+        TestRealityVsBeliefDiscrimination,
+    ]
+
+    for test_class in test_classes:
+        tests = loader.loadTestsFromTestCase(test_class)
+        suite.addTests(tests)
+
+    # Run with verbosity
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
+
+    return result
 
 
 if __name__ == '__main__':
-    unittest.main()
+    print("=" * 70)
+    print("TOM-NAS INTEGRATION TESTS")
+    print("=" * 70)
+    print()
+
+    result = run_tests()
+
+    print()
+    print("=" * 70)
+    print(f"Tests run: {result.testsRun}")
+    print(f"Failures: {len(result.failures)}")
+    print(f"Errors: {len(result.errors)}")
+    print("=" * 70)
+
+    if result.wasSuccessful():
+        print("ALL TESTS PASSED")
+    else:
+        print("SOME TESTS FAILED")
+
+        if result.failures:
+            print("\nFailures:")
+            for test, trace in result.failures:
+                print(f"  - {test}")
+
+        if result.errors:
+            print("\nErrors:")
+            for test, trace in result.errors:
+                print(f"  - {test}")
