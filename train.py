@@ -17,10 +17,10 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from src.core.ontology import SoulMapOntology
 from src.core.beliefs import BeliefNetwork
-from src.agents.architectures import TransparentRNN, RecursiveSelfAttention, TransformerToMAgent
 from src.world.social_world import SocialWorld4
 from src.evaluation.benchmarks import BenchmarkSuite
 from src.evaluation.metrics import MetricsTracker
+from src.utils import observation_to_tensor, create_model
 
 
 class ToMTrainer:
@@ -71,22 +71,14 @@ class ToMTrainer:
 
     def _create_agent(self, config: Dict) -> nn.Module:
         """Create agent based on configuration"""
-        arch_type = config.get('architecture', 'TRN')
-        input_dim = config.get('input_dim', 191)
-        hidden_dim = config.get('hidden_dim', 128)
-        output_dim = config.get('ontology_dim', 181)
-
-        if arch_type == 'TRN':
-            return TransparentRNN(input_dim, hidden_dim, output_dim,
-                                 num_layers=config.get('num_layers', 2))
-        elif arch_type == 'RSAN':
-            return RecursiveSelfAttention(input_dim, hidden_dim, output_dim,
-                                         num_heads=config.get('num_heads', 4))
-        elif arch_type == 'Transformer':
-            return TransformerToMAgent(input_dim, hidden_dim, output_dim,
-                                      num_layers=config.get('num_layers', 3))
-        else:
-            raise ValueError(f"Unknown architecture: {arch_type}")
+        return create_model(
+            arch_type=config.get('architecture', 'TRN'),
+            input_dim=config.get('input_dim', 191),
+            hidden_dim=config.get('hidden_dim', 128),
+            output_dim=config.get('ontology_dim', 181),
+            num_layers=config.get('num_layers', 2),
+            num_heads=config.get('num_heads', 4)
+        )
 
     def generate_training_batch(self, batch_size: int = 32,
                                sequence_length: int = 20) -> Dict:
@@ -156,27 +148,7 @@ class ToMTrainer:
 
     def _obs_to_tensor(self, obs: Dict) -> torch.Tensor:
         """Convert observation to tensor"""
-        features = [
-            obs['own_resources'] / 200.0,
-            obs['own_energy'] / 100.0,
-            float(obs['own_coalition'] is not None)
-        ]
-
-        # Add neighbor features
-        for other_obs in obs['observations'][:5]:
-            features.extend([
-                other_obs['estimated_resources'] / 200.0,
-                other_obs['estimated_energy'] / 100.0,
-                other_obs['reputation'],
-                float(other_obs['in_same_coalition'])
-            ])
-
-        # Pad to input size
-        while len(features) < 191:
-            features.append(0.0)
-        features = features[:191]
-
-        return torch.tensor(features, dtype=torch.float32)
+        return observation_to_tensor(obs)
 
     def train_epoch(self, num_batches: int = 50) -> Dict:
         """Train for one epoch"""

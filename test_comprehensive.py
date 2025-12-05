@@ -17,6 +17,7 @@ from src.agents.architectures import TransparentRNN, RecursiveSelfAttention, Tra
 from src.world.social_world import SocialWorld4
 from src.evolution.operators import ArchitectureGene, WeightMutation
 from src.evaluation.benchmarks import SallyAnneTest, HigherOrderToMBenchmark
+from src.utils import observation_to_tensor, create_model
 
 
 class TestOntology(unittest.TestCase):
@@ -346,6 +347,83 @@ class TestIntegration(unittest.TestCase):
         self.assertIn('timestep', result)
 
 
+class TestUtils(unittest.TestCase):
+    """Test Utility Functions"""
+
+    def test_observation_to_tensor_shape(self):
+        """Test observation_to_tensor returns correct shape"""
+        obs = {
+            'own_resources': 100.0,
+            'own_energy': 80.0,
+            'own_coalition': None,
+            'observations': []
+        }
+        tensor = observation_to_tensor(obs)
+        self.assertEqual(tensor.shape, (191,))
+
+    def test_observation_to_tensor_values(self):
+        """Test observation_to_tensor normalizes values correctly"""
+        obs = {
+            'own_resources': 200.0,  # Should normalize to 1.0
+            'own_energy': 100.0,     # Should normalize to 1.0
+            'own_coalition': 1,      # Should be 1.0
+            'observations': []
+        }
+        tensor = observation_to_tensor(obs)
+        self.assertAlmostEqual(tensor[0].item(), 1.0)  # resources
+        self.assertAlmostEqual(tensor[1].item(), 1.0)  # energy
+        self.assertAlmostEqual(tensor[2].item(), 1.0)  # coalition
+
+    def test_observation_to_tensor_with_neighbors(self):
+        """Test observation_to_tensor includes neighbor observations"""
+        obs = {
+            'own_resources': 100.0,
+            'own_energy': 80.0,
+            'own_coalition': None,
+            'observations': [
+                {
+                    'estimated_resources': 150.0,
+                    'estimated_energy': 60.0,
+                    'reputation': 0.8,
+                    'in_same_coalition': True
+                }
+            ]
+        }
+        tensor = observation_to_tensor(obs)
+        # Check neighbor features are included
+        self.assertAlmostEqual(tensor[3].item(), 150.0 / 200.0)  # neighbor resources
+        self.assertAlmostEqual(tensor[4].item(), 60.0 / 100.0)   # neighbor energy
+        self.assertAlmostEqual(tensor[5].item(), 0.8)            # neighbor reputation
+        self.assertAlmostEqual(tensor[6].item(), 1.0)            # in same coalition
+
+    def test_create_model_trn(self):
+        """Test create_model creates TRN correctly"""
+        model = create_model('TRN')
+        self.assertIsInstance(model, TransparentRNN)
+
+    def test_create_model_rsan(self):
+        """Test create_model creates RSAN correctly"""
+        model = create_model('RSAN')
+        self.assertIsInstance(model, RecursiveSelfAttention)
+
+    def test_create_model_transformer(self):
+        """Test create_model creates Transformer correctly"""
+        model = create_model('Transformer')
+        self.assertIsInstance(model, TransformerToMAgent)
+
+    def test_create_model_with_device(self):
+        """Test create_model respects device parameter"""
+        model = create_model('TRN', device='cpu')
+        # Check model parameters are on CPU
+        for param in model.parameters():
+            self.assertEqual(param.device.type, 'cpu')
+
+    def test_create_model_invalid_arch(self):
+        """Test create_model raises error for invalid architecture"""
+        with self.assertRaises(ValueError):
+            create_model('InvalidArch')
+
+
 def run_tests():
     """Run all tests"""
     # Create test suite
@@ -360,6 +438,7 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestEvolution))
     suite.addTests(loader.loadTestsFromTestCase(TestBenchmarks))
     suite.addTests(loader.loadTestsFromTestCase(TestIntegration))
+    suite.addTests(loader.loadTestsFromTestCase(TestUtils))
 
     # Run tests
     runner = unittest.TextTestRunner(verbosity=2)
