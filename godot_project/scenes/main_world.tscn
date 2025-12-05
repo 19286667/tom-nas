@@ -1,0 +1,162 @@
+[gd_scene load_steps=12 format=3 uid="uid://b5xqvk3mdnrfw"]
+
+[ext_resource type="Script" path="res://scripts/main_world.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/entities/location_zone.gd" id="2_location"]
+[ext_resource type="PackedScene" uid="uid://cagent001" path="res://scenes/entities/agent.tscn" id="3_agent"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+sky_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+ground_horizon_color = Color(0.64625, 0.65575, 0.67075, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="BoxMesh" id="BoxMesh_ground"]
+size = Vector3(100, 1, 100)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
+albedo_color = Color(0.3, 0.4, 0.3, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(100, 1, 100)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_zone"]
+size = Vector3(20, 10, 20)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_zone"]
+transparency = 1
+albedo_color = Color(0.8, 0.6, 0.2, 0.2)
+
+[node name="MainWorld" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.866023, -0.433016, 0.25, 0, 0.499998, 0.866027, -0.500003, 0.749999, -0.43301, 0, 20, 0)
+shadow_enabled = true
+
+[node name="Ground" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+collision_layer = 1
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("BoxMesh_ground")
+surface_material_override/0 = SubResource("StandardMaterial3D_ground")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("BoxShape3D_ground")
+
+[node name="NavigationRegion3D" type="NavigationRegion3D" parent="."]
+
+[node name="Locations" type="Node3D" parent="."]
+
+[node name="MarketZone" type="Area3D" parent="Locations"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, 0)
+collision_layer = 4
+script = ExtResource("2_location")
+location_name = "The Market"
+location_description = "A bustling marketplace for trade and exchange"
+institution_type = "MARKET"
+bounds_size = Vector3(20, 10, 20)
+semantic_tags = ["location", "market", "trade", "public"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Locations/MarketZone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
+shape = SubResource("BoxShape3D_zone")
+
+[node name="ZoneVisual" type="MeshInstance3D" parent="Locations/MarketZone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
+mesh = SubResource("BoxMesh_ground")
+surface_material_override/0 = SubResource("StandardMaterial3D_zone")
+
+[node name="MinistryZone" type="Area3D" parent="Locations"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, 0)
+collision_layer = 4
+script = ExtResource("2_location")
+location_name = "The Ministry"
+location_description = "A bureaucratic office with strict protocols"
+institution_type = "MINISTRY"
+bounds_size = Vector3(20, 10, 20)
+semantic_tags = ["location", "ministry", "bureaucracy", "formal"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Locations/MinistryZone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
+shape = SubResource("BoxShape3D_zone")
+
+[node name="TempleZone" type="Area3D" parent="Locations"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -20)
+collision_layer = 4
+script = ExtResource("2_location")
+location_name = "The Temple"
+location_description = "A sacred space for ritual and contemplation"
+institution_type = "TEMPLE"
+bounds_size = Vector3(20, 10, 20)
+semantic_tags = ["location", "temple", "sacred", "ritual"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Locations/TempleZone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
+shape = SubResource("BoxShape3D_zone")
+
+[node name="CourtZone" type="Area3D" parent="Locations"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 20)
+collision_layer = 4
+script = ExtResource("2_location")
+location_name = "The Court"
+location_description = "A place of justice and judgment"
+institution_type = "COURT"
+bounds_size = Vector3(20, 10, 20)
+semantic_tags = ["location", "court", "justice", "law"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Locations/CourtZone"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
+shape = SubResource("BoxShape3D_zone")
+
+[node name="Agents" type="Node3D" parent="."]
+
+[node name="Objects" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 30, 30)
+current = true
+fov = 60.0
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="DebugPanel" type="PanelContainer" parent="UI"]
+offset_right = 300.0
+offset_bottom = 200.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/DebugPanel"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="UI/DebugPanel/VBoxContainer"]
+layout_mode = 2
+text = "ToM-NAS Debug"
+
+[node name="ConnectionStatus" type="Label" parent="UI/DebugPanel/VBoxContainer"]
+layout_mode = 2
+text = "Connection: Disconnected"
+
+[node name="EntityCount" type="Label" parent="UI/DebugPanel/VBoxContainer"]
+layout_mode = 2
+text = "Entities: 0"
+
+[node name="SimTime" type="Label" parent="UI/DebugPanel/VBoxContainer"]
+layout_mode = 2
+text = "Time: 0.0"
+
+[node name="TimeOfDay" type="Label" parent="UI/DebugPanel/VBoxContainer"]
+layout_mode = 2
+text = "Hour: 12:00"
+
+[node name="FPS" type="Label" parent="UI/DebugPanel/VBoxContainer"]
+layout_mode = 2
+text = "FPS: 0"
