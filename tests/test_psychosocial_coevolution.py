@@ -15,17 +15,15 @@ These systems are critical for creating genuine co-evolutionary dynamics
 that develop sophisticated Theory of Mind in agents.
 """
 
-import os
 import random
 import sys
 
-import numpy as np
 import pytest
 import torch
 
 sys.path.insert(0, ".")
 
-from src.liminal.npcs.base_npc import BaseNPC, NPCState
+from src.liminal.npcs.base_npc import BaseNPC
 from src.liminal.soul_map import SoulMap
 
 # =============================================================================
@@ -91,7 +89,7 @@ class TestSocialEdge:
 
     def test_relationship_type_coalition(self):
         """Test coalition classification - highest trust tier with strong affect."""
-        from src.liminal.psychosocial_coevolution import RelationshipType, SocialEdge, TheoreticalConstants
+        from src.liminal.psychosocial_coevolution import RelationshipType, SocialEdge
 
         edge = SocialEdge(source_id="a", target_id="b")
         edge.trust = 0.8  # Above COALITION_FORMATION_THRESHOLD (0.6)
@@ -122,7 +120,7 @@ class TestSocialEdge:
 
         assert edge.familiarity > initial_familiarity
         assert edge.last_interaction_tick == 10
-        assert edge.cooperation_history[-1] == True
+        assert edge.cooperation_history[-1] is True
 
     def test_negative_interaction_erodes_trust(self):
         """Test that defection erodes trust faster than cooperation builds it."""
@@ -385,7 +383,7 @@ class TestEnvironmentalEvolution:
 
     def test_fitness_recording(self):
         """Test fitness history recording."""
-        from src.liminal.psychosocial_coevolution import EnvironmentEvolutionStrategy, PsychosocialEnvironmentEvolution
+        from src.liminal.psychosocial_coevolution import PsychosocialEnvironmentEvolution
 
         evolution = PsychosocialEnvironmentEvolution()
 

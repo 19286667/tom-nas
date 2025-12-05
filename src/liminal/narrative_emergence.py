@@ -282,7 +282,7 @@ class NarrativeDetector:
                 # Check betrayal conditions
                 if coalition_trust and outside_connections:
                     declining_trust = any(
-                        len(e.cooperation_history) > 3 and e.cooperation_history[-1] == False for e in coalition_trust
+                        len(e.cooperation_history) > 3 and not e.cooperation_history[-1] for e in coalition_trust
                     )
                     negative_affect = any(e.affect < -0.1 for e in coalition_trust)
 

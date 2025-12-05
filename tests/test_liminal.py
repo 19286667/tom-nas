@@ -21,14 +21,10 @@ sys.path.insert(0, ".")
 
 from src.liminal.game_environment import (
     ActionType,
-    GameState,
     LiminalEnvironment,
-    Observation,
 )
 from src.liminal.mechanics.cognitive_hazards import (
     HAZARD_REGISTRY,
-    CognitiveHazard,
-    HazardCategory,
     apply_hazard,
 )
 from src.liminal.mechanics.ontological_instability import (
@@ -37,7 +33,6 @@ from src.liminal.mechanics.ontological_instability import (
 )
 from src.liminal.mechanics.soul_scanner import (
     AnalysisDepth,
-    AnalysisResult,
     SoulScanner,
 )
 from src.liminal.npcs.archetypes import (
@@ -45,23 +40,15 @@ from src.liminal.npcs.archetypes import (
     create_archetype_npc,
     populate_realm,
 )
-from src.liminal.npcs.base_npc import BaseNPC, NPCBehavior, NPCState
 from src.liminal.npcs.heroes import HERO_DEFINITIONS, HERO_NPCS, create_hero_npc
 from src.liminal.realms import (
     REALMS,
-    Realm,
     RealmTransition,
     RealmType,
     get_realm,
 )
 from src.liminal.soul_map import (
-    COGNITIVE_DIMENSIONS,
-    EMOTIONAL_DIMENSIONS,
-    MOTIVATIONAL_DIMENSIONS,
-    SELF_DIMENSIONS,
-    SOCIAL_DIMENSIONS,
     SoulMap,
-    SoulMapCluster,
     SoulMapDelta,
 )
 

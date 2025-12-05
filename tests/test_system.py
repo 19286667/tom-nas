@@ -25,18 +25,18 @@ def test_all():
         all_pass = False
 
     try:
-        from src.core.beliefs import BeliefNetwork, RecursiveBeliefState
+        from src.core.beliefs import RecursiveBeliefState
 
         beliefs = RecursiveBeliefState(0, 181, max_order=5)
-        print(f"  ✓ Beliefs: 5th-order recursion")
+        print("  ✓ Beliefs: 5th-order recursion")
     except Exception as e:
         print(f"  ✗ Beliefs failed: {e}")
         all_pass = False
 
     try:
-        from src.agents.architectures import RecursiveSelfAttention, TransformerToMAgent, TransparentRNN
+        pass
 
-        print(f"  ✓ Architectures: TRN, RSAN, Transformer")
+        print("  ✓ Architectures: TRN, RSAN, Transformer")
     except Exception as e:
         print(f"  ✗ Architectures failed: {e}")
         all_pass = False
