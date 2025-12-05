@@ -11,7 +11,7 @@ This is the "background hum" of cognition - the saturation of hyperlinked meanin
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -25,7 +25,7 @@ from .schemas import (
     SemanticNode,
     StereotypeDimension,
 )
-from .taxonomy import FullTaxonomy, TaxonomyLayer
+from .taxonomy import TaxonomyLayer
 
 
 @dataclass

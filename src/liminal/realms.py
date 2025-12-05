@@ -14,10 +14,9 @@ that affect NPC behavior and player interactions:
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from .soul_map import SoulMap
@@ -91,7 +90,6 @@ class Realm:
 
         Returns the actual changes applied (for logging/display).
         """
-        from .soul_map import SoulMap
 
         changes_applied = {}
         for cluster, dimensions in self.ambient_modifiers.items():

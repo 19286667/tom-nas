@@ -15,7 +15,7 @@ The taxonomy is the coordinate system of Indra's Net.
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -588,7 +588,7 @@ class FullTaxonomy:
             elif value > 0.7:
                 desc = f"High ({dim.high_anchor})"
             else:
-                desc = f"Moderate"
+                desc = "Moderate"
             description[dim.name] = desc
         return description
 

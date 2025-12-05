@@ -20,11 +20,11 @@ Other Heroes:
 - The Nothing: Entity at the edge
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..realms import RealmType
 from ..soul_map import SoulMap
-from .base_npc import BaseNPC, NPCBehavior, NPCState
+from .base_npc import BaseNPC
 
 # Complete Soul Map definitions for Hero NPCs (matching MDD JSON spec)
 HERO_DEFINITIONS: Dict[str, Dict[str, Any]] = {

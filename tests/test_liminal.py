@@ -12,36 +12,57 @@ Tests cover:
 - Game environment integration
 """
 
-import pytest
-import torch
 import sys
 
-sys.path.insert(0, '.')
+import pytest
+import torch
 
-from src.liminal.soul_map import (
-    SoulMap, SoulMapDelta, SoulMapCluster,
-    COGNITIVE_DIMENSIONS, EMOTIONAL_DIMENSIONS,
-    MOTIVATIONAL_DIMENSIONS, SOCIAL_DIMENSIONS, SELF_DIMENSIONS,
-)
-from src.liminal.realms import (
-    Realm, RealmType, REALMS, get_realm, RealmTransition,
-)
-from src.liminal.npcs.base_npc import BaseNPC, NPCState, NPCBehavior
-from src.liminal.npcs.heroes import HERO_NPCS, create_hero_npc, HERO_DEFINITIONS
-from src.liminal.npcs.archetypes import (
-    ARCHETYPES, create_archetype_npc, populate_realm,
-)
-from src.liminal.mechanics.soul_scanner import (
-    SoulScanner, AnalysisDepth, AnalysisResult,
+sys.path.insert(0, ".")
+
+from src.liminal.game_environment import (
+    ActionType,
+    GameState,
+    LiminalEnvironment,
+    Observation,
 )
 from src.liminal.mechanics.cognitive_hazards import (
-    CognitiveHazard, HAZARD_REGISTRY, apply_hazard, HazardCategory,
+    HAZARD_REGISTRY,
+    CognitiveHazard,
+    HazardCategory,
+    apply_hazard,
 )
 from src.liminal.mechanics.ontological_instability import (
-    OntologicalInstability, InstabilityLevel,
+    InstabilityLevel,
+    OntologicalInstability,
 )
-from src.liminal.game_environment import (
-    LiminalEnvironment, GameState, Observation, ActionType,
+from src.liminal.mechanics.soul_scanner import (
+    AnalysisDepth,
+    AnalysisResult,
+    SoulScanner,
+)
+from src.liminal.npcs.archetypes import (
+    ARCHETYPES,
+    create_archetype_npc,
+    populate_realm,
+)
+from src.liminal.npcs.base_npc import BaseNPC, NPCBehavior, NPCState
+from src.liminal.npcs.heroes import HERO_DEFINITIONS, HERO_NPCS, create_hero_npc
+from src.liminal.realms import (
+    REALMS,
+    Realm,
+    RealmTransition,
+    RealmType,
+    get_realm,
+)
+from src.liminal.soul_map import (
+    COGNITIVE_DIMENSIONS,
+    EMOTIONAL_DIMENSIONS,
+    MOTIVATIONAL_DIMENSIONS,
+    SELF_DIMENSIONS,
+    SOCIAL_DIMENSIONS,
+    SoulMap,
+    SoulMapCluster,
+    SoulMapDelta,
 )
 
 
@@ -72,8 +93,7 @@ class TestSoulMap:
         reconstructed = SoulMap.from_tensor(tensor)
 
         # Values should be preserved
-        assert abs(original.cognitive["processing_speed"] -
-                  reconstructed.cognitive["processing_speed"]) < 0.01
+        assert abs(original.cognitive["processing_speed"] - reconstructed.cognitive["processing_speed"]) < 0.01
 
     def test_soul_map_from_archetype(self):
         """Test archetype-based creation."""
@@ -117,8 +137,7 @@ class TestSoulMap:
         json_data = soul.to_json()
         reconstructed = SoulMap.from_json(json_data)
 
-        assert abs(soul.cognitive["processing_speed"] -
-                  reconstructed.cognitive["processing_speed"]) < 0.01
+        assert abs(soul.cognitive["processing_speed"] - reconstructed.cognitive["processing_speed"]) < 0.01
 
 
 class TestRealms:
@@ -164,9 +183,7 @@ class TestRealms:
         peregrine = get_realm(RealmType.PEREGRINE)
         ministry = get_realm(RealmType.MINISTRY)
 
-        can_transition, reason = RealmTransition.can_transition(
-            peregrine, ministry, soul
-        )
+        can_transition, reason = RealmTransition.can_transition(peregrine, ministry, soul)
         assert can_transition is True
 
 
@@ -525,12 +542,12 @@ class TestIntegration:
         while not done:
             # Random action selection
             import random
+
             action_type = random.choice(list(ActionType))
             action = {"type": action_type}
 
             game_state = env._get_game_state()
-            if action_type in [ActionType.ANALYZE, ActionType.INTERVENE,
-                              ActionType.PREDICT]:
+            if action_type in [ActionType.ANALYZE, ActionType.INTERVENE, ActionType.PREDICT]:
                 if game_state.nearby_npcs:
                     action["target_id"] = game_state.nearby_npcs[0]
                     if action_type == ActionType.INTERVENE:

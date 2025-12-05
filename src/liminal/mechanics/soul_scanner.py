@@ -13,13 +13,12 @@ Features:
 """
 
 from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Tuple
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-import torch
 
 from ..npcs.base_npc import BaseNPC
-from ..soul_map import SoulMap, SoulMapCluster
+from ..soul_map import SoulMap
 
 
 class AnalysisDepth(Enum):

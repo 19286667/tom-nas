@@ -15,16 +15,15 @@ by connecting the mind (Python) to the body (Godot).
 """
 
 import asyncio
-import json
 import logging
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
 from queue import Queue
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-from .action import ActionExecutor, ActionResult, GodotAction
+from .action import ActionExecutor, GodotAction
 from .perception import PerceptionProcessor, PerceptualField
 from .protocol import AgentCommand, AgentPerception, EntityUpdate, GodotMessage, MessageType, WorldState
 from .symbol_grounding import GroundingContext, SymbolGrounder

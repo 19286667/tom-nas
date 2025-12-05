@@ -14,15 +14,14 @@ control conditions for measuring ToM-specific capabilities.
 
 import random
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from ..world.social_world import Agent, SocialWorld4
+from ..world.social_world import SocialWorld4
 
 
 @dataclass
@@ -133,7 +132,7 @@ class SocialGameBenchmark:
                 break
 
             partner_id = random.choice(non_zombies)
-            partner = self.world.agents[partner_id]
+            _partner = self.world.agents[partner_id]  # Unused but kept for clarity
 
             # Build observation for model
             observation = self._build_cooperation_observation(partner_id, partner_histories)

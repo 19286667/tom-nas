@@ -6,11 +6,9 @@ across 9 layers covering biological, affective, and cognitive dimensions.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional
 
-import numpy as np
 import torch
-import torch.nn as nn
 
 
 @dataclass

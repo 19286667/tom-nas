@@ -14,23 +14,22 @@ The environment follows a gym-like interface for compatibility with
 standard RL training frameworks.
 """
 
-import json
 import random
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Any, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
 
-from .mechanics.cognitive_hazards import HAZARD_REGISTRY, CognitiveHazard, HazardCategory, apply_hazard
+from .mechanics.cognitive_hazards import HAZARD_REGISTRY, apply_hazard
 from .mechanics.ontological_instability import InstabilityLevel, OntologicalInstability, calculate_hazard_instability
-from .mechanics.soul_scanner import AnalysisDepth, AnalysisResult, SoulScanner
-from .npcs.archetypes import ARCHETYPES, create_archetype_npc, populate_realm
+from .mechanics.soul_scanner import AnalysisDepth, SoulScanner
+from .npcs.archetypes import populate_realm
 from .npcs.base_npc import BaseNPC, NPCBehavior, NPCState
 from .npcs.heroes import HERO_NPCS, create_hero_npc
-from .realms import REALMS, Realm, RealmLocation, RealmTransition, RealmType, get_realm
-from .soul_map import REALM_DIMENSIONS, SoulMap, SoulMapDelta
+from .realms import RealmTransition, RealmType, get_realm
+from .soul_map import SoulMap
 
 
 class ActionType(Enum):

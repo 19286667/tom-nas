@@ -8,34 +8,35 @@ Tests the complete system including:
 - Social games and ToM reasoning
 """
 
+import os
+import sys
 import unittest
+
 import torch
 import torch.nn as nn
-import sys
-import os
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.core.events import (
-    create_sally_anne_scenario,
-    verify_information_asymmetry,
-    InformationAsymmetryTracker,
-    EventType,
-)
-from src.core.beliefs import BeliefNetwork, RecursiveBeliefState
-from src.core.ontology import SoulMapOntology
 from src.benchmarks import (
+    SocialGameBenchmark,
+    SocialIQADataset,
     ToMiDataset,
     ToMiEvaluator,
-    SocialIQADataset,
-    SocialGameBenchmark,
     UnifiedBenchmark,
 )
+from src.core.beliefs import BeliefNetwork, RecursiveBeliefState
+from src.core.events import (
+    EventType,
+    InformationAsymmetryTracker,
+    create_sally_anne_scenario,
+    verify_information_asymmetry,
+)
+from src.core.ontology import SoulMapOntology
 from src.evolution.supernet import (
     ElasticLSTMCell,
-    ElasticTransparentRNN,
     ElasticTransformer,
+    ElasticTransparentRNN,
     ZeroCostProxy,
 )
 from src.liminal import LiminalEnvironment, SoulMap
@@ -52,21 +53,21 @@ class TestInformationAsymmetry(unittest.TestCase):
     def test_sally_has_false_belief(self):
         """Test that Sally has a false belief about the marble location."""
         results = verify_information_asymmetry()
-        self.assertEqual(results['sally_marble_belief'], 'basket')
-        self.assertEqual(results['reality'], 'box')
-        self.assertTrue(results['sally_has_false_belief'])
+        self.assertEqual(results["sally_marble_belief"], "basket")
+        self.assertEqual(results["reality"], "box")
+        self.assertTrue(results["sally_has_false_belief"])
 
     def test_anne_has_true_belief(self):
         """Test that Anne has the correct belief about marble location."""
         results = verify_information_asymmetry()
-        self.assertEqual(results['anne_marble_belief'], 'box')
-        self.assertTrue(results['anne_has_true_belief'])
+        self.assertEqual(results["anne_marble_belief"], "box")
+        self.assertTrue(results["anne_has_true_belief"])
 
     def test_observer_sees_all(self):
         """Test that Observer sees reality correctly."""
         results = verify_information_asymmetry()
-        self.assertEqual(results['observer_marble_belief'], 'box')
-        self.assertTrue(results['observer_has_true_belief'])
+        self.assertEqual(results["observer_marble_belief"], "box")
+        self.assertTrue(results["observer_has_true_belief"])
 
     def test_sally_observed_events(self):
         """Test that Sally observed the correct number of events.
@@ -81,8 +82,8 @@ class TestInformationAsymmetry(unittest.TestCase):
         Sally does NOT see Anne moving the marble (event 5 in sequence).
         """
         events, questions = create_sally_anne_scenario()
-        tracker = questions[0]['_tracker']
-        sally_beliefs = tracker.agent_beliefs['Sally']
+        tracker = questions[0]["_tracker"]
+        sally_beliefs = tracker.agent_beliefs["Sally"]
 
         # Sally observes 5 events (not the move event)
         self.assertEqual(len(sally_beliefs.observed_events), 5)
@@ -90,8 +91,8 @@ class TestInformationAsymmetry(unittest.TestCase):
     def test_anne_observed_events(self):
         """Test that Anne observed all events in the room."""
         events, questions = create_sally_anne_scenario()
-        tracker = questions[0]['_tracker']
-        anne_beliefs = tracker.agent_beliefs['Anne']
+        tracker = questions[0]["_tracker"]
+        anne_beliefs = tracker.agent_beliefs["Anne"]
 
         # Anne observes all 6 events
         self.assertEqual(len(anne_beliefs.observed_events), 6)
@@ -99,7 +100,7 @@ class TestInformationAsymmetry(unittest.TestCase):
     def test_all_verification_tests_pass(self):
         """Verify that all information asymmetry tests pass."""
         results = verify_information_asymmetry()
-        self.assertTrue(results['all_tests_passed'])
+        self.assertTrue(results["all_tests_passed"])
 
 
 class TestBeliefNetwork(unittest.TestCase):
@@ -156,11 +157,11 @@ class TestOntology(unittest.TestCase):
         ontology = SoulMapOntology()
 
         # Create a state
-        state = {'bio.vision': 0.8, 'bio.audition': 0.6}
+        state = {"bio.vision": 0.8, "bio.audition": 0.6}
         encoded = ontology.encode(state)
 
         self.assertEqual(encoded.shape[0], 181)
-        self.assertEqual(encoded[ontology.name_to_idx['bio.vision']], 0.8)
+        self.assertEqual(encoded[ontology.name_to_idx["bio.vision"]], 0.8)
 
     def test_default_state(self):
         """Test getting default state."""
@@ -208,7 +209,7 @@ class TestSocialIQABenchmark(unittest.TestCase):
         dataset = SocialIQADataset()
         inputs, labels = dataset.get_batch(batch_size=4)
 
-        self.assertEqual(inputs['context'].shape[0], 4)
+        self.assertEqual(inputs["context"].shape[0], 4)
         self.assertEqual(labels.shape[0], 4)
 
     def test_social_iqa_question_types(self):
@@ -265,35 +266,30 @@ class TestElasticSupernet(unittest.TestCase):
 
     def test_elastic_trn_forward(self):
         """Test elastic TRN forward pass."""
-        model = ElasticTransparentRNN(
-            input_dim=64, max_hidden_dim=256, output_dim=181, max_layers=4
-        )
+        model = ElasticTransparentRNN(input_dim=64, max_hidden_dim=256, output_dim=181, max_layers=4)
 
         x = torch.randn(2, 10, 64)  # Batch of 2, seq len 10
 
         # Full configuration
-        output = model(x, {'hidden_dim': 256, 'num_layers': 4})
+        output = model(x, {"hidden_dim": 256, "num_layers": 4})
         self.assertEqual(output.shape, torch.Size([2, 181]))
 
         # Smaller configuration
-        output = model(x, {'hidden_dim': 128, 'num_layers': 2})
+        output = model(x, {"hidden_dim": 128, "num_layers": 2})
         self.assertEqual(output.shape, torch.Size([2, 181]))
 
     def test_elastic_transformer_forward(self):
         """Test elastic transformer forward pass."""
-        model = ElasticTransformer(
-            input_dim=64, max_hidden_dim=256, output_dim=181,
-            max_layers=4, max_heads=8
-        )
+        model = ElasticTransformer(input_dim=64, max_hidden_dim=256, output_dim=181, max_layers=4, max_heads=8)
 
         x = torch.randn(2, 10, 64)
 
         # Full configuration
-        output = model(x, {'hidden_dim': 256, 'num_layers': 4, 'num_heads': 8})
+        output = model(x, {"hidden_dim": 256, "num_layers": 4, "num_heads": 8})
         self.assertEqual(output.shape, torch.Size([2, 181]))
 
         # Smaller configuration (must divide evenly)
-        output = model(x, {'hidden_dim': 128, 'num_layers': 2, 'num_heads': 4})
+        output = model(x, {"hidden_dim": 128, "num_layers": 2, "num_heads": 4})
         self.assertEqual(output.shape, torch.Size([2, 181]))
 
     def test_layer_norm_dimension_fix(self):
@@ -327,22 +323,14 @@ class TestZeroCostProxy(unittest.TestCase):
 
     def test_synflow_computation(self):
         """Test SynFlow proxy."""
-        model = nn.Sequential(
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64)
-        )
+        model = nn.Sequential(nn.Linear(64, 128), nn.ReLU(), nn.Linear(128, 64))
 
         score = ZeroCostProxy.synflow(model, input_shape=(64,))
         self.assertGreater(score, 0)
 
     def test_jacob_cov_computation(self):
         """Test Jacobian covariance proxy."""
-        model = nn.Sequential(
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, 10)
-        )
+        model = nn.Sequential(nn.Linear(64, 128), nn.ReLU(), nn.Linear(128, 10))
 
         score = ZeroCostProxy.jacob_cov(model, input_shape=(64,), num_samples=8)
         self.assertGreaterEqual(score, 0)
@@ -365,9 +353,9 @@ class TestUnifiedBenchmark(unittest.TestCase):
         benchmark = UnifiedBenchmark()
         summary = benchmark.get_benchmark_summary()
 
-        self.assertIn('tomi', summary)
-        self.assertIn('social_iqa', summary)
-        self.assertIn('social_games', summary)
+        self.assertIn("tomi", summary)
+        self.assertIn("social_iqa", summary)
+        self.assertIn("social_games", summary)
 
 
 class TestLiminalEnvironment(unittest.TestCase):
@@ -397,6 +385,7 @@ class TestIntegration(unittest.TestCase):
 
     def test_end_to_end_evaluation(self):
         """Test evaluating a model on benchmarks end-to-end."""
+
         # Create a simple model matching benchmark input dimension (64)
         # Model needs to handle sequence input [batch, seq, 64] -> [batch, 181]
         class SimpleModel(nn.Module):
@@ -415,12 +404,12 @@ class TestIntegration(unittest.TestCase):
 
         # Quick evaluation
         benchmark = UnifiedBenchmark()
-        results = benchmark.quick_evaluation(model, device='cpu')
+        results = benchmark.quick_evaluation(model, device="cpu")
 
-        self.assertIn('tom_score', results)
-        self.assertIn('control_score', results)
-        self.assertIn('specificity', results)
+        self.assertIn("tom_score", results)
+        self.assertIn("control_score", results)
+        self.assertIn("specificity", results)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

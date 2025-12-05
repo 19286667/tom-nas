@@ -4,11 +4,9 @@ Main evolutionary algorithm coordinating architecture evolution
 """
 
 import copy
-import json
 import random
-from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import torch
@@ -18,7 +16,6 @@ from ..agents.architectures import HybridArchitecture, RecursiveSelfAttention, T
 from .fitness import CompositeFitnessFunction
 from .operators import (
     AdaptiveMutation,
-    ArchitectureCrossover,
     ArchitectureGene,
     CoevolutionOperator,
     PopulationOperators,

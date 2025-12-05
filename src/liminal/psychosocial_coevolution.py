@@ -29,19 +29,17 @@ DESIGN PRINCIPLES
 5. MEANINGFUL COMPLEXITY: Every mechanism serves narrative and science
 """
 
-import math
 import random
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 import torch
-import torch.nn as nn
 
 from .npcs.base_npc import BaseNPC
-from .soul_map import SoulMap, SoulMapDelta
+from .soul_map import SoulMapDelta
 
 # =============================================================================
 # THEORETICAL CONSTANTS

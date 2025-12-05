@@ -13,7 +13,6 @@ all benchmarks and computing aggregate ToM scores.
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-import torch
 import torch.nn as nn
 
 from .social_games import (

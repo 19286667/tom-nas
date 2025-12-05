@@ -3,9 +3,8 @@ Social World 4: Complete society simulator with zombie detection
 """
 
 import random
-from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 import numpy as np
 import torch

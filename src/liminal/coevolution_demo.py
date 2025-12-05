@@ -29,12 +29,11 @@ import torch
 # Add parent directory for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from src.liminal.game_environment import ActionType, LiminalEnvironment
+from src.liminal.game_environment import ActionType
 from src.liminal.narrative_emergence import (
-    NarrativeArchetype,
     NarrativeEmergenceSystem,
 )
-from src.liminal.npcs.base_npc import BaseNPC, NPCState
+from src.liminal.npcs.base_npc import BaseNPC
 from src.liminal.psychosocial_coevolution import (
     EnvironmentEvolutionStrategy,
     PsychosocialCoevolutionEngine,
@@ -364,12 +363,12 @@ def print_generation_report(gen: int, metrics: DemoMetrics, narrative_system: Na
     print(f"GENERATION {gen} REPORT")
     print(f"{'='*60}")
 
-    print(f"\n  Population Fitness:")
+    print("\n  Population Fitness:")
     print(f"    Mean:     {metrics.mean_fitness:>8.4f}")
     print(f"    Max:      {metrics.max_fitness:>8.4f}")
     print(f"    Std Dev:  {metrics.diversity:>8.4f}")
 
-    print(f"\n  Social Dynamics:")
+    print("\n  Social Dynamics:")
     print(f"    Coalitions:        {metrics.coalition_count:>3}")
     print(f"    Active Narratives: {metrics.active_narratives:>3}")
     print(f"    ToM Challenge:     {metrics.tom_challenge_level:>3}")
@@ -379,7 +378,7 @@ def print_generation_report(gen: int, metrics: DemoMetrics, narrative_system: Na
     # Print active narratives
     active = narrative_system.get_active_narratives()
     if active:
-        print(f"\n  Active Narratives:")
+        print("\n  Active Narratives:")
         for narrative in active[:3]:
             print(f"    - [{narrative.archetype.name}] {narrative.title}")
             print(f"      Act {narrative.current_act}, Tension: {narrative.tension_level:.2f}")
@@ -387,7 +386,7 @@ def print_generation_report(gen: int, metrics: DemoMetrics, narrative_system: Na
     # Print ToM learning opportunities
     opportunities = narrative_system.get_tom_learning_opportunities()
     if opportunities:
-        print(f"\n  ToM Learning Opportunities:")
+        print("\n  ToM Learning Opportunities:")
         for opp in opportunities[:2]:
             print(f"    - {opp['challenge_description']}")
             print(f"      Requires ToM depth: {opp['tom_depth_required']}")
@@ -411,11 +410,11 @@ def run_demo(
     print("\n" + "=" * 70)
     print("PSYCHOSOCIAL CO-EVOLUTION DEMONSTRATION")
     print("=" * 70)
-    print(f"\nThis demonstration shows genuine bidirectional co-evolution:")
-    print(f"  - Agents evolve to handle increasingly complex social dynamics")
-    print(f"  - Environment evolves to maintain selection pressure")
-    print(f"  - Narratives emerge from the underlying dynamics")
-    print(f"  - All mechanisms are grounded in cognitive science\n")
+    print("\nThis demonstration shows genuine bidirectional co-evolution:")
+    print("  - Agents evolve to handle increasingly complex social dynamics")
+    print("  - Environment evolves to maintain selection pressure")
+    print("  - Narratives emerge from the underlying dynamics")
+    print("  - All mechanisms are grounded in cognitive science\n")
 
     # Print theoretical foundations
     print_theoretical_foundations()
@@ -470,15 +469,15 @@ def run_demo(
 
         # Check for convergence
         if metrics.tom_challenge_level >= 4:
-            print(f"\n  Environment has reached high complexity!")
-            print(f"  Agents require 4th-order ToM reasoning.")
+            print("\n  Environment has reached high complexity!")
+            print("  Agents require 4th-order ToM reasoning.")
 
     # Final summary
     print("\n" + "=" * 70)
     print("DEMONSTRATION COMPLETE")
     print("=" * 70)
 
-    print(f"\n  Evolution Summary:")
+    print("\n  Evolution Summary:")
     print(f"    Initial mean fitness:    {all_metrics[0].mean_fitness:.4f}")
     print(f"    Final mean fitness:      {all_metrics[-1].mean_fitness:.4f}")
     print(f"    Initial ToM challenge:   {all_metrics[0].tom_challenge_level}")
@@ -487,12 +486,12 @@ def run_demo(
     print(f"    Final env complexity:    {all_metrics[-1].env_complexity:.3f}")
 
     narrative_metrics = narrative_system.get_narrative_metrics()
-    print(f"\n  Narrative Emergence:")
+    print("\n  Narrative Emergence:")
     print(f"    Total narratives detected: {narrative_metrics['total_detected']}")
     print(f"    Narratives resolved:       {narrative_metrics['resolved']}")
     print(f"    Average ToM depth required: {narrative_metrics['average_tom_depth']:.1f}")
 
-    print(f"\n  Top narrative archetypes:")
+    print("\n  Top narrative archetypes:")
     sorted_archetypes = sorted(narrative_metrics["by_archetype"].items(), key=lambda x: x[1], reverse=True)
     for archetype, count in sorted_archetypes[:5]:
         if count > 0:

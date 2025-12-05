@@ -31,15 +31,12 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-import torch
 import torch.nn as nn
 
-from .fitness import CompositeFitnessFunction
-from .nas_engine import EvolutionConfig, Individual, NASEngine
-from .operators import ArchitectureGene
+from .nas_engine import Individual, NASEngine
 
 
 class EnvironmentType(Enum):
@@ -348,7 +345,7 @@ class POETController:
             self.nas_engine.initialize_population()
 
         # Create initial agent-environment pairs
-        print(f"\nPairing agents with environments...")
+        print("\nPairing agents with environments...")
         agents_per_env = min(self.config.num_agents_per_env, len(self.nas_engine.population) // len(self.environments))
 
         agent_idx = 0
@@ -645,7 +642,7 @@ class POETController:
 
         # Best agent
         best_pair = max(self.pairs.values(), key=lambda p: p.fitness)
-        print(f"\nBest agent:")
+        print("\nBest agent:")
         print(f"  Architecture: {best_pair.agent.gene.gene_dict['arch_type']}")
         print(f"  Fitness:      {best_pair.fitness:.4f}")
         print(f"  ToM depth:    {best_pair.tom_depth_achieved}")

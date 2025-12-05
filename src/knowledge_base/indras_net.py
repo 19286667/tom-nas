@@ -15,10 +15,9 @@ entire network. Perception triggers cascading activation through the web.
 
 import json
 import pickle
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 import numpy as np
@@ -37,7 +36,6 @@ from .taxonomy import (
     ARCHETYPE_TAXONOMY_POSITIONS,
     INSTITUTION_TAXONOMY_POSITIONS,
     FullTaxonomy,
-    TaxonomyLayer,
 )
 
 

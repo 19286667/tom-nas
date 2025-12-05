@@ -4,7 +4,7 @@ Evaluates agents on Theory of Mind capabilities
 """
 
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 import numpy as np
 import torch

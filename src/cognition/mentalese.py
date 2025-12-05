@@ -21,12 +21,11 @@ Theoretical Foundation:
 """
 
 import hashlib
-import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
@@ -108,12 +107,10 @@ class CognitiveBlock(ABC):
     @abstractmethod
     def to_tensor(self) -> np.ndarray:
         """Convert block to tensor representation for neural processing."""
-        pass
 
     @abstractmethod
     def to_natural_language(self) -> str:
         """Compress to lossy natural language representation."""
-        pass
 
     def add_evidence(self, evidence: Evidence) -> None:
         """Add supporting evidence and update confidence."""

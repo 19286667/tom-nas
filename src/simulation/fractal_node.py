@@ -18,7 +18,7 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 import numpy as np
 import torch
@@ -95,7 +95,6 @@ class RSCAgent(ABC):
     @abstractmethod
     def perceive(self, attention_stream: Any) -> Any:
         """Process incoming perceptions via TRM."""
-        pass
 
     @abstractmethod
     def decide_action(self, world_state: Dict[str, Any]) -> Dict[str, Any]:
@@ -104,12 +103,10 @@ class RSCAgent(ABC):
         - ACT: Return physical action for Godot
         - SIMULATE: Return simulation request
         """
-        pass
 
     @abstractmethod
     def compress(self, data: Any) -> Any:
         """Apply TRM compression to create CognitiveBlock."""
-        pass
 
     def should_search_architecture(self, surprise: float) -> bool:
         """Check if compression failure warrants architecture search."""

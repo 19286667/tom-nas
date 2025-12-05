@@ -30,24 +30,16 @@ Each source generates archetypal patterns that humans naturally
 recognize and find meaningful.
 """
 
-import math
 import random
-from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
-import torch
 
 from .npcs.base_npc import BaseNPC
 from .psychosocial_coevolution import (
     PsychosocialCoevolutionEngine,
-    RelationshipType,
-    SocialEdge,
-    SocialNetwork,
-    TheoreticalConstants,
 )
-from .soul_map import SoulMap
 
 # =============================================================================
 # NARRATIVE ARCHETYPES
@@ -402,7 +394,7 @@ class NarrativeDetector:
 
                     return {
                         "confidence": 0.75,
-                        "title": f"The Contest for Dominance",
+                        "title": "The Contest for Dominance",
                         "description": (
                             f"Two titans within the same alliance: {name1} and {name2}. The group cannot have two heads. One must yield, or both must fall."
                         ),
@@ -849,9 +841,9 @@ class NarrativeProgressionEngine:
 
             if abs(prot_status - ant_status) > 0.3:
                 if prot_status > ant_status:
-                    return f"Protagonist prevails, antagonist submitted"
+                    return "Protagonist prevails, antagonist submitted"
                 else:
-                    return f"Antagonist prevails, protagonist submitted"
+                    return "Antagonist prevails, protagonist submitted"
 
         return None
 

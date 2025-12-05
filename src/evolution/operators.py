@@ -5,7 +5,7 @@ Mutation and crossover for neural architectures
 
 import copy
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
 import torch

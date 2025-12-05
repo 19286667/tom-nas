@@ -15,7 +15,7 @@ than on reality questions, indicating genuine mental state reasoning.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
@@ -425,7 +425,7 @@ def test_tom_fitness():
     print("\nEvaluating model...")
     result = fitness.evaluate(model)
 
-    print(f"\n--- Results ---")
+    print("\n--- Results ---")
     print(f"Total Fitness: {result.total_fitness:.4f}")
     print(f"ToM Accuracy: {result.tom_accuracy:.4f}")
     print(f"Control Accuracy: {result.control_accuracy:.4f}")

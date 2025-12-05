@@ -15,7 +15,6 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import numpy as np
 import torch
 import torch.nn as nn
 
@@ -23,8 +22,6 @@ import torch.nn as nn
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from .game_environment import ActionType, LiminalEnvironment, Observation
-from .npcs.base_npc import BaseNPC
-from .soul_map import SoulMap
 
 
 @dataclass

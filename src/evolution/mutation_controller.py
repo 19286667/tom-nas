@@ -16,8 +16,7 @@ for Theory of Mind capability.
 """
 
 import random
-from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -661,7 +660,7 @@ def test_mutation_controller():
     }
 
     top_mutations = analyzer.get_top_mutations(test_config)
-    print(f"Top predicted mutations for transformer config:")
+    print("Top predicted mutations for transformer config:")
     for param, old, new, pred in top_mutations:
         print(f"  {param}: {old} -> {new} (pred improvement: {pred:.4f})")
 

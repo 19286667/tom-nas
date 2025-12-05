@@ -16,13 +16,12 @@ Each hazard has:
 - Cost (player resource cost)
 """
 
-import random
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..npcs.base_npc import BaseNPC
-from ..soul_map import SoulMap, SoulMapDelta
+from ..soul_map import SoulMapDelta
 
 
 class HazardCategory(Enum):

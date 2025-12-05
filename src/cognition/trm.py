@@ -20,8 +20,7 @@ Theoretical Foundation:
 - Neural Turing Machines (Graves)
 """
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -30,10 +29,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .mentalese import (
-    BeliefBlock,
-    BlockType,
     CognitiveBlock,
-    IntentBlock,
     PerceptBlock,
 )
 

@@ -14,13 +14,11 @@ Additionally, realm-specific modifiers (5 dims) track how the environment
 affects the NPC's psychological state.
 """
 
-import json
 import random
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
 import torch
 
 

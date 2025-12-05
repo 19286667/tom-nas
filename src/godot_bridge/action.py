@@ -15,13 +15,12 @@ This closes the sensorimotor loop - perception leads to
 cognition leads to action leads to new perception.
 """
 
-import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
-from .protocol import AgentCommand, GodotMessage, MessageType, Vector3
+from .protocol import AgentCommand, GodotMessage, Vector3
 from .symbol_grounding import GroundedSymbol, SymbolGrounder
 
 

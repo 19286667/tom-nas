@@ -21,9 +21,8 @@ Instability Effects:
 - Level 5: Total reality collapse (game over condition)
 """
 
-import random
-from dataclasses import dataclass, field
-from enum import Enum, auto
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 

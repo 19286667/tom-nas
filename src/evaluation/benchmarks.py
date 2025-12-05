@@ -3,11 +3,9 @@ Theory of Mind Benchmarks for ToM-NAS
 Comprehensive test suite for evaluating ToM capabilities
 """
 
-from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
-import numpy as np
 import torch
 import torch.nn as nn
 

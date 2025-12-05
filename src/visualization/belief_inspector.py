@@ -8,13 +8,11 @@ Shows:
 - Second-order beliefs (what A thinks B thinks)
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, List
 
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from plotly.subplots import make_subplots
 
 if TYPE_CHECKING:
     from ..core.events import Event, InformationAsymmetryTracker

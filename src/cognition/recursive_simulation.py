@@ -25,17 +25,13 @@ import logging
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
-import numpy as np
 
 from .mentalese import (
     BeliefBlock,
-    BlockType,
-    CognitiveBlock,
     IntentBlock,
     MemoryBlock,
-    SimulationState,
 )
 
 logger = logging.getLogger(__name__)

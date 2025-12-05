@@ -15,8 +15,7 @@ that evaluate every candidate fully.
 """
 
 import random
-from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -493,7 +492,6 @@ class EfficientNASPipeline:
         """
         print("Stage 1: Zero-cost proxy filtering")
         from ..agents.architectures import RecursiveSelfAttention, TransformerToMAgent, TransparentRNN
-        from .supernet import SubnetConfig
         from .zero_cost_proxies import ArchitectureFilter, ZeroCostProxy
 
         self.proxy_evaluator = ZeroCostProxy(
@@ -636,9 +634,9 @@ def test_linas():
 
     results = search.run_search(eval_data, num_iterations=3, candidates_per_iteration=20, evaluations_per_iteration=5)
 
-    print(f"\nFinal results:")
+    print("\nFinal results:")
     print(f"  Total evaluations: {results['total_evaluations']}")
-    print(f"  Best architectures:")
+    print("  Best architectures:")
     for features, fitness in results["best_architectures"][:3]:
         print(
             f"    {features.arch_type}: layers={features.num_layers}, "

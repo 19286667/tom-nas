@@ -2,13 +2,10 @@
 Agent Architectures for ToM-NAS - TRN, RSAN, Transformer
 """
 
-import math
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class TransparentRNN(nn.Module):
