@@ -26,15 +26,9 @@ In Indra's Net, each pearl reflects all others.
 __version__ = "2.0.0"
 __author__ = "ToM-NAS Research Team"
 
-from . import core
-from . import agents
-from . import world
-from . import evolution
-from . import evaluation
-from . import knowledge_base
-from . import cognition
-from . import godot_bridge
-from . import simulation
+# Lazy imports to allow importing specific submodules without loading all dependencies
+# Use: from src.godot_bridge import GodotBridge (works without torch)
+# Or: import src; src.core (loads torch when accessed)
 
 __all__ = [
     # Original modules
@@ -51,3 +45,13 @@ __all__ = [
     # Metadata
     '__version__',
 ]
+
+
+def __getattr__(name):
+    """Lazy import of submodules."""
+    if name in __all__ and name != '__version__':
+        import importlib
+        module = importlib.import_module(f".{name}", __name__)
+        globals()[name] = module
+        return module
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
