@@ -11,6 +11,7 @@ The Physical is Cognitive:
 
 Key Components:
 - GodotBridge: WebSocket server for bidirectional communication
+- EnhancedGodotServer: Extended bridge with BeliefNetwork integration
 - SymbolGrounder: Maps Godot entities to semantic nodes
 - PerceptionProcessor: Processes sensory input into CognitiveBlocks
 - ActionExecutor: Translates intents into Godot commands
@@ -35,11 +36,26 @@ from .protocol import (
     MessageType,
 )
 
+# Enhanced server with BeliefNetwork integration
+from .enhanced_server import (
+    EnhancedGodotServer,
+    EnhancedServerConfig,
+    AgentState,
+    BeliefUpdateEvent,
+    create_enhanced_server,
+)
+
 __all__ = [
     # Bridge
     "GodotBridge",
     "BridgeConfig",
     "ConnectionState",
+    # Enhanced Server (with BeliefNetwork)
+    "EnhancedGodotServer",
+    "EnhancedServerConfig",
+    "AgentState",
+    "BeliefUpdateEvent",
+    "create_enhanced_server",
     # Symbol Grounding
     "SymbolGrounder",
     "GroundedSymbol",

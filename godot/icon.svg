@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a5568"/>
+      <stop offset="100%" style="stop-color:#2d3748"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="128" height="128" rx="20" fill="url(#bg)"/>
+  <!-- Brain/Mind symbol -->
+  <circle cx="64" cy="50" r="25" fill="none" stroke="#48bb78" stroke-width="3"/>
+  <path d="M50 50 Q64 35 78 50 Q64 65 50 50" fill="none" stroke="#48bb78" stroke-width="2"/>
+  <!-- Network nodes -->
+  <circle cx="40" cy="90" r="8" fill="#4299e1"/>
+  <circle cx="64" cy="85" r="8" fill="#48bb78"/>
+  <circle cx="88" cy="90" r="8" fill="#ed8936"/>
+  <!-- Connections -->
+  <line x1="48" y1="90" x2="56" y2="85" stroke="#a0aec0" stroke-width="2"/>
+  <line x1="72" y1="85" x2="80" y2="90" stroke="#a0aec0" stroke-width="2"/>
+  <line x1="64" y1="75" x2="64" y2="77" stroke="#a0aec0" stroke-width="2"/>
+  <!-- ToM label -->
+  <text x="64" y="115" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#e2e8f0">ToM-NAS</text>
+</svg>
