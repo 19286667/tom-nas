@@ -79,11 +79,23 @@ class TestSocialEdge:
 
     def test_relationship_type_ally(self):
         """Test ally classification."""
-        from src.liminal.psychosocial_coevolution import SocialEdge, RelationshipType
+        from src.liminal.psychosocial_coevolution import (
+            SocialEdge, RelationshipType, TheoreticalConstants
+        )
 
         edge = SocialEdge(source_id="a", target_id="b")
-        edge.trust = 0.8
-        edge.affect = 0.5
+        # Relationship type classification order in get_relationship_type():
+        # 1. STRANGER: familiarity < 0.1
+        # 2. ACQUAINTANCE: familiarity < 0.3
+        # 3. COALITION: trust > COALITION_FORMATION_THRESHOLD AND affect > 0.3
+        # 4. ALLY: trust > 0.6 AND affect > 0
+        # 5. ENEMY: trust < 0.4 AND affect < -0.3
+        # 6. RIVAL: affect < 0
+        # 7. ACQUAINTANCE: default fallback
+        #
+        # To get ALLY, we need: trust > 0.6, affect > 0, but affect <= 0.3 (to avoid COALITION)
+        edge.trust = TheoreticalConstants.COALITION_FORMATION_THRESHOLD + 0.05  # Exceeds threshold
+        edge.affect = 0.2  # Positive but not exceeding 0.3 threshold for coalition
         edge.familiarity = 0.5
 
         assert edge.get_relationship_type() == RelationshipType.ALLY
