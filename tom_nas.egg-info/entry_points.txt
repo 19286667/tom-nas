@@ -1,0 +1,4 @@
+[console_scripts]
+tom-coevolve = train_coevolution:main
+tom-experiment = experiment_runner:main
+tom-train = train:main

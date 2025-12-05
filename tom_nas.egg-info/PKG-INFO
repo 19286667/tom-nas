@@ -1,0 +1,44 @@
+Metadata-Version: 2.1
+Name: tom-nas
+Version: 1.0.0
+Summary: Theory of Mind Neural Architecture Search Framework
+Home-page: https://github.com/19286667/tom-nas
+Author: ToM-NAS Research Team
+License: MIT
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+
+# ToM-NAS: Theory of Mind Neural Architecture Search
+
+## Complete Implementation - PhD Project 19286667
+
+### Overview
+Complete Theory of Mind system through coevolutionary neural architecture search.
+
+### Key Components
+- **181-dimensional Soul Map Ontology**: Complete psychological grounding
+- **5th-order Recursive Beliefs**: Genuine nested belief reasoning
+- **Three Coevolving Architectures**: TRN, RSAN, Transformer
+- **Social World 4**: Complex society simulation
+- **Zombie Detection**: 6 types ensuring genuine ToM
+- **Evolutionary Framework**: Multi-level coevolution
+
+### Quick Start
+```bash
+pip install torch numpy
+python test_system.py
+python integrated_tom_system.py
+```
+
+### Documentation
+Full implementation details in project documents.
