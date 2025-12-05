@@ -26,18 +26,35 @@ In Indra's Net, each pearl reflects all others.
 __version__ = "2.0.0"
 __author__ = "ToM-NAS Research Team"
 
+# Core modules
 from . import core
 from . import agents
 from . import world
 from . import evolution
 from . import evaluation
+
+# Fractal Semiotic Engine modules
 from . import knowledge_base
 from . import cognition
 from . import godot_bridge
 from . import simulation
 
+# Liminal game environment
+from . import liminal
+
+# Benchmarks and visualization
+from . import benchmarks
+from . import visualization
+
+# Training and transparency
+from . import training
+from . import transparency
+
+# Game integration
+from . import game
+
 __all__ = [
-    # Original modules
+    # Core modules
     'core',
     'agents',
     'world',
@@ -48,6 +65,16 @@ __all__ = [
     'cognition',
     'godot_bridge',
     'simulation',
+    # Liminal game environment
+    'liminal',
+    # Benchmarks and visualization
+    'benchmarks',
+    'visualization',
+    # Training and transparency
+    'training',
+    'transparency',
+    # Game integration
+    'game',
     # Metadata
     '__version__',
 ]
