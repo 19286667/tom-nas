@@ -10,7 +10,6 @@ The UnifiedBenchmark class provides a single interface for running
 all benchmarks and computing aggregate ToM scores.
 """
 
-import torch
 import torch.nn as nn
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
