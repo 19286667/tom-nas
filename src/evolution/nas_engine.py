@@ -407,9 +407,10 @@ class NASEngine:
     def load_checkpoint(self, filepath: str):
         """Load evolution checkpoint.
 
-        Note: Only load checkpoints from trusted sources.
+        Note: Only load checkpoints from trusted sources (same user, same
+        environment). Contains optimizer state and generation data.
         """
-        # weights_only=False required for loading complex nested objects
+        # weights_only=False required for loading optimizer state and generation data
         checkpoint = torch.load(filepath, weights_only=False)
 
         self.generation = checkpoint['generation']
