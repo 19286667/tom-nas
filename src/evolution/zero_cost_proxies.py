@@ -241,7 +241,7 @@ class ZeroCostProxy:
                     return logdet.item()
                 else:
                     return -1000.0  # Degenerate case
-            except:
+            except (RuntimeError, ValueError):
                 return -1000.0
 
         finally:

@@ -11,11 +11,16 @@ that affect NPC behavior and player interactions:
 5. Hollow Reaches (The Shadow) - Cosmic Horror, Consumption/Corruption
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Dict, List, Optional, Tuple, Any, Callable
+from typing import Dict, List, Optional, Tuple, Any, Callable, TYPE_CHECKING
 import random
 import math
+
+if TYPE_CHECKING:
+    from .soul_map import SoulMap
 
 
 class RealmType(Enum):
@@ -81,7 +86,7 @@ class Realm:
     # Locations within this realm
     locations: List[RealmLocation] = field(default_factory=list)
 
-    def apply_ambient_effects(self, soul_map: "SoulMap", duration: float = 1.0) -> Dict[str, float]:
+    def apply_ambient_effects(self, soul_map: SoulMap, duration: float = 1.0) -> Dict[str, float]:
         """
         Apply ambient realm effects to a Soul Map.
 
@@ -100,7 +105,7 @@ class Realm:
 
         return changes_applied
 
-    def check_realm_condition(self, soul_map: "SoulMap") -> Tuple[bool, str]:
+    def check_realm_condition(self, soul_map: SoulMap) -> Tuple[bool, str]:
         """
         Check if an NPC meets the realm's requirements.
 
@@ -129,7 +134,7 @@ class Realm:
 
         return True, "OK"
 
-    def get_vibe_compatibility(self, soul_map: "SoulMap") -> float:
+    def get_vibe_compatibility(self, soul_map: SoulMap) -> float:
         """
         Calculate how well an NPC's Soul Map matches the realm's 'vibe'.
 
@@ -464,7 +469,7 @@ class RealmTransition:
     """Handles transitions between realms."""
 
     @staticmethod
-    def can_transition(from_realm: Realm, to_realm: Realm, soul_map: "SoulMap") -> Tuple[bool, str]:
+    def can_transition(from_realm: Realm, to_realm: Realm, soul_map: SoulMap) -> Tuple[bool, str]:
         """Check if a transition is possible based on Soul Map state."""
         # Check if leaving current realm is possible
         passed, reason = from_realm.check_realm_condition(soul_map)
@@ -485,7 +490,7 @@ class RealmTransition:
         return True, "OK"
 
     @staticmethod
-    def apply_transition_effects(from_realm: Realm, to_realm: Realm, soul_map: "SoulMap") -> Dict[str, float]:
+    def apply_transition_effects(from_realm: Realm, to_realm: Realm, soul_map: SoulMap) -> Dict[str, float]:
         """Apply one-time effects when transitioning between realms."""
         from .soul_map import SoulMapDelta
 
