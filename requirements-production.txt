@@ -1,0 +1,47 @@
+# ToM-NAS Full Production Requirements
+# Use with Cloud Build (not Cloud Shell) - builds in isolated container
+# Total size: ~4GB (fits in standard Cloud Run container)
+
+# =============================================================================
+# IMPORTANT: This file is for Cloud Build / Docker only
+# For Cloud Shell development, use: pip install -r requirements-minimal.txt
+# =============================================================================
+
+# Core ML Framework (full GPU-capable version)
+torch==2.1.2
+numpy==1.26.2
+scipy==1.11.4
+
+# Graph Operations
+networkx==3.2.1
+
+# Visualization
+matplotlib==3.8.2
+plotly==5.18.0
+streamlit==1.29.0
+
+# Data Processing
+pandas==2.1.4
+scikit-learn==1.3.2
+
+# Progress & Utilities
+tqdm==4.66.1
+
+# Google Cloud Integration
+google-cloud-logging==3.8.0
+google-cloud-monitoring==2.18.0
+google-cloud-storage==2.14.0
+
+# Production Server
+gunicorn==21.2.0
+uvicorn==0.25.0
+
+# API Framework
+fastapi==0.108.0
+pydantic==2.5.3
+
+# Observability
+prometheus-client==0.19.0
+
+# Security
+python-dotenv==1.0.0
