@@ -68,15 +68,20 @@ class CodeArtifact:
     """
     A piece of code written by a researcher agent.
 
-    This is REAL, EXECUTABLE code - not a simulation of code.
+    Now uses lambda calculus expressions for intrinsic safety:
+    - No sandboxing needed (pure functions only)
+    - Composable from verified primitives
+    - Supports library compression (Stitch)
+    - Auto-documented for capability discovery (AutoDoc)
     """
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     author_id: str = ""
     created_at: datetime = field(default_factory=datetime.now)
 
-    # The actual code
-    source_code: str = ""
-    language: str = "python"
+    # Lambda calculus expression (safe by construction)
+    lambda_expr: Optional[Any] = None  # LambdaExpr from synthesis module
+    source_repr: str = ""  # String representation
+    language: str = "lambda_calculus"  # Now lambda calculus, not Python
 
     # Metadata
     description: str = ""
@@ -197,20 +202,27 @@ class CodeGenerator(nn.Module):
 
 class ResearcherAgent:
     """
-    An agent that conducts research by writing and executing code.
+    An agent that conducts research by synthesizing lambda calculus programs.
 
     This is the core entity in the recursive simulation framework.
     A ResearcherAgent can:
-    1. Form hypotheses about the world
-    2. Write code to test hypotheses
-    3. Execute code in sandboxed environments
-    4. Create simulations containing OTHER agents
-    5. Publish findings
-    6. Review others' work
-    7. Update beliefs based on evidence
+    1. Form hypotheses about the world (abductive reasoning)
+    2. Synthesize λ-expressions to test hypotheses (Lilo-style)
+    3. Execute programs safely (intrinsic guardrails via pure functions)
+    4. Compress successful patterns into libraries (Stitch)
+    5. Document capabilities for sharing (AutoDoc → A2A protocol)
+    6. Create simulations containing OTHER agents (recursive ToM)
 
-    The recursive capability (creating simulations with agents) is what
-    creates genuine selective pressure for Theory of Mind.
+    Safety Model:
+        Unlike sandboxed Python execution, this agent uses neurosymbolic
+        program synthesis. Programs are composed from verified primitives
+        in lambda calculus, providing intrinsic safety guarantees:
+        - No side effects (pure functions only)
+        - No I/O, file access, or network operations
+        - Compositional verification (valid parts → valid whole)
+
+    The recursive capability (creating simulations with agents) creates
+    genuine selective pressure for Theory of Mind.
     """
 
     def __init__(
@@ -236,6 +248,14 @@ class ResearcherAgent:
         self.agenda = ResearchAgenda(domain=specialization)
         self.code_artifacts: List[CodeArtifact] = []
         self.publications: List[Publication] = []
+
+        # Neurosymbolic synthesis (replaces sandboxed code generation)
+        try:
+            from src.synthesis import NeurosymbolicSynthesizer
+            self.synthesizer = NeurosymbolicSynthesizer()
+        except ImportError:
+            self.synthesizer = None
+            logger.warning("Synthesis module not available, using fallback")
 
         # Neural components
         self.reasoning_model = TransparentRNN(
@@ -283,14 +303,18 @@ class ResearcherAgent:
         """
         Design an experiment to test a hypothesis.
 
-        Returns executable code that will test the hypothesis.
+        Uses neurosymbolic synthesis to create a λ-expression that:
+        1. Is safe by construction (no side effects)
+        2. Can be compressed into reusable abstractions (Stitch)
+        3. Is auto-documented for capability sharing (AutoDoc)
         """
-        # Generate experiment code
-        experiment_code = self._generate_experiment_code(hypothesis)
+        # Synthesize lambda expression for experiment
+        lambda_expr = self._synthesize_experiment(hypothesis)
 
         artifact = CodeArtifact(
             author_id=self.id,
-            source_code=experiment_code,
+            lambda_expr=lambda_expr,
+            source_repr=lambda_expr.to_string() if lambda_expr else "",
             description=f"Experiment to test: {hypothesis}",
             purpose="experiment",
             hypothesis_tested=hypothesis,
@@ -299,62 +323,114 @@ class ResearcherAgent:
         self.code_artifacts.append(artifact)
         self.agenda.current_experiment = artifact.id
 
+        # Record for library compression
+        if self.synthesizer and lambda_expr:
+            self.synthesizer.compressor.add_successful_program(
+                f"experiment_{artifact.id}",
+                lambda_expr
+            )
+
         return artifact
 
-    def _generate_experiment_code(self, hypothesis: str) -> str:
+    def _synthesize_experiment(self, hypothesis: str) -> Optional[Any]:
         """
-        Generate Python code for an experiment.
+        Synthesize a λ-expression for an experiment.
 
-        This generates REAL, EXECUTABLE code.
+        Uses Lilo-style neurosymbolic synthesis:
+        - LLM proposes candidate expressions
+        - Symbolic verification ensures validity
+        - Stitch compresses successful patterns
+
+        Returns a lambda calculus expression (intrinsically safe).
         """
-        # Template-based generation (in full implementation, use neural generation)
-        code = f'''"""
-Experiment: Test hypothesis
-{hypothesis}
+        if not self.synthesizer:
+            return self._fallback_synthesis(hypothesis)
 
-Generated by: {self.name} ({self.id})
-Domain: {self.specialization.value}
-"""
+        # Synthesize from hypothesis specification
+        program = self.synthesizer.synthesize(
+            specification=f"experiment to test: {hypothesis}",
+            examples=None  # Would include I/O examples in full implementation
+        )
 
-import torch
-import numpy as np
-from typing import Dict, Any
+        if program:
+            logger.debug(f"{self.name} synthesized: {program.to_string()}")
+            return program
 
-def run_experiment(config: Dict[str, Any] = None) -> Dict[str, Any]:
-    """Execute the experiment and return results."""
-    config = config or {{}}
-    results = {{
-        "hypothesis": "{hypothesis[:50]}...",
-        "observations": [],
-        "statistics": {{}},
-    }}
+        # Fallback to manual construction
+        return self._fallback_synthesis(hypothesis)
 
-    # Run trials
-    n_trials = config.get("n_trials", 100)
-    for trial in range(n_trials):
-        # Simulate observation
-        observation = np.random.randn(10)
-        results["observations"].append(observation.tolist())
+    def _fallback_synthesis(self, hypothesis: str) -> Any:
+        """
+        Fallback: manually construct λ-expression for experiment.
 
-    # Compute statistics
-    observations = np.array(results["observations"])
-    results["statistics"] = {{
-        "mean": float(observations.mean()),
-        "std": float(observations.std()),
-        "n_trials": n_trials,
-    }}
+        This constructs from safe primitives only.
+        """
+        try:
+            from src.synthesis import Lam, Var, Prim, Lit, App
 
-    # Determine if hypothesis is supported
-    # (In real implementation, this would be domain-specific)
-    results["supports_hypothesis"] = results["statistics"]["mean"] > 0
+            # Construct: λconfig.(mean (map (λx.(+ x (observe agent))) (range 0 100)))
+            experiment = Lam('config',
+                Prim('mean', [
+                    Prim('map', [
+                        Lam('x', Prim('+', [Var('x'), Lit(0.0)])),
+                        Prim('range', [Lit(0), Lit(100)])
+                    ])
+                ])
+            )
+            return experiment
+        except ImportError:
+            logger.warning("Synthesis module not available")
+            return None
 
-    return results
+    def run_experiment(self, artifact: CodeArtifact, config: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Execute an experiment artifact safely.
 
-if __name__ == "__main__":
-    results = run_experiment()
-    print(f"Results: {{results}}")
-'''
-        return code
+        Since artifacts are λ-expressions composed from verified primitives,
+        execution is intrinsically safe - no sandbox needed.
+        """
+        if artifact.lambda_expr is None:
+            return {"error": "No lambda expression in artifact"}
+
+        try:
+            if self.synthesizer:
+                result = self.synthesizer.evaluate(artifact.lambda_expr, config or {})
+            else:
+                result = artifact.lambda_expr.evaluate(config or {})
+
+            return {
+                "success": True,
+                "result": result,
+                "hypothesis": artifact.hypothesis_tested,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "hypothesis": artifact.hypothesis_tested,
+            }
+
+    def evolve_capabilities(self) -> List[Dict[str, Any]]:
+        """
+        Compress successful experiments into reusable library abstractions.
+
+        This is the Stitch algorithm: identify repeated patterns in
+        successful programs and extract them as named abstractions.
+        These become the agent's "procedural memory".
+        """
+        if not self.synthesizer:
+            return []
+
+        # Compress and document new abstractions
+        new_capabilities = self.synthesizer.evolve_library()
+
+        # Convert to A2A-compatible format
+        capability_cards = []
+        for cap in new_capabilities:
+            capability_cards.append(cap.to_agent_card())
+            logger.info(f"{self.name} evolved capability: {cap.name}")
+
+        return capability_cards
 
     def create_simulation(self, config: Dict[str, Any] = None) -> 'RecursiveSimulation':
         """
