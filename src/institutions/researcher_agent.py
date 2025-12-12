@@ -30,6 +30,7 @@ from src.config import get_logger
 from src.config.constants import SOUL_MAP_DIMS, INPUT_DIMS, OUTPUT_DIMS
 from src.core.beliefs import RecursiveBeliefState, BeliefNetwork
 from src.agents.architectures import TransparentRNN
+from src.simulation.fractal_node import RSCAgent
 
 logger = get_logger(__name__)
 
@@ -200,7 +201,7 @@ class CodeGenerator(nn.Module):
         return logits
 
 
-class ResearcherAgent:
+class ResearcherAgent(RSCAgent):
     """
     An agent that conducts research by synthesizing lambda calculus programs.
 
@@ -230,12 +231,34 @@ class ResearcherAgent:
         agent_id: str = None,
         name: str = "Researcher",
         institution_id: str = None,
-        specialization: ResearchDomain = ResearchDomain.COGNITIVE_SCIENCE,
+        institution_type: str = "research_lab",
+        specialization: ResearchDomain = None,
+        specialty: str = None,  # Alternative to specialization
     ):
-        self.id = agent_id or str(uuid.uuid4())[:8]
+        # Initialize RSCAgent parent
+        agent_id = agent_id or str(uuid.uuid4())[:8]
+        super().__init__(agent_id=agent_id, tom_depth=5)
+
+        self.id = agent_id
         self.name = name
         self.institution_id = institution_id
-        self.specialization = specialization
+        self.institution_type = institution_type
+
+        # Handle specialization via specialty string or ResearchDomain
+        if specialization:
+            self.specialization = specialization
+        elif specialty:
+            self.specialty = specialty
+            self.specialization = ResearchDomain.COGNITIVE_SCIENCE  # Default
+        else:
+            self.specialty = "general"
+            self.specialization = ResearchDomain.COGNITIVE_SCIENCE
+
+        # Position in world (for visualization)
+        self.position = {"x": 0.0, "y": 0.0, "z": 0.0}
+        self.current_realm = "hollow"
+        self.current_activity = "idle"
+        self.current_thought = ""
 
         # Cognitive architecture
         self.belief_state = RecursiveBeliefState(
@@ -245,7 +268,7 @@ class ResearcherAgent:
         )
 
         # Research state
-        self.agenda = ResearchAgenda(domain=specialization)
+        self.agenda = ResearchAgenda(domain=self.specialization)
         self.code_artifacts: List[CodeArtifact] = []
         self.publications: List[Publication] = []
 
@@ -599,3 +622,172 @@ class ResearcherAgent:
         )
 
         return fitness
+
+    # ==========================================================================
+    # RSCAgent Interface Implementation
+    # ==========================================================================
+
+    def perceive(self, attention_stream: Any) -> Any:
+        """
+        Process incoming perceptions via TRM (Transparent Reasoning Module).
+
+        Implements the RSCAgent interface for perception processing.
+        """
+        # Convert attention stream to tensor
+        if isinstance(attention_stream, dict):
+            # Extract relevant features from world state
+            entities = attention_stream.get('entities', {})
+            agents = attention_stream.get('agents', [])
+
+            # Build perception tensor
+            perception = torch.zeros(INPUT_DIMS)
+            perception[0] = attention_stream.get('tick', 0) / 1000.0
+            perception[1] = attention_stream.get('entropy', 0.5)
+            perception[2] = len(entities) / 100.0
+            perception[3] = len(agents) / 50.0
+        elif isinstance(attention_stream, torch.Tensor):
+            perception = attention_stream
+        else:
+            perception = torch.zeros(INPUT_DIMS)
+
+        # Process through reasoning model
+        with torch.no_grad():
+            output = self.reasoning_model(perception.unsqueeze(0).unsqueeze(0))
+
+        # Update internal state
+        self.current_thought = f"Processing {len(attention_stream.get('entities', {})) if isinstance(attention_stream, dict) else 0} entities"
+
+        return output
+
+    def decide_action(self, world_state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Decide whether to ACT or SIMULATE.
+
+        Implements the RSCAgent interface for action selection.
+        Returns action dict with 'type' being one of:
+        - 'physical': Physical action to execute in Godot
+        - 'simulate': Request to spawn nested simulation
+        - 'research': Conduct research activity
+        - 'none': No action
+        """
+        import random
+
+        # Probabilistic activity selection based on agent state
+        activities = ['research', 'collaborate', 'simulate', 'move', 'idle']
+        weights = [0.3, 0.15, 0.1, 0.25, 0.2]
+
+        activity = random.choices(activities, weights=weights)[0]
+        self.current_activity = activity
+
+        if activity == 'research':
+            # Decide to conduct research
+            if len(self.agenda.hypotheses) < 5:
+                # Form new hypothesis
+                obs = torch.randn(INPUT_DIMS)
+                hypothesis = self.form_hypothesis(obs)
+                self.current_thought = f"Hypothesis: {hypothesis[:50]}..."
+            else:
+                # Design experiment for existing hypothesis
+                hypothesis = random.choice(self.agenda.hypotheses)
+                artifact = self.design_experiment(hypothesis)
+                self.current_thought = f"Testing: {hypothesis[:50]}..."
+
+            return {
+                "type": "research",
+                "activity": "forming_hypothesis" if len(self.agenda.hypotheses) < 5 else "experimenting",
+            }
+
+        elif activity == 'simulate':
+            # Request nested simulation
+            self.current_thought = "Running recursive simulation..."
+            return {
+                "type": "simulate",
+                "seed_state": self._get_seed_state(),
+                "horizon": 20,
+            }
+
+        elif activity == 'collaborate':
+            # Collaborate with nearby agents
+            self.current_thought = "Discussing findings..."
+            return {
+                "type": "physical",
+                "godot_command": "interact",
+                "target_entity": None,  # Will be filled by simulation
+                "parameters": {"interaction_type": "discuss"},
+            }
+
+        elif activity == 'move':
+            # Move to different location
+            realm_targets = {
+                'hollow': (0, 0),
+                'market': (80, 0),
+                'ministry': (60, -80),
+                'court': (-80, 0),
+                'temple': (0, 80),
+            }
+            target_realm = random.choice(list(realm_targets.keys()))
+            target_pos = realm_targets[target_realm]
+
+            self.current_thought = f"Heading to {target_realm}..."
+            self.current_realm = target_realm
+
+            # Update position gradually
+            self.position['x'] = target_pos[0] + random.uniform(-15, 15)
+            self.position['z'] = target_pos[1] + random.uniform(-15, 15)
+
+            return {
+                "type": "physical",
+                "godot_command": "move_to",
+                "target_entity": None,
+                "parameters": {
+                    "x": self.position['x'],
+                    "z": self.position['z'],
+                },
+            }
+
+        else:  # idle
+            self.current_thought = "Contemplating..."
+            return {"type": "none"}
+
+    def _get_seed_state(self) -> Dict[str, Any]:
+        """Get seed state for spawning a nested simulation."""
+        return {
+            "creator_beliefs": self.belief_state.to_dict() if hasattr(self.belief_state, 'to_dict') else {},
+            "creator_hypotheses": self.agenda.hypotheses[-3:],
+            "depth": self.simulation_depth + 1,
+        }
+
+    def compress(self, data: Any) -> Any:
+        """
+        Apply TRM compression to create CognitiveBlock.
+
+        Implements the RSCAgent interface for memory compression.
+        """
+        if isinstance(data, torch.Tensor):
+            # Simple compression: average pooling
+            compressed = data.mean(dim=-1, keepdim=True)
+        elif isinstance(data, dict):
+            # Compress dict to summary tensor
+            compressed = torch.zeros(64)
+            for i, (k, v) in enumerate(list(data.items())[:64]):
+                if isinstance(v, (int, float)):
+                    compressed[i] = float(v)
+        else:
+            compressed = torch.zeros(64)
+
+        return compressed
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize agent state for transmission."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "specialty": getattr(self, 'specialty', self.specialization.value),
+            "realm": self.current_realm,
+            "position": self.position,
+            "activity": self.current_activity,
+            "thought": self.current_thought,
+            "publications_count": len(self.publications),
+            "hypotheses_count": len(self.agenda.hypotheses),
+            "simulations_created": len(self.simulations_created),
+        }
