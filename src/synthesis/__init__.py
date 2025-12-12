@@ -464,6 +464,146 @@ class NeurosymbolicSynthesizer:
         self.compressor = StitchCompressor()
         self.autodoc = AutoDoc()
         self.program_cache: Dict[str, LambdaExpr] = {}
+        self._llm = None  # Lazy initialization
+
+    def _get_llm(self):
+        """Lazy initialization of LLM integration."""
+        if self._llm is None:
+            try:
+                from src.llm import get_llm_integration
+                self._llm = get_llm_integration()
+                # Set verifier to validate lambda expressions
+                self._llm.set_verifier(self._validate_expression)
+            except ImportError:
+                logger.warning("LLM integration not available")
+        return self._llm
+
+    def _validate_expression(self, source: str) -> bool:
+        """Validate that a source string is a valid lambda expression."""
+        try:
+            expr = self._parse_lambda(source)
+            return expr is not None
+        except Exception:
+            return False
+
+    def _parse_lambda(self, source: str) -> Optional[LambdaExpr]:
+        """Parse a lambda calculus string into an expression."""
+        source = source.strip()
+
+        # Handle literal values
+        if source.isdigit():
+            return Lit(int(source))
+        try:
+            return Lit(float(source))
+        except ValueError:
+            pass
+
+        if source.startswith('"') and source.endswith('"'):
+            return Lit(source[1:-1])
+
+        # Handle variables
+        if source.isidentifier():
+            return Var(source)
+
+        # Handle parenthesized expressions
+        if source.startswith('(') and source.endswith(')'):
+            inner = source[1:-1].strip()
+
+            # Lambda abstraction: (λx. body) or (lambda x. body)
+            if inner.startswith('λ') or inner.startswith('lambda'):
+                if inner.startswith('λ'):
+                    rest = inner[1:].strip()
+                else:
+                    rest = inner[6:].strip()
+
+                # Find parameter and body
+                dot_pos = rest.find('.')
+                if dot_pos > 0:
+                    param = rest[:dot_pos].strip()
+                    body_str = rest[dot_pos+1:].strip()
+                    body = self._parse_lambda(body_str)
+                    if body:
+                        return Lam(param, body)
+
+            # Check if it's a primitive call
+            parts = self._tokenize(inner)
+            if parts and parts[0] in PRIMITIVES:
+                prim_name = parts[0]
+                args = [self._parse_lambda(p) for p in parts[1:]]
+                if all(a is not None for a in args):
+                    return Prim(prim_name, args)
+
+            # Application: (f x)
+            if len(parts) == 2:
+                func = self._parse_lambda(parts[0])
+                arg = self._parse_lambda(parts[1])
+                if func and arg:
+                    return App(func, arg)
+
+        return None
+
+    def _tokenize(self, s: str) -> List[str]:
+        """Tokenize a lambda expression string."""
+        tokens = []
+        current = ""
+        depth = 0
+
+        for char in s:
+            if char == '(' :
+                if depth == 0 and current.strip():
+                    tokens.append(current.strip())
+                    current = ""
+                current += char
+                depth += 1
+            elif char == ')':
+                current += char
+                depth -= 1
+                if depth == 0:
+                    tokens.append(current.strip())
+                    current = ""
+            elif char.isspace() and depth == 0:
+                if current.strip():
+                    tokens.append(current.strip())
+                    current = ""
+            else:
+                current += char
+
+        if current.strip():
+            tokens.append(current.strip())
+
+        return tokens
+
+    async def synthesize_async(
+        self,
+        specification: str,
+        examples: List[Tuple[Any, Any]] = None,
+    ) -> Optional[LambdaExpr]:
+        """
+        Synthesize a program using LLM backend.
+
+        This is the preferred method - uses LLM for proposal generation.
+        """
+        llm = self._get_llm()
+
+        if llm:
+            # Convert examples to LLM format
+            llm_examples = None
+            if examples:
+                llm_examples = [{"input": inp, "output": out} for inp, out in examples]
+
+            candidate = await llm.synthesize(specification, llm_examples)
+
+            if candidate and candidate.source:
+                program = self._parse_lambda(candidate.source)
+                if program:
+                    # Verify if examples provided
+                    if not examples or self._verify_program(program, examples):
+                        self.compressor.add_successful_program(specification, program)
+                        self.program_cache[specification] = program
+                        return program
+
+        # Fallback to pattern matching
+        return self.synthesize(specification, examples)
 
     def synthesize(
         self,
