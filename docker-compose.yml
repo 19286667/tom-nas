@@ -1,0 +1,118 @@
+# ToM-NAS Docker Compose Configuration
+# For local development and testing
+
+version: '3.9'
+
+services:
+  # ==========================================================================
+  # Main API Service
+  # ==========================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: tom-nas-api
+    ports:
+      - "8080:8080"
+    environment:
+      - TOM_NAS_ENV=development
+      - TOM_NAS_DEBUG=true
+      - TOM_NAS_LOG_LEVEL=DEBUG
+      - TOM_NAS_DEVICE=cpu
+      - ENABLE_METRICS=true
+      - ENABLE_CLOUD_LOGGING=false
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./results:/app/results
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - tom-nas-network
+
+  # ==========================================================================
+  # Streamlit Dashboard
+  # ==========================================================================
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: streamlit
+    container_name: tom-nas-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - TOM_NAS_ENV=development
+      - API_URL=http://api:8080
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./results:/app/results
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - tom-nas-network
+
+  # ==========================================================================
+  # Development Container
+  # ==========================================================================
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: tom-nas-dev
+    ports:
+      - "8080:8080"
+      - "8501:8501"
+      - "8888:8888"  # Jupyter
+    environment:
+      - TOM_NAS_ENV=development
+      - TOM_NAS_DEBUG=true
+      - TOM_NAS_LOG_LEVEL=DEBUG
+    volumes:
+      - .:/app
+      - tom-nas-cache:/home/tomnas/.cache
+    stdin_open: true
+    tty: true
+    networks:
+      - tom-nas-network
+    profiles:
+      - dev
+
+  # ==========================================================================
+  # Training Worker (for long-running evolution jobs)
+  # ==========================================================================
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: tom-nas-worker
+    environment:
+      - TOM_NAS_ENV=production
+      - TOM_NAS_LOG_LEVEL=INFO
+      - TOM_NAS_DEVICE=cpu
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./results:/app/results
+      - ./logs:/app/logs
+    command: ["python", "experiment_runner.py", "--experiment", "evolution"]
+    restart: "no"
+    networks:
+      - tom-nas-network
+    profiles:
+      - training
+
+networks:
+  tom-nas-network:
+    driver: bridge
+
+volumes:
+  tom-nas-cache:

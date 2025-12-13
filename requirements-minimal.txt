@@ -1,0 +1,18 @@
+# ToM-NAS MINIMAL Requirements
+# Use this for Cloud Shell and development (~500MB total)
+# For full deployment, use requirements-lock.txt with Cloud Build
+
+# Core ML (CPU-only PyTorch - 200MB vs 2.5GB)
+--index-url https://download.pytorch.org/whl/cpu
+torch==2.1.2+cpu
+
+# Essential only
+numpy==1.26.2
+networkx==3.2.1
+tqdm==4.66.1
+
+# API (lightweight)
+fastapi==0.108.0
+uvicorn==0.25.0
+pydantic==2.5.3
+python-dotenv==1.0.0

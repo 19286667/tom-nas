@@ -1,0 +1,23 @@
+# WebSocket Bridge Container
+# Connects web clients to simulation engine
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir \
+    websockets==12.0 \
+    aiohttp==3.9.1 \
+    python-dotenv==1.0.0
+
+# Copy bridge code
+COPY src/bridge/ ./src/bridge/
+
+# Non-root user
+RUN useradd -m -u 1000 bridge && chown -R bridge:bridge /app
+USER bridge
+
+EXPOSE 8765
+
+CMD ["python", "-m", "src.bridge.server"]

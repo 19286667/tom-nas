@@ -1,0 +1,108 @@
+version: '3.8'
+
+# ToM-NAS: Immersive Simulation Environment
+# Designed for deployment on repurposed laptop as NAS
+# Minimal resource footprint, maximum exploration
+
+services:
+  # Core simulation engine
+  simulation:
+    build:
+      context: .
+      dockerfile: Dockerfile.nas
+    container_name: tom-simulation
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TOM_MODE=simulation
+      - TOM_TICK_RATE=10  # Simulation ticks per second
+      - TOM_MAX_AGENTS=100
+      - TOM_ENABLE_RECURSION=true
+      - TOM_LOG_LEVEL=INFO
+    volumes:
+      - simulation-state:/app/state
+      - ./logs:/app/logs
+    networks:
+      - tom-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+
+  # WebSocket bridge - real-time state sync
+  bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.bridge
+    container_name: tom-bridge
+    restart: unless-stopped
+    environment:
+      - SIMULATION_HOST=simulation
+      - SIMULATION_PORT=8000
+      - WEBSOCKET_PORT=8765
+      - MAX_CLIENTS=10
+    ports:
+      - "8765:8765"
+    depends_on:
+      simulation:
+        condition: service_healthy
+    networks:
+      - tom-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
+  # Web UI - Three.js immersive world
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: tom-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - bridge
+    networks:
+      - tom-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+
+  # Optional: Nginx reverse proxy for cleaner URLs
+  proxy:
+    image: nginx:alpine
+    container_name: tom-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+      - bridge
+    networks:
+      - tom-network
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.1'
+
+volumes:
+  simulation-state:
+    driver: local
+
+networks:
+  tom-network:
+    driver: bridge
